@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Quiz Challenge - Premium Tech Trivia</title>
+  <!-- Google Fonts: Outfit and Inter for sleek modern UI typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="definitions.js"></script>
+</head>
+
+<body class="dark-mode">
+
+  <!-- Canvas overlay for background particles/blobs -->
+  <div class="bg-blobs-container">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <!-- MAIN APP WRAPPER -->
+  <div class="app-container">
+
+    <!-- NAVIGATION HEADER -->
+    <header class="app-header">
+      <div class="header-brand" id="btn-brand">  
+        <img id="app-logo" src="assets/logo.png" alt="AI Quiz Challenge Logo" class="brand-logo">
+        <span class="brand-name">AI Quiz <span class="gradient-text">Challenge</span></span>
+        </div>
+
+      <div class="header-actions">
+        <!-- Dynamic Coins Ball Orb -->
+        <div id="header-coins-ball" class="header-coins-ball" style="margin-right: 10px;">
+          <span class="orb-icon">🪙</span>
+          <span id="header-coins-val" class="orb-value">0</span>
+          <div class="orb-tooltip-box" id="orb-tooltip-box">
+            <strong class="dict-key" data-key="tooltip-coins-title">Coins Balance</strong>
+            <p class="dict-key" data-key="tooltip-coins-desc">You earn 1 Coin for every 1 XP gained by answering
+              questions correctly. Coins can be spent in the Reward Shop to unlock custom themes, frames, and avatars!
+            </p>
+          </div>
+        </div>
+
+        <!-- Language Switcher Selector -->
+        <select id="select-language-toggle" class="icon-btn"
+          style="padding: 0 4px; font-size: 13px; border-radius: var(--radius-sm); border: 1px solid var(--border-card); background: var(--bg-card); color: var(--text-main); font-weight: 600; cursor: pointer; height: 36px; outline: none; margin-right: 10px;"
+          title="Select Language">
+          <option value="en">EN</option>
+          <option value="ta">தமிழ்</option>
+          <option value="hi">हिंदी</option>
+        </select>
+
+        <!-- Notification Bell -->
+        <div class="notification-bell-wrapper">
+          <button id="btn-notifications-toggle" class="icon-btn" title="Notifications">
+            <span>🔔</span>
+            <span id="notifications-unread-count" class="unread-count-badge hidden">0</span>
+          </button>
+          <div id="drawer-notifications" class="notification-drawer hidden">
+            <div class="notification-header">
+              <h4>Notifications</h4>
+              <button id="btn-clear-notifications" class="clear-notifications-btn">Mark all read</button>
+            </div>
+            <div id="notifications-list" class="notification-list">
+              <div class="no-notifications">No new notifications</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dark/Light Mode Button -->
+        <button id="btn-theme-toggle" class="icon-btn" title="Toggle Theme">
+          <span class="theme-icon">🌙</span>
+        </button>
+
+        <!-- User Session Panel -->
+        <div id="user-session-widget">
+          <button id="btn-nav-login" class="nav-btn btn-primary-outline">Sign In</button>
+          <div id="user-profile-summary" class="profile-summary hidden">
+            <span id="user-display-name" class="username-display">Guest Player</span>
+            <button id="btn-nav-logout" class="icon-btn" title="Log Out">
+              <span>🚪</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT VIEWS (SPA SCREENS) -->
+    <main class="app-main">
+
+      <!-- 1. LANDING VIEW -->
+      <section id="view-landing" class="app-view">
+        <div class="hero-section text-center">
+          <div class="hero-logo-large">
+            <img src="assets/logo.png" alt="Quiz Game Logo Large" class="hero-logo-img">
+          </div>
+          <h1 class="hero-title">Test Your Brain in the <br><span class="gradient-text">AI Quiz Arena</span></h1>
+          <p class="hero-subtitle">
+            Compete in 10 technical categories, climb the global leaderboard, earn unique badges, and unlock the daily
+            challenge.
+          </p>
+          <div class="hero-actions">
+            <button id="btn-start-arena" class="action-btn btn-gradient btn-lg">Enter the Arena</button>
+            <button id="btn-view-leaderboard-landing" class="action-btn btn-secondary btn-lg">View Leaderboards</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. AUTHENTICATION VIEW -->
+      <section id="view-auth" class="app-view hidden">
+        <div class="card auth-card animate-fade-in">
+          <div class="auth-tabs">
+            <button id="tab-login" class="auth-tab active">Login</button>
+            <button id="tab-register" class="auth-tab">Sign Up</button>
+          </div>
+
+          <!-- Login Form -->
+          <form id="form-login" class="auth-form">
+            <div class="form-group">
+              <label for="login-username">Username or Email</label>
+              <input type="text" id="login-username" placeholder="Enter username or email" required>
+            </div>
+            <div class="form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label for="login-password">Password</label>
+                <button type="button" id="btn-auth-forgot" class="btn-link" style="font-size: 11px;">Forgot
+                  Password?</button>
+              </div>
+              <input type="password" id="login-password" placeholder="Enter password" required>
+            </div>
+            <button type="submit" class="action-btn btn-gradient btn-block">Log In</button>
+
+            <div style="margin: 15px 0; text-align: center; font-size: 12px; color: var(--text-muted);">or</div>
+            <button type="button" id="btn-google-auth" class="action-btn btn-secondary btn-block"
+              style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <span>🌐</span> Sign In with Google
+            </button>
+          </form>
+
+          <!-- Registration Form -->
+          <form id="form-register" class="auth-form hidden">
+            <div class="form-group">
+              <label for="reg-username">Username</label>
+              <input type="text" id="reg-username" placeholder="Choose username" required>
+            </div>
+            <div class="form-group">
+              <label for="reg-email">Email Address</label>
+              <input type="email" id="reg-email" placeholder="Enter email" required>
+            </div>
+            <div class="form-group">
+              <label for="reg-password">Password</label>
+              <input type="password" id="reg-password" placeholder="Min. 6 characters" required minlength="6">
+            </div>
+            <button type="submit" class="action-btn btn-gradient btn-block">Create Account</button>
+          </form>
+
+          <p class="auth-switch text-center">
+            Or play without account: <button id="btn-guest-play" class="btn-link">Play as Guest</button>
+          </p>
+        </div>
+      </section>
+
+      <!-- 3. DASHBOARD VIEW -->
+      <section id="view-dashboard" class="app-view hidden">
+        <div class="dashboard-subnav-row">
+          <div id="tab-dash-arena" class="dash-nav-tab active">🎮 Arena</div>
+          <div id="tab-dash-profile" class="dash-nav-tab">👤 Profile</div>
+          <div id="tab-dash-shop" class="dash-nav-tab">🪙 Shop</div>
+          <div id="tab-dash-predictor" class="dash-nav-tab">📊 Predictor</div>
+        </div>
+
+        <div class="dashboard-grid">
+
+          <!-- User Stats Profile Card (Left column) -->
+          <div class="card profile-card">
+            <div class="profile-header">
+              <div class="avatar-large" id="dash-avatar-container" style="position: relative;">
+                <span id="dash-avatar-emoji">👤</span>
+                <div class="avatar-frame-overlay" id="dash-avatar-frame"></div>
+              </div>
+              <div class="profile-info">
+                <h2 id="dash-username">Guest Player</h2>
+                <span id="dash-user-role" class="badge badge-role">User</span>
+                <div>
+                  <span id="dash-fav-cat" class="fav-category-label hidden">AI</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Profile Bio -->
+            <p id="dash-bio"
+              style="font-size: 12px; color: var(--text-muted); font-style: italic; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 8px;">
+              No bio added yet.</p>
+
+            <div class="stats-overview-grid">
+              <div class="stat-box">
+                <span class="stat-label">Total XP</span>
+                <span class="stat-val" id="dash-xp">0 XP</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">Coins</span>
+                <span class="stat-val" id="dash-coins" style="color: var(--accent-amber);">100</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">Streak</span>
+                <span class="stat-val" id="dash-streak">🔥 0</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">Quizzes</span>
+                <span class="stat-val" id="dash-completed">0</span>
+              </div>
+            </div>
+
+            <!-- XP Level Progress Bar -->
+            <div class="level-progress-container" style="margin-top: 15px; padding: 0 5px;">
+              <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px;">
+                <span>Level <strong id="dash-level">1</strong></span>
+                <span id="dash-level-xp-text" style="color: var(--text-muted);">0 / 100 XP</span>
+              </div>
+              <div class="progress-bar-container"
+                style="height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                <div id="dash-level-progress-fill" class="progress-bar-fill"
+                  style="width: 0%; height: 100%; background: var(--primary-gradient); transition: width 0.3s ease;">
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="profile-quick-actions" style="margin-top: 25px;">
+              <button id="btn-dash-bookmarks" class="action-btn btn-secondary btn-block" style="margin-bottom: 10px;">🔖
+                Practice Bookmarks (<span id="bookmarks-count">0</span>)</button>
+              <button id="btn-dash-leaderboard" class="action-btn btn-secondary btn-block">🏆 Global
+                Leaderboard</button>
+              <button id="btn-dash-admin" class="action-btn btn-danger-outline btn-block hidden">⚙️ Admin
+                Console</button>
+            </div>
+          </div>
+
+          <!-- RIGHT COLUMN: Dashboard Workspaces -->
+          <div class="dashboard-main-content">
+
+            <!-- A. ARENA TAB PANEL -->
+            <div id="panel-dash-arena" class="dash-tab-content">
+              <!-- Daily Challenge Portal -->
+              <div class="card daily-challenge-card">
+                <div class="card-header-icon">📅</div>
+                <h3>Daily Challenge</h3>
+                <p>A fresh, fixed set of 10 trivia questions updated every 24 hours. Earn 100 bonus XP!</p>
+                <div class="daily-status" id="daily-challenge-status">Status: Loading...</div>
+                <button id="btn-launch-daily" class="action-btn btn-gradient">Launch Daily Quiz</button>
+              </div>
+
+              <!-- Quiz Arena Configuration Card -->
+              <div class="card arena-card">
+                <h3>Configure Quiz Arena</h3>
+                <p>Pick a category, difficulty, and game mode to test your technical skills.</p>
+                <div class="form-group">
+                  <label for="arena-category">Topic Category</label>
+                  <select id="arena-category">
+                    <option value="AI">Artificial Intelligence</option>
+                    <option value="HTML">HTML</option>
+                    <option value="CSS">CSS</option>
+                    <option value="JavaScript">JavaScript</option>
+                    <option value="Java">Java</option>
+                    <option value="Python">Python</option>
+                    <option value="C">C Programming</option>
+                    <option value="C++">C++</option>
+                    <option value="DBMS">DBMS</option>
+                    <option value="SQL">SQL</option>
+                    <option value="MongoDB">MongoDB</option>
+                    <option value="NodeJS">Node.js</option>
+                    <option value="React">React</option>
+                    <option value="DSA">Data Structures</option>
+                    <option value="OS">Operating Systems</option>
+                    <option value="CN">Computer Networks</option>
+                    <option value="SE">Software Engineering</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label>Select Difficulty</label>
+                  <div class="difficulty-picker">
+                    <input type="radio" name="difficulty" id="diff-easy" value="easy" checked>
+                    <label for="diff-easy" class="diff-btn">Easy</label>
+
+                    <input type="radio" name="difficulty" id="diff-medium" value="medium">
+                    <label for="diff-medium" class="diff-btn">Medium</label>
+
+                    <input type="radio" name="difficulty" id="diff-hard" value="hard">
+                    <label for="diff-hard" class="diff-btn">Hard</label>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>Select Game Mode</label>
+                  <div class="mode-picker">
+                    <div class="mode-option">
+                      <input type="radio" name="gamemode" id="mode-classic" value="classic" checked>
+                      <label for="mode-classic" class="mode-btn">
+                        <span class="mode-icon">🎮</span>
+                        <span class="mode-title">Classic</span>
+                        <span class="mode-desc">10 Qs, 3 lives, 15s timer</span>
+                      </label>
+                    </div>
+                    <div class="mode-option">
+                      <input type="radio" name="gamemode" id="mode-speed" value="speed">
+                      <label for="mode-speed" class="mode-btn">
+                        <span class="mode-icon">⚡</span>
+                        <span class="mode-title">Speed Run</span>
+                        <span class="mode-desc">15 Qs, 1 life, 8s timer (+30% XP)</span>
+                      </label>
+                    </div>
+                    <div class="mode-option">
+                      <input type="radio" name="gamemode" id="mode-survival" value="survival">
+                      <label for="mode-survival" class="mode-btn">
+                        <span class="mode-icon">❤️</span>
+                        <span class="mode-title">Survival</span>
+                        <span class="mode-desc">Endless, 3 lives, 12s timer (+50% XP)</span>
+                      </label>
+                    </div>
+                    <div class="mode-option">
+                      <input type="radio" name="gamemode" id="mode-marathon" value="marathon">
+                      <label for="mode-marathon" class="mode-btn">
+                        <span class="mode-icon">🏃</span>
+                        <span class="mode-title">Marathon</span>
+                        <span class="mode-desc">30 Qs, 5 lives, 20s timer (+20% XP)</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Practice Mode Options -->
+                <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px;">
+                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
+                    <input type="checkbox" id="arena-practice-mode" style="width:16px; height:16px;">
+                    Enable Practice Mode (No score penalty, unlimited retries)
+                  </label>
+                </div>
+
+                <div id="practice-timer-group" class="form-group hidden" style="margin-left: 24px; margin-top: 10px;">
+                  <label
+                    style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text-muted);">
+                    <input type="checkbox" id="practice-optional-timer" checked style="width:14px; height:14px;">
+                    Enable Question Timer in Practice
+                  </label>
+                </div>
+
+                <button id="btn-launch-quiz" class="action-btn btn-gradient btn-lg btn-block">🚀 Start Quiz</button>
+              </div>
+
+              <!-- Achievements/Badges Gallery Card -->
+              <div class="card achievements-card">
+                <h3>Achievements & Badges</h3>
+                <p class="sub-heading">Solve quiz conditions to unlock these digital medals</p>
+                <div class="badges-grid" id="badges-container">
+                  <div class="badge-item locked" data-badge="first_step" title="Complete 1 quiz">
+                    <div class="badge-icon">🎖️</div>
+                    <div class="badge-name">First Step</div>
+                    <div class="badge-desc">Complete 1 quiz</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="quiz_streak_5"
+                    title="Achieve a 5-day daily activity streak">
+                    <div class="badge-icon">🔥</div>
+                    <div class="badge-name">5 Quiz Streak</div>
+                    <div class="badge-desc">5-day streak</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="perfect_10" title="Achieve 10 perfect score quizzes">
+                    <div class="badge-icon">🏆</div>
+                    <div class="badge-name">10 Perfect Quizzes</div>
+                    <div class="badge-desc">10 perfect scores</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="completed_25" title="Complete 25 quizzes in total">
+                    <div class="badge-icon">🧙‍♂️</div>
+                    <div class="badge-name">25 Quizzes Completed</div>
+                    <div class="badge-desc">25 quizzes done</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="xp_1000" title="Reach 1,000 total Experience Points (XP)">
+                    <div class="badge-icon">⭐</div>
+                    <div class="badge-name">Earn 1000 XP</div>
+                    <div class="badge-desc">Earn 1000 XP</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="perfectionist" title="Get a perfect score">
+                    <div class="badge-icon">🏆</div>
+                    <div class="badge-name">Perfectionist</div>
+                    <div class="badge-desc">Perfect score</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="quiz_master" title="Complete 10 quizzes">
+                    <div class="badge-icon">🧙‍♂️</div>
+                    <div class="badge-name">Quiz Master</div>
+                    <div class="badge-desc">10 quizzes done</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="legendary_brain" title="Perfect score on Hard">
+                    <div class="badge-icon">☄️</div>
+                    <div class="badge-name">Legendary Brain</div>
+                    <div class="badge-desc">Perfect on Hard</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="dedicated_scholar" title="3+ Day daily activity streak">
+                    <div class="badge-icon">📚</div>
+                    <div class="badge-name">Scholar</div>
+                    <div class="badge-desc">3+ Day streak</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="ai_guru" title="Perfect score in AI category">
+                    <div class="badge-icon">🧠</div>
+                    <div class="badge-name">AI Guru</div>
+                    <div class="badge-desc">Perfect in AI</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="speed_demon" title="Complete a quiz in Speed Run mode">
+                    <div class="badge-icon">⚡</div>
+                    <div class="badge-name">Speed Demon</div>
+                    <div class="badge-desc">Speed run complete</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="survivor" title="Get a score of 20+ in Survival mode">
+                    <div class="badge-icon">🛡️</div>
+                    <div class="badge-name">Survivor</div>
+                    <div class="badge-desc">20+ in Survival</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="marathon_runner" title="Complete a quiz in Marathon mode">
+                    <div class="badge-icon">🏃</div>
+                    <div class="badge-name">Marathoner</div>
+                    <div class="badge-desc">Marathon complete</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="half_century" title="Complete 50 quizzes in total">
+                    <div class="badge-icon">🎖️</div>
+                    <div class="badge-name">Half Century</div>
+                    <div class="badge-desc">50 quizzes done</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="century_club" title="Complete 100 quizzes in total">
+                    <div class="badge-icon">👑</div>
+                    <div class="badge-name">Century Club</div>
+                    <div class="badge-desc">100 quizzes done</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="streak_king" title="7+ Day daily activity streak">
+                    <div class="badge-icon">🔥</div>
+                    <div class="badge-name">Streak King</div>
+                    <div class="badge-desc">7+ Day streak</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="unstoppable" title="14+ Day daily activity streak">
+                    <div class="badge-icon">🚀</div>
+                    <div class="badge-name">Unstoppable</div>
+                    <div class="badge-desc">14+ Day streak</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="perfectionist_elite" title="Get 5 perfect quizzes">
+                    <div class="badge-icon">💎</div>
+                    <div class="badge-name">Elite Perfect</div>
+                    <div class="badge-desc">5 perfect quizzes</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="no_lifeline"
+                    title="Get a perfect score on Hard without utilizing any lifelines">
+                    <div class="badge-icon">🚫</div>
+                    <div class="badge-name">No Lifeline</div>
+                    <div class="badge-desc">Perfect on Hard with no aid</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="night_owl"
+                    title="Attempt a quiz during late night (12 AM - 5 AM)">
+                    <div class="badge-icon">🦉</div>
+                    <div class="badge-name">Night Owl</div>
+                    <div class="badge-desc">Active 12AM-5AM</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="early_bird"
+                    title="Attempt a quiz during early morning (5 AM - 7 AM)">
+                    <div class="badge-icon">🌅</div>
+                    <div class="badge-name">Early Bird</div>
+                    <div class="badge-desc">Active 5AM-7AM</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="jack_of_all_trades"
+                    title="Attempt quizzes in all 10 topic categories">
+                    <div class="badge-icon">🤹</div>
+                    <div class="badge-name">Jack of Trades</div>
+                    <div class="badge-desc">Try all 10 topics</div>
+                  </div>
+                  <div class="badge-item locked" data-badge="category_master"
+                    title="Achieve a perfect score in 5 distinct topic categories">
+                    <div class="badge-icon">🎓</div>
+                    <div class="badge-name">Cat Master</div>
+                    <div class="badge-desc">Perfect in 5 topics</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Bookmarked Questions Card -->
+              <div class="card bookmarks-card">
+                <h3>Bookmarked Questions (<span id="bookmark-count">0</span>)</h3>
+                <p class="sub-heading">Study and review your saved technical queries</p>
+                <div id="bookmarks-container" class="bookmarks-list-wrapper">
+                  <div class="text-center text-muted" style="padding: 20px 0;">No bookmarked questions yet. Click the
+                    bookmark icon during gameplay or review to save questions!</div>
+                </div>
+              </div>
+
+              <!-- User Stats Analytics Graph & History List -->
+              <div class="card history-card">
+                <h3>Activity History & Stats</h3>
+                <div class="history-container">
+                  <div class="history-stats">
+                    <div class="stat-analytics">
+                      <span class="stat-analytics-label">Estimated Skill Tier:</span>
+                      <span class="stat-analytics-val" id="analytics-skill-tier">Novice</span>
+                    </div>
+                    <div class="stat-analytics">
+                      <span class="stat-analytics-label">Correct Answers Ratio:</span>
+                      <span class="stat-analytics-val" id="analytics-accuracy">0%</span>
+                    </div>
+                  </div>
+                  <div class="history-list-wrapper">
+                    <table class="data-table">
+                      <thead>
+                        <tr>
+                          <th>Category</th>
+                          <th>Difficulty</th>
+                          <th>Score</th>
+                          <th>Date</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody id="history-table-body">
+                        <tr>
+                          <td colspan="5" class="text-center">No recent activity found.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- B. PROFILE TAB PANEL -->
+            <div id="panel-dash-profile" class="dash-tab-content hidden">
+              <div class="card">
+                <h3>Profile Customization</h3>
+                <form id="form-profile-update"
+                  style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+                  <!-- Profile photo upload -->
+                  <div class="profile-avatar-uploader">
+                    <div id="profile-pic-container" class="profile-avatar-circle">
+                      <span id="profile-pic-text">👤</span>
+                      <div class="avatar-frame-overlay" id="profile-frame-overlay"></div>
+                      <span class="uploader-hover-label">Change Photo</span>
+                    </div>
+                    <input type="file" id="input-profile-pic" accept="image/*" class="hidden" style="display:none;">
+                    <span style="font-size: 11px; color: var(--text-muted); text-align: center;">Click to upload custom
+                      photo or select an avatar emoji below:</span>
+                  </div>
+
+                  <!-- Avatar emoji selection -->
+                  <div class="form-group">
+                    <label>Choose Avatar Emoji</label>
+                    <div class="avatar-selector-grid" id="avatar-selector-grid">
+                      <!-- Populated in JS: e.g. 👤, 🤖, 🧠, 🥷, 🧙‍♂️, 🦉 -->
+                    </div>
+                  </div>
+
+                  <!-- Username field -->
+                  <div class="form-group">
+                    <label for="profile-username">Change Username</label>
+                    <input type="text" id="profile-username" required>
+                  </div>
+
+                  <!-- Bio field -->
+                  <div class="form-group">
+                    <label for="profile-bio">Short Biography (Bio)</label>
+                    <textarea id="profile-bio-input" rows="2"
+                      placeholder="Tell other players about your coding journey..."></textarea>
+                  </div>
+
+                  <!-- Favorite category field -->
+                  <div class="form-group">
+                    <label for="profile-fav-cat">Favorite Subject Category</label>
+                    <select id="profile-fav-cat">
+                      <option value="AI">Artificial Intelligence</option>
+                      <option value="HTML">HTML</option>
+                      <option value="CSS">CSS</option>
+                      <option value="JavaScript">JavaScript</option>
+                      <option value="Java">Java</option>
+                      <option value="Python">Python</option>
+                      <option value="C">C Programming</option>
+                      <option value="C++">C++</option>
+                      <option value="DBMS">DBMS</option>
+                      <option value="SQL">SQL</option>
+                      <option value="MongoDB">MongoDB</option>
+                      <option value="NodeJS">Node.js</option>
+                      <option value="React">React</option>
+                      <option value="DSA">Data Structures</option>
+                      <option value="OS">Operating Systems</option>
+                      <option value="CN">Computer Networks</option>
+                      <option value="SE">Software Engineering</option>
+                    </select>
+                  </div>
+
+                  <!-- Theme selection -->
+                  <div class="form-group">
+                    <label for="profile-theme">Select Active Theme (Themes must be purchased from Shop)</label>
+                    <select id="profile-theme">
+                      <option value="dark">Modern Dark (Default)</option>
+                      <option value="light">Premium Light</option>
+                      <option value="theme_cyberpunk" disabled>Cyberpunk Purple (Shop Item)</option>
+                      <option value="theme_forest" disabled>Forest Green (Shop Item)</option>
+                      <option value="theme_sunset" disabled>Sunset Orange (Shop Item)</option>
+                    </select>
+                  </div>
+
+                  <button type="submit" class="action-btn btn-gradient btn-block">Save Changes</button>
+                </form>
+              </div>
+
+              <!-- Claimed Certificates Card -->
+              <div class="card">
+                <h3>My Earned Certificates</h3>
+                <p class="sub-heading">Your verified credentials list (quizzes scored >= 80% accuracy)</p>
+                <div id="certificates-list-container" class="history-list-wrapper" style="margin-top: 15px;">
+                  <div class="text-center text-muted" style="padding: 20px 0;">No certificates claimed yet. Complete any
+                    quiz with 80% accuracy to earn.</div>
+                </div>
+              </div>
+
+              <!-- Login History & Session Devices -->
+              <div class="card">
+                <h3>Active Device Sessions & Login History</h3>
+                <p class="sub-heading">Security audit records logging user-agent access logs</p>
+                <div class="history-list-wrapper" style="margin-top: 15px; max-height: 250px; overflow-y: auto;">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>IP Address</th>
+                        <th>Device / User-Agent</th>
+                        <th>Login Timestamp</th>
+                      </tr>
+                    </thead>
+                    <tbody id="login-logs-tbody">
+                      <tr>
+                        <td colspan="3" class="text-center">Loading session history logs...</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- C. REWARD SHOP PANEL -->
+            <div id="panel-dash-shop" class="dash-tab-content hidden">
+              <div class="card">
+                <div
+                  style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                  <div>
+                    <h3>Cosmetic Reward Shop</h3>
+                    <p class="sub-heading">Spend your accumulated XP/Coins on custom themes, avatar icons, and profile
+                      frames!</p>
+                  </div>
+                  <div class="coins-display-banner">
+                    <span>🪙</span> <strong id="shop-coins-balance">100</strong> Coins
+                  </div>
+                </div>
+
+                <div class="shop-grid" id="reward-shop-grid">
+                  <!-- Dynamically populated shop items -->
+                </div>
+              </div>
+
+              <div class="card">
+                <h3>Shop Purchases Log</h3>
+                <div class="history-list-wrapper" style="margin-top: 15px;">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Item Unlocked</th>
+                        <th>Item Type</th>
+                        <th>XP Cost</th>
+                        <th>Purchased Date</th>
+                      </tr>
+                    </thead>
+                    <tbody id="shop-purchases-tbody">
+                      <tr>
+                        <td colspan="4" class="text-center">No reward shop purchases found.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- D. SKILL PREDICTOR PANEL -->
+            <div id="panel-dash-predictor" class="dash-tab-content hidden">
+              <div class="card">
+                <h3>Future Skill Predictor</h3>
+                <p class="sub-heading">Artificial intelligence analytics mapping career path paths based on your
+                  performance accuracy</p>
+
+                <!-- Skills Breakdown strong/weak -->
+                <div class="predictor-skills-section">
+                  <div class="skills-list-container">
+                    <h4 style="color: var(--accent-green);">🔥 Strong Technical Skills</h4>
+                    <div id="predictor-strong-skills">
+                      <div class="text-muted" style="font-size: 13px; padding: 10px 0;">Complete more quizzes to
+                        generate metrics!</div>
+                    </div>
+                  </div>
+                  <div class="skills-list-container">
+                    <h4 style="color: var(--accent-red);">⚠️ Areas for Improvement</h4>
+                    <div id="predictor-weak-skills">
+                      <div class="text-muted" style="font-size: 13px; padding: 10px 0;">Complete more quizzes to
+                        generate metrics!</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Monthly Progress Graph -->
+                <div class="predictor-chart-box">
+                  <h4 style="margin-bottom: 12px; font-family: var(--font-heading);">📊 Monthly Score Progress Graph
+                  </h4>
+                  <div id="predictor-svg-chart-container"
+                    style="width: 100%; height: 180px; display: flex; align-items: center; justify-content: center; position: relative;">
+                    <!-- SVG graph is injected here dynamically -->
+                  </div>
+                </div>
+
+                <!-- Career Roles Deck -->
+                <h4 style="font-family: var(--font-heading);">🎯 Suggested Professional Career Roles</h4>
+                <div class="career-roles-deck" id="predictor-career-deck">
+                  <!-- Career suggestions -->
+                </div>
+
+                <!-- Learning Path Connector -->
+                <h4 style="font-family: var(--font-heading); margin-top: 25px;">🛤️ Recommended Study Learning Path</h4>
+                <div class="learning-path-connector" id="predictor-learning-path">
+                  <!-- Nodes pathways -->
+                </div>
+
+                <!-- AI Study Plan & Suggestions -->
+                <div class="study-modal-explanation" style="border-left-color: #a855f7; margin-top: 25px;">
+                  <h4 style="color: #a855f7; margin-bottom: 8px;">🧙‍♂️ AI Tutor Study Plan</h4>
+                  <div id="predictor-ai-study-plan" style="color: var(--text-main); font-size: 13px; line-height: 1.5;">
+                    Based on your history, start practicing SQL and JavaScript in Practice Mode with optional timers.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div> <!-- dashboard-main-content end -->
+
+        </div>
+      </section>
+
+      <!-- 4. ACTIVE QUIZ ARENA VIEW -->
+      <section id="view-quiz" class="app-view hidden">
+        <div class="quiz-arena-container card">
+          <!-- Quiz Arena Header -->
+          <div class="quiz-arena-header">
+            <div class="arena-meta">
+              <span class="badge" id="quiz-badge-category">Topic</span>
+              <span class="badge badge-secondary" id="quiz-badge-difficulty">Easy</span>
+              <span class="badge badge-role" id="quiz-badge-mode" style="margin-left: 5px;">Classic</span>
+            </div>
+            <div class="arena-stats" style="display: flex; align-items: center;">
+              <span id="quiz-lives" class="lives-indicator" style="margin-right: 15px;">❤️❤️❤️</span>
+              <span id="quiz-timer-text" class="timer-countdown">⏳ 15s</span>
+              <button id="btn-quiz-bookmark" class="icon-btn quiz-bookmark-btn" title="Bookmark Question"
+                style="font-size: 14px; width: 32px; height: 32px; margin-left: 15px; display: flex; align-items: center; justify-content: center;">🔖</button>
+              <button id="btn-quiz-report" class="icon-btn quiz-report-btn" title="Report Question"
+                style="font-size: 14px; width: 32px; height: 32px; margin-left: 10px; display: flex; align-items: center; justify-content: center; color: var(--accent-red); border-color: rgba(239,68,68,0.2);">🚩</button>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="quiz-progress-wrapper">
+            <div class="progress-bar-container">
+              <div id="quiz-progress-fill" class="progress-bar-fill"></div>
+            </div>
+            <div class="progress-labels">
+              <span id="quiz-progress-text">Question 1 of 10</span>
+            </div>
+          </div>
+
+          <!-- Voice Quiz Controller Widget -->
+          <div class="voice-controller-row" id="voice-widget-container" style="margin-bottom: 20px;">
+            <span class="voice-status-glow" id="voice-status-indicator"></span>
+            <button id="btn-voice-speak" class="action-btn btn-secondary btn-sm"
+              style="border-radius: var(--radius-sm); font-size:12px; padding: 4px 10px;">🔊 Speak Question</button>
+            <button id="btn-voice-pause" class="action-btn btn-secondary btn-sm hidden"
+              style="border-radius: var(--radius-sm); font-size:12px; padding: 4px 10px;">⏸️ Pause</button>
+            <button id="btn-voice-stop" class="action-btn btn-secondary btn-sm hidden"
+              style="border-radius: var(--radius-sm); font-size:12px; padding: 4px 10px;">⏹️ Stop</button>
+          </div>
+
+          <!-- Lifelines Panel -->
+          <div class="quiz-lifelines-row"
+            style="display: flex; gap: 10px; margin-bottom: 25px; align-items: center; flex-wrap: wrap;">
+            <span
+              style="font-size: 13px; font-weight: 600; color: var(--text-muted); margin-right: 5px;">Lifelines:</span>
+            <button id="btn-lifeline-5050" class="action-btn btn-secondary btn-sm"
+              style="border-radius: var(--radius-sm);">🌓 50:50</button>
+            <button id="btn-lifeline-skip" class="action-btn btn-secondary btn-sm"
+              style="border-radius: var(--radius-sm);">⏭️ Skip</button>
+            <button id="btn-lifeline-time" class="action-btn btn-secondary btn-sm"
+              style="border-radius: var(--radius-sm);">⏱️ +15s</button>
+          </div>
+
+          <!-- Question Prompt -->
+          <div class="quiz-question-box">
+            <h2 id="quiz-question-text">Loading question details...</h2>
+          </div>
+
+          <!-- Options Grid -->
+          <div class="quiz-options-grid" id="quiz-options-container">
+            <!-- Dynamic Choice Buttons -->
+          </div>
+
+          <!-- Arena Footer Controls -->
+          <div class="quiz-controls-row">
+            <button id="btn-quiz-hint" class="action-btn btn-secondary">💡 Need a Hint? (3 left)</button>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <button id="btn-quiz-tutor" class="action-btn btn-secondary hidden">💬 Ask AI Tutor</button>
+              <button id="btn-quiz-next" class="action-btn btn-gradient hidden">Next Question ➡️</button>
+            </div>
+          </div>
+          <div id="hint-text-box" class="hint-box hidden"></div>
+
+          <!-- AI Tutor Chat Widget -->
+          <div id="tutor-explain-box" class="ask-ai-tutor-container hidden">
+            <div class="tutor-chat-header">
+              <div class="tutor-avatar-circle">🤖</div>
+              <div class="tutor-header-info">
+                <h4 class="dict-key" data-key="tutor-header-title" style="margin:0; font-size:14px; font-weight:700;">AI
+                  Tutor Dialogue</h4>
+                <span class="tutor-status-text dict-key" data-key="tutor-status-online"
+                  style="font-size:11px; color:#10b981;">Online (Hint First Mode)</span>
+              </div>
+            </div>
+            <div class="tutor-chat-body" id="tutor-chat-messages">
+              <!-- Messages will be dynamically rendered as chat bubbles -->
+            </div>
+
+            <!-- Quick Prompt Action Chips -->
+            <div class="tutor-quick-chips" id="tutor-quick-chips"
+              style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+              <button type="button" class="chip-btn dict-key" data-key="chip-hint" id="btn-tutor-chip-hint"
+                style="font-size:11px; padding:4px 8px; border-radius:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);">💡
+                Give me a hint</button>
+              <button type="button" class="chip-btn dict-key" data-key="chip-concept" id="btn-tutor-chip-concept"
+                style="font-size:11px; padding:4px 8px; border-radius:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);">📖
+                Explain the concept</button>
+              <button type="button" class="chip-btn dict-key" data-key="chip-answer" id="btn-tutor-chip-answer"
+                style="font-size:11px; padding:4px 8px; border-radius:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color: var(--accent-red); border-color: rgba(239,68,68,0.25);">🔑
+                Explain answer</button>
+            </div>
+
+            <!-- Message Input Panel -->
+            <form id="form-tutor-chat" class="tutor-chat-input-row"
+              style="display:flex; gap:8px; margin-top:10px; border-top:1px solid rgba(255,255,255,0.05); padding-top:10px;">
+              <input type="text" id="tutor-chat-input" class="dict-key" data-key="tutor-input-placeholder"
+                placeholder="Ask a follow-up question..." required autocomplete="off"
+                style="flex:1; padding:8px 12px; font-size:13px; border-radius:var(--radius-sm); border:1px solid var(--border-card); background:rgba(0,0,0,0.15); color:white;">
+              <button type="submit" class="action-btn btn-gradient btn-sm" id="btn-tutor-chat-send"
+                style="padding: 6px 12px; font-size: 12px;">Send ➡️</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. QUIZ SUMMARY & REVIEW VIEW -->
+      <section id="view-summary" class="app-view hidden">
+        <div class="summary-container card text-center">
+          <div class="summary-trophy">🏆</div>
+          <h1 id="summary-headline">Quiz Completed!</h1>
+          <p id="summary-meta-desc">You tested your brain in AI Quiz Arena</p>
+
+          <div class="score-display-box">
+            <div class="score-circle">
+              <span class="score-num" id="summary-score">0 / 0</span>
+              <span class="score-label">Correct</span>
+            </div>
+            <div class="xp-earned-banner" id="summary-xp-earned">+0 XP Earned</div>
+          </div>
+
+          <!-- Unlocked badges alerts -->
+          <div id="summary-unlocked-badge-alert" class="badge-alert-box hidden">
+            <h4>🏅 New Achievement Unlocked!</h4>
+            <div id="summary-badge-badges" class="summary-badges-container"></div>
+          </div>
+
+          <div class="summary-actions">
+            <button id="btn-summary-dashboard" class="action-btn btn-gradient">Return to Dashboard</button>
+            <button id="btn-summary-review" class="action-btn btn-secondary">Review Answers</button>
+            <button id="btn-summary-certificate" class="action-btn btn-secondary hidden"
+              style="color: var(--accent-green); border-color: rgba(16,185,129,0.3);">🎓 Claim Certificate</button>
+          </div>
+
+          <!-- Quiz Feedback rating -->
+          <div class="feedback-rating-box"
+            style="margin: 25px auto; max-width: 450px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;">
+            <h4 style="font-family: var(--font-heading); margin-bottom: 5px;">Rate your experience</h4>
+            <div class="star-rating-row" id="feedback-star-row"
+              style="display: flex; justify-content: center; gap: 8px; font-size: 36px; margin: 10px 0; cursor: pointer; color: var(--accent-amber);">
+              <span class="star-btn" data-value="1">☆</span>
+              <span class="star-btn" data-value="2">☆</span>
+              <span class="star-btn" data-value="3">☆</span>
+              <span class="star-btn" data-value="4">☆</span>
+              <span class="star-btn" data-value="5">☆</span>
+            </div>
+            <textarea id="feedback-comment" rows="2"
+              style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-card); background: rgba(0,0,0,0.15); color: white; margin-top: 8px; font-size: 13px;"
+              placeholder="Leave a review comment (optional)..."></textarea>
+            <button id="btn-submit-feedback" class="action-btn btn-secondary btn-sm" style="margin-top: 10px;">Submit
+              Review</button>
+            <div id="feedback-success-msg" class="text-success hidden"
+              style="font-size: 13px; margin-top: 8px; color: var(--accent-green);">Thank you for your feedback!</div>
+          </div>
+
+          <!-- Answer Review Panel -->
+          <div id="summary-review-panel" class="review-panel hidden text-left">
+            <h3>Question-by-Question Breakdown</h3>
+            <div class="review-questions-list" id="review-list-container">
+              <!-- Dynamically populated review questions -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. GLOBAL LEADERBOARD VIEW -->
+      <section id="view-leaderboard" class="app-view hidden">
+        <div class="card leaderboard-card">
+          <div class="leaderboard-header">
+            <h2>🏆 Global Rankings</h2>
+            <button id="btn-leaderboard-back" class="action-btn btn-secondary btn-sm">🔙 Dashboard</button>
+          </div>
+          <p>Compete with engineers around the world. Ranked by Total Experience Points (XP).</p>
+
+
+          <div class="leaderboard-periods-tabs" style="display: flex; gap: 8px; margin-top: 15px;">
+            <button id="btn-lb-period-all" class="action-btn btn-secondary btn-sm active"
+              data-period="all">All-Time</button>
+            <button id="btn-lb-period-weekly" class="action-btn btn-secondary btn-sm"
+              data-period="weekly">Weekly</button>
+            <button id="btn-lb-period-monthly" class="action-btn btn-secondary btn-sm"
+              data-period="monthly">Monthly</button>
+          </div>
+
+          <div class="leaderboard-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 80px;">Rank</th>
+                  <th>Username</th>
+                  <th id="leaderboard-header-score">Total XP</th>
+                  <th>Quizzes Completed</th>
+                  <th>Perfect Score</th>
+                  <th>Streak</th>
+                  <th class="dict-key" data-key="lb-th-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboard-table-body">
+                <tr>
+                  <td colspan="7" class="text-center">Loading leaderboard rankings...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. ADMIN PANEL VIEW -->
+      <section id="view-admin" class="app-view hidden">
+        <div class="card admin-card">
+          <div class="admin-header">
+            <h2>⚙️ Admin Control Console</h2>
+            <button id="btn-admin-back" class="action-btn btn-secondary btn-sm">🔙 Dashboard</button>
+          </div>
+
+          <div class="admin-tabs">
+            <button id="admin-tab-questions" class="admin-tab active">Questions</button>
+            <button id="admin-tab-users" class="admin-tab">Users</button>
+            <button id="admin-tab-feedback" class="admin-tab">Feedback</button>
+            <button id="admin-tab-reports" class="admin-tab">Reports</button>
+            <button id="admin-tab-notifs" class="admin-tab">Broadcasts</button>
+            <button id="admin-tab-logins" class="admin-tab">Login Logs</button>
+          </div>
+
+          <!-- Panel 1: Questions Manager -->
+          <div id="admin-panel-questions" class="admin-panel-content">
+            <div class="admin-panel-split">
+              <!-- Form to create/edit question -->
+              <div class="admin-form-container">
+                <h3 id="admin-question-form-title">Add New Quiz Question</h3>
+                <form id="form-admin-question">
+                  <input type="hidden" id="admin-q-id" value="">
+                  <div class="form-group">
+                    <label for="admin-q-category">Category</label>
+                    <select id="admin-q-category" required>
+                      <option value="AI">AI</option>
+                      <option value="HTML">HTML</option>
+                      <option value="CSS">CSS</option>
+                      <option value="JavaScript">JavaScript</option>
+                      <option value="Java">Java</option>
+                      <option value="Python">Python</option>
+                      <option value="C">C</option>
+                      <option value="C++">C++</option>
+                      <option value="DBMS">DBMS</option>
+                      <option value="SQL">SQL</option>
+                      <option value="MongoDB">MongoDB</option>
+                      <option value="NodeJS">NodeJS</option>
+                      <option value="React">React</option>
+                      <option value="DSA">DSA</option>
+                      <option value="OS">OS</option>
+                      <option value="CN">CN</option>
+                      <option value="SE">SE</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="admin-q-difficulty">Difficulty</label>
+                    <select id="admin-q-difficulty" required>
+                      <option value="easy">Easy</option>
+                      <option value="medium">Medium</option>
+                      <option value="hard">Hard</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="admin-q-text">Question Prompt</label>
+                    <textarea id="admin-q-text" placeholder="Write question prompt..." required rows="2"></textarea>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="admin-q-optA">Option A</label>
+                      <input type="text" id="admin-q-optA" placeholder="Answer choice A" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="admin-q-optB">Option B</label>
+                      <input type="text" id="admin-q-optB" placeholder="Answer choice B" required>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="admin-q-optC">Option C</label>
+                      <input type="text" id="admin-q-optC" placeholder="Answer choice C" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="admin-q-optD">Option D</label>
+                      <input type="text" id="admin-q-optD" placeholder="Answer choice D" required>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="admin-q-correct">Correct Option</label>
+                    <select id="admin-q-correct" required>
+                      <option value="A">Option A</option>
+                      <option value="B">Option B</option>
+                      <option value="C">Option C</option>
+                      <option value="D">Option D</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="admin-q-explanation">Explanation (Displayed during review)</label>
+                    <textarea id="admin-q-explanation" placeholder="Provide background theory..." rows="2"></textarea>
+                  </div>
+                  <div class="form-group">
+                    <label for="admin-q-hint">Hint</label>
+                    <input type="text" id="admin-q-hint" placeholder="Short helper hint">
+                  </div>
+                  <div class="form-actions-row">
+                    <button type="submit" id="btn-admin-q-submit" class="action-btn btn-gradient">Add Question</button>
+                    <button type="button" id="btn-admin-q-cancel" class="action-btn btn-secondary hidden">Cancel
+                      Edit</button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Search/List questions -->
+              <div class="admin-list-container">
+                <h3>Question Repository</h3>
+                <div class="search-bar-row">
+                  <input type="text" id="admin-search-query" placeholder="Search questions keyword...">
+                  <button id="btn-admin-search" class="action-btn btn-gradient">Search</button>
+                </div>
+                <div class="admin-questions-scroll">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Cat/Diff</th>
+                        <th>Question</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="admin-questions-table-body">
+                      <tr>
+                        <td colspan="3" class="text-center">Click Search to load questions.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 2: Users Manager -->
+          <div id="admin-panel-users" class="admin-panel-content hidden">
+            <h3>Registered Players Manager</h3>
+            <div class="admin-users-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>User ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Total XP</th>
+                    <th>Quizzes</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-users-table-body">
+                  <tr>
+                    <td colspan="7" class="text-center">Loading users data...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Panel 3: Feedback Manager -->
+          <div id="admin-panel-feedback" class="admin-panel-content hidden">
+            <h3>Player Rating Reviews</h3>
+            <div class="admin-users-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Rating Stars</th>
+                    <th>Review Comments</th>
+                    <th>Submitted At</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-feedback-table-body">
+                  <tr>
+                    <td colspan="4" class="text-center">Loading ratings...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Panel 4: Question Reports Manager -->
+          <div id="admin-panel-reports" class="admin-panel-content hidden">
+            <h3>Flagged Question Reports</h3>
+            <div class="admin-users-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Q-ID</th>
+                    <th>User</th>
+                    <th>Reason</th>
+                    <th>Details Comment</th>
+                    <th>Flagged Date</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-reports-table-body">
+                  <tr>
+                    <td colspan="5" class="text-center">Loading reports...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Panel 5: Notification Broadcast Manager -->
+          <div id="admin-panel-notifs" class="admin-panel-content hidden">
+            <h3>System Broadcaster</h3>
+            <div class="admin-panel-split" style="gap:25px;">
+              <div class="admin-form-container">
+                <h3>Broadcast Announcement</h3>
+                <form id="form-admin-broadcast" style="display:flex; flex-direction:column; gap:12px; margin-top:10px;">
+                  <div class="form-group">
+                    <label for="admin-notif-title">Notification Title</label>
+                    <input type="text" id="admin-notif-title" required placeholder="e.g. New Java Quiz Pack!">
+                  </div>
+                  <div class="form-group">
+                    <label for="admin-notif-msg">Broadcast Message</label>
+                    <textarea id="admin-notif-msg" required rows="2"
+                      placeholder="Write system notification alert..."></textarea>
+                  </div>
+                  <button type="submit" class="action-btn btn-gradient btn-block">Send Broadcast Alert</button>
+                </form>
+              </div>
+              <div class="admin-list-container">
+                <h3>Broadcast History</h3>
+                <div class="admin-questions-scroll">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Title</th>
+                        <th>Message</th>
+                        <th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody id="admin-notifs-table-body">
+                      <tr>
+                        <td colspan="3" class="text-center">Loading announcements...</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 6: Security Login Logs -->
+          <div id="admin-panel-logins" class="admin-panel-content hidden">
+            <h3>Access Audit Security Logins</h3>
+            <div class="admin-users-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>IP Address</th>
+                    <th>Browser / Device Agent</th>
+                    <th>Authentication Timestamp</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-logins-table-body">
+                  <tr>
+                    <td colspan="3" class="text-center">Loading access audits...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="app-footer text-center">
+      <p>&copy; 2026 AI Quiz Challenge. Built for Advanced Coding Certification. Running in <span id="app-mode-label"
+          class="badge">Autodetecting Mode</span></p>
+    </footer>
+
+  </div>
+
+  <!-- CONGRATULATIONS CELEBRATION MODAL -->
+  <div id="modal-quiz-celebration" class="celebration-modal-overlay hidden">
+    <div class="celebration-card">
+      <div class="celebration-trophy">🏆</div>
+      <h1 id="cel-headline" class="gradient-text">Quiz Completed!</h1>
+      <p id="cel-meta-desc">You successfully completed the AI Quiz Arena challenge!</p>
+
+      <div class="earned-stats-row">
+        <div class="earned-stat-box">
+          <div class="earned-stat-lbl">Final Score</div>
+          <div class="earned-stat-val" id="cel-score">0 / 10</div>
+        </div>
+        <div class="earned-stat-box">
+          <div class="earned-stat-lbl">XP Earned</div>
+          <div class="earned-stat-val xp" id="cel-xp">+0 XP</div>
+        </div>
+        <div class="earned-stat-box">
+          <div class="earned-stat-lbl">Coins Earned</div>
+          <div class="earned-stat-val coins" id="cel-coins">+0 Coins</div>
+        </div>
+        <div class="earned-stat-box">
+          <div class="earned-stat-lbl">Achievements</div>
+          <div class="earned-stat-val" id="cel-badges-count">0</div>
+        </div>
+      </div>
+
+      <div id="cel-badges-list" class="summary-badges-container"
+        style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;"></div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button id="btn-cel-claim" class="action-btn btn-gradient">Claim Certificate 🎓</button>
+        <button id="btn-cel-share" class="action-btn btn-secondary">Share Result 🔗</button>
+        <button id="btn-cel-continue" class="action-btn btn-secondary">Continue Learning 📚</button>
+        <button id="btn-cel-home" class="action-btn btn-secondary">Back to Home 🏠</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PREMIUM CERTIFICATE PREVIEW MODAL -->
+  <div id="modal-certificate-preview" class="certificate-preview-overlay hidden">
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; max-width: 680px;">
+
+      <!-- Certificate Element to Capture -->
+      <div id="certificate-capture-node" class="certificate-layout-frame">
+        <div class="certificate-inner-border">
+          <div class="certificate-badge-logo">🏅</div>
+          <div class="cert-congrats-text">Congratulations!</div>
+          <h2 class="cert-title">Certificate of Achievement</h2>
+          <p class="cert-name-label">This is proudly presented to</p>
+          <h1 class="cert-user-name" id="cert-user-name">Guest Player</h1>
+          <p class="cert-body-desc">
+            For successfully completing the AI Quiz Challenge and demonstrating excellent knowledge and performance in
+            the technical subject category.
+          </p>
+
+          <div class="cert-meta-stats-row">
+            <div class="cert-meta-item">
+              Category
+              <strong id="cert-category-text">JavaScript</strong>
+            </div>
+            <div class="cert-meta-item">
+              Final Score
+              <strong id="cert-score-text">10 / 10</strong>
+            </div>
+            <div class="cert-meta-item">
+              Completion Date
+              <strong id="cert-date-text">2026-07-16</strong>
+            </div>
+          </div>
+
+          <div class="cert-footer-signatures">
+            <div class="cert-signature-block">
+              <div class="signature-graphic">Antigravity</div>
+              <div class="signature-title">AI Quiz Challenge Team</div>
+            </div>
+            <div class="cert-signature-block">
+              <div class="signature-graphic">Verified</div>
+              <div class="signature-title">Certification System</div>
+            </div>
+          </div>
+        </div>
+        <div class="cert-id-tag" id="cert-id-text">CERT-ID: 123456</div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap;">
+        <button id="btn-cert-download-pdf" class="action-btn btn-gradient" style="flex: 1; min-width: 120px;">Download
+          PDF</button>
+        <button id="btn-cert-download-png" class="action-btn btn-gradient" style="flex: 1; min-width: 120px;">Download
+          PNG</button>
+        <button id="btn-cert-share" class="action-btn btn-secondary" style="flex: 1; min-width: 120px;">Share
+          Certificate</button>
+        <button id="btn-cert-close" class="action-btn btn-secondary" style="flex: 1; min-width: 120px;">Back to
+          Home</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASSWORD RECOVERY MODAL -->
+  <div id="modal-password-reset" class="secure-auth-overlay hidden">
+    <div class="secure-auth-card animate-scale-up">
+      <h3 id="reset-modal-title" style="margin-bottom: 15px;">Password Recovery</h3>
+
+      <!-- Step 1: Send OTP -->
+      <form id="form-reset-send-otp">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Enter your email address to receive a
+          secure password recovery code.</p>
+        <div class="form-group">
+          <label for="reset-email">Email Address</label>
+          <input type="email" id="reset-email" placeholder="Enter your email" required>
+        </div>
+        <button type="submit" class="action-btn btn-gradient btn-block" style="margin-top: 20px;">Send Recovery
+          Code</button>
+        <button type="button" class="action-btn btn-secondary btn-block btn-close-reset"
+          style="margin-top: 10px;">Cancel</button>
+      </form>
+
+      <!-- Step 2: Verify OTP & Reset Password -->
+      <form id="form-reset-password" class="hidden">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Enter the code and choose a new
+          password.</p>
+        <div class="form-group">
+          <label for="reset-code">Verification Code</label>
+          <input type="text" id="reset-code" placeholder="Enter 6-digit code" required maxlength="6">
+        </div>
+        <div class="form-group" style="margin-top: 15px;">
+          <label for="reset-new-password">New Password</label>
+          <input type="password" id="reset-new-password" placeholder="Min. 6 characters" required minlength="6">
+        </div>
+        <button type="submit" class="action-btn btn-gradient btn-block" style="margin-top: 20px;">Reset
+          Password</button>
+        <button type="button" class="action-btn btn-secondary btn-block btn-close-reset"
+          style="margin-top: 10px;">Cancel</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- REPORT QUESTION MODAL -->
+  <div id="modal-report-question" class="secure-auth-overlay hidden">
+    <div class="secure-auth-card animate-scale-up">
+      <h3 style="margin-bottom: 15px;">Report Question</h3>
+      <form id="form-report-question">
+        <input type="hidden" id="report-q-id" value="">
+        <div class="form-group">
+          <label>Select Reason</label>
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px;">
+            <label><input type="radio" name="report-reason" value="Wrong Answer" checked> Wrong Answer</label>
+            <label><input type="radio" name="report-reason" value="Incorrect Question"> Incorrect Question</label>
+            <label><input type="radio" name="report-reason" value="Typo"> Typo</label>
+            <label><input type="radio" name="report-reason" value="Duplicate"> Duplicate</label>
+            <label><input type="radio" name="report-reason" value="Other"> Other</label>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top: 15px;">
+          <label for="report-comments">Additional Comments</label>
+          <textarea id="report-comments" rows="3"
+            placeholder="Describe why this question should be corrected..."></textarea>
+        </div>
+        <div class="form-actions-row" style="margin-top: 20px; display: flex; gap: 10px;">
+          <button type="submit" class="action-btn btn-gradient" style="flex: 1;">Submit Report</button>
+          <button type="button" id="btn-close-report-modal" class="action-btn btn-secondary"
+            style="flex: 1;">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Confetti Canvas overlay -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- jsPDF Library for Download Certificate -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- html2canvas Library for Capturing Certificate PNG -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- Main Script -->
+  <script src="script.js"></script>
+</body>
+
+</html>
