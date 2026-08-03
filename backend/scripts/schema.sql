@@ -164,13 +164,21 @@ CREATE TABLE IF NOT EXISTS public.certificates (
   claimed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
--- Login History Table (audit log of login devices)
 CREATE TABLE IF NOT EXISTS public.login_history (
   id SERIAL PRIMARY KEY,
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   ip_address TEXT,
   user_agent TEXT,
   logged_in_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- OTP verification codes table (stores recovery OTP codes)
+CREATE TABLE IF NOT EXISTS public.otp_codes (
+  id SERIAL PRIMARY KEY,
+  email TEXT NOT NULL,
+  code TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 

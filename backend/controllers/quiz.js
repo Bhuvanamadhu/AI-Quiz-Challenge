@@ -43,6 +43,24 @@ async function submitQuiz(req, res) {
     return res.status(400).json({ error: 'Invalid submission data.' });
   }
 
+  // Type and range validation checks
+  const parsedScore = parseInt(score);
+  const parsedTotal = parseInt(totalQuestions);
+  if (isNaN(parsedScore) || isNaN(parsedTotal) || parsedScore < 0 || parsedTotal <= 0 || parsedScore > parsedTotal) {
+    return res.status(400).json({ error: 'Invalid score or total questions format.' });
+  }
+
+  const validDifficulties = ['easy', 'medium', 'hard'];
+  if (!validDifficulties.includes(difficulty.toLowerCase())) {
+    return res.status(400).json({ error: 'Invalid difficulty parameter.' });
+  }
+
+  const validModes = ['classic', 'speed', 'survival', 'marathon'];
+  const mode = (game_mode || 'classic').toLowerCase();
+  if (!validModes.includes(mode)) {
+    return res.status(400).json({ error: 'Invalid game mode parameter.' });
+  }
+
   try {
     const supabase = getSupabaseClient(req);
 

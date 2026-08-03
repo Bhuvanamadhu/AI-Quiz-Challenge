@@ -252,6 +252,19 @@ const NetworkClient = {
 
 // 5. LOCAL STORAGE MOCK DATABASE (Simulating relational database schemas client-side)
 const MockDatabase = {
+  getMockUsername() {
+    if (!AppState.token) return 'guest';
+    return AppState.token.replace('mock_jwt_token_for_', '');
+  },
+  getMockUser() {
+    const mockUsername = this.getMockUsername();
+    const users = JSON.parse(localStorage.getItem('mock_users') || '[]');
+    let user = users.find(u => u.username === mockUsername);
+    if (!user && mockUsername === 'guest') {
+      user = { id: -1, username: 'guest', email: 'guest@quiz.com', role: 'user' };
+    }
+    return user;
+  },
   init() {
     if (!localStorage.getItem('mock_questions_cache')) {
       localStorage.setItem('mock_questions_cache', JSON.stringify([]));
@@ -437,10 +450,8 @@ const MockDatabase = {
 
     // Load Session Profile
     if (endpoint === '/auth/me' && method === 'GET') {
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const mockUsername = AppState.token.replace('mock_jwt_token_for_', '');
-      const user = users.find(u => u.username === mockUsername);
-      if (!user) return Promise.reject({ message: 'Session invalid.' });
+      const user = this.getMockUser();
+      if (!user || user.id === -1) return Promise.reject({ message: 'Session invalid.' });
 
       const progress = JSON.parse(localStorage.getItem('mock_progress'))[user.id] || { total_xp: 0, quizzes_completed: 0, perfect_quizzes: 0, daily_streak: 0 };
       const allAchievements = JSON.parse(localStorage.getItem('mock_achievements'));
@@ -484,9 +495,8 @@ const MockDatabase = {
 
     // Submit Quiz Score
     if (endpoint === '/quiz/submit' && method === 'POST') {
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const mockUsername = AppState.token.replace('mock_jwt_token_for_', '');
-      const user = users.find(u => u.username === mockUsername);
+      const user = this.getMockUser();
+      if (!user || user.id === -1) return Promise.reject({ message: 'Session invalid.' });
 
       const attempts = JSON.parse(localStorage.getItem('mock_attempts'));
       attempts.push({
@@ -610,10 +620,8 @@ const MockDatabase = {
     // Toggle Bookmark
     if (endpoint.startsWith('/bookmarks/') && method === 'POST') {
       const qId = parseInt(endpoint.split('/').pop());
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const mockUsername = AppState.token.replace('mock_jwt_token_for_', '');
-      const user = users.find(u => u.username === mockUsername);
-      if (!user) return Promise.reject({ message: 'Session invalid.' });
+      const user = this.getMockUser();
+      if (!user || user.id === -1) return Promise.reject({ message: 'Session invalid.' });
 
       let bookmarks = JSON.parse(localStorage.getItem('mock_bookmarks') || '[]');
       const existingIdx = bookmarks.findIndex(b => b.user_id === user.id && b.question_id === qId);
@@ -631,10 +639,8 @@ const MockDatabase = {
 
     // Get Bookmark IDs
     if (endpoint === '/bookmarks/ids' && method === 'GET') {
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const mockUsername = AppState.token.replace('mock_jwt_token_for_', '');
-      const user = users.find(u => u.username === mockUsername);
-      if (!user) return Promise.reject({ message: 'Session invalid.' });
+      const user = this.getMockUser();
+      if (!user || user.id === -1) return Promise.reject({ message: 'Session invalid.' });
 
       let bookmarks = JSON.parse(localStorage.getItem('mock_bookmarks') || '[]');
       const bookmarkedIds = bookmarks.filter(b => b.user_id === user.id).map(b => b.question_id);
@@ -643,10 +649,8 @@ const MockDatabase = {
 
     // Get Bookmarks full details
     if (endpoint === '/bookmarks' && method === 'GET') {
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const mockUsername = AppState.token.replace('mock_jwt_token_for_', '');
-      const user = users.find(u => u.username === mockUsername);
-      if (!user) return Promise.reject({ message: 'Session invalid.' });
+      const user = this.getMockUser();
+      if (!user || user.id === -1) return Promise.reject({ message: 'Session invalid.' });
 
       let bookmarks = JSON.parse(localStorage.getItem('mock_bookmarks') || '[]');
       const userBookmarks = bookmarks.filter(b => b.user_id === user.id);
@@ -696,10 +700,8 @@ const MockDatabase = {
     // Delete Leaderboard Score Entry (Mock handler)
     if (endpoint.startsWith('/leaderboard/') && method === 'DELETE') {
       const targetUserId = parseInt(endpoint.split('/').pop());
-      const users = JSON.parse(localStorage.getItem('mock_users') || '[]');
-      const mockUsername = AppState.token.replace('mock_jwt_token_for_', '');
-      const user = users.find(u => u.username === mockUsername);
-      if (!user) return Promise.reject({ message: 'Session invalid.' });
+      const user = this.getMockUser();
+      if (!user || user.id === -1) return Promise.reject({ message: 'Session invalid.' });
 
       if (user.role !== 'admin' && user.id !== targetUserId) {
         return Promise.reject({ message: 'Permission denied. You can only delete your own score.' });
@@ -793,10 +795,8 @@ const MockDatabase = {
 
     // 1. Profile Update
     if (endpoint === '/profile' && method === 'PUT') {
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const mockUsername = AppState.token.replace('mock_jwt_token_for_', '');
-      const user = users.find(u => u.username === mockUsername);
-      if (!user) return Promise.reject({ message: 'Session invalid.' });
+      const user = this.getMockUser();
+      if (!user || user.id === -1) return Promise.reject({ message: 'Session invalid.' });
 
       // Update user columns
       user.bio = body.bio !== undefined ? body.bio : user.bio;
@@ -839,10 +839,8 @@ const MockDatabase = {
 
     // 3. Purchase Item
     if (endpoint === '/shop/purchase' && method === 'POST') {
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const mockUsername = AppState.token.replace('mock_jwt_token_for_', '');
-      const user = users.find(u => u.username === mockUsername);
-      if (!user) return Promise.reject({ message: 'Session invalid.' });
+      const user = this.getMockUser();
+      if (!user || user.id === -1) return Promise.reject({ message: 'Session invalid.' });
 
       const progress = JSON.parse(localStorage.getItem('mock_progress'));
       const uProg = progress[user.id] || { total_coins: 0 };
@@ -872,10 +870,8 @@ const MockDatabase = {
 
     // 4. Shop Purchase History
     if (endpoint === '/shop/history' && method === 'GET') {
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const mockUsername = AppState.token.replace('mock_jwt_token_for_', '');
-      const user = users.find(u => u.username === mockUsername);
-      if (!user) return Promise.reject({ message: 'Session invalid.' });
+      const user = this.getMockUser();
+      if (!user || user.id === -1) return Promise.reject({ message: 'Session invalid.' });
 
       const list = JSON.parse(localStorage.getItem('mock_purchases') || '[]').filter(p => p.user_id === user.id);
       return Promise.resolve(list);
@@ -883,10 +879,8 @@ const MockDatabase = {
 
     // 5. Submit Rating Feedback
     if (endpoint === '/feedback' && method === 'POST') {
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const mockUsername = AppState.token.replace('mock_jwt_token_for_', '');
-      const user = users.find(u => u.username === mockUsername);
-      const uId = user ? user.id : 0;
+      const user = this.getMockUser();
+      const uId = user ? user.id : -1;
       const username = user ? user.username : 'Guest';
 
       const feedback = JSON.parse(localStorage.getItem('mock_feedback') || '[]');
@@ -904,10 +898,8 @@ const MockDatabase = {
 
     // 6. Report Question
     if (endpoint === '/feedback/report' && method === 'POST') {
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const mockUsername = AppState.token.replace('mock_jwt_token_for_', '');
-      const user = users.find(u => u.username === mockUsername);
-      const uId = user ? user.id : 0;
+      const user = this.getMockUser();
+      const uId = user ? user.id : -1;
 
       const reports = JSON.parse(localStorage.getItem('mock_reports') || '[]');
       reports.push({
@@ -938,10 +930,8 @@ const MockDatabase = {
 
     // 9. Claims Certificate Registry
     if (endpoint === '/certificates/claim' && method === 'POST') {
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const mockUsername = AppState.token.replace('mock_jwt_token_for_', '');
-      const user = users.find(u => u.username === mockUsername);
-      if (!user) return Promise.reject({ message: 'Session invalid.' });
+      const user = this.getMockUser();
+      if (!user || user.id === -1) return Promise.reject({ message: 'Session invalid.' });
 
       const certs = JSON.parse(localStorage.getItem('mock_certificates') || '[]');
       const certId = 'CERT-' + Math.floor(100000 + Math.random() * 900000);
@@ -962,10 +952,8 @@ const MockDatabase = {
 
     // 10. List claimed certificates
     if (endpoint === '/certificates' && method === 'GET') {
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const mockUsername = AppState.token.replace('mock_jwt_token_for_', '');
-      const user = users.find(u => u.username === mockUsername);
-      if (!user) return Promise.reject({ message: 'Session invalid.' });
+      const user = this.getMockUser();
+      if (!user || user.id === -1) return Promise.reject({ message: 'Session invalid.' });
 
       const certs = JSON.parse(localStorage.getItem('mock_certificates') || '[]').filter(c => c.user_id === user.id);
       return Promise.resolve(certs);
@@ -999,10 +987,8 @@ console.log(result); // Matches correctOption standard</code></pre>
 
     // 12. Sync Offline Quiz Attempts
     if (endpoint === '/quiz/sync' && method === 'POST') {
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const mockUsername = AppState.token.replace('mock_jwt_token_for_', '');
-      const user = users.find(u => u.username === mockUsername);
-      if (!user) return Promise.reject({ message: 'Session invalid.' });
+      const user = this.getMockUser();
+      if (!user || user.id === -1) return Promise.reject({ message: 'Session invalid.' });
 
       const attempts = JSON.parse(localStorage.getItem('mock_attempts') || '[]');
       const progress = JSON.parse(localStorage.getItem('mock_progress'));
@@ -1081,10 +1067,8 @@ console.log(result); // Matches correctOption standard</code></pre>
 
     // 14. Access Login Session logs
     if (endpoint === '/auth/login-history' && method === 'GET') {
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const mockUsername = AppState.token.replace('mock_jwt_token_for_', '');
-      const user = users.find(u => u.username === mockUsername);
-      if (!user) return Promise.reject({ message: 'Session invalid.' });
+      const user = this.getMockUser();
+      if (!user || user.id === -1) return Promise.reject({ message: 'Session invalid.' });
 
       const logs = JSON.parse(localStorage.getItem('mock_login_history') || '[]').filter(l => l.user_id === user.id);
       return Promise.resolve(logs);
@@ -1146,6 +1130,12 @@ const ViewController = {
   views: ['landing', 'auth', 'dashboard', 'quiz', 'summary', 'leaderboard', 'admin'],
 
   switchView(viewName) {
+    if (viewName !== 'dashboard' && AppState.quiz.savedTheme) {
+      applyTheme(AppState.quiz.savedTheme);
+      const themeSelect = document.getElementById('profile-theme');
+      if (themeSelect) themeSelect.value = AppState.quiz.savedTheme;
+    }
+
     this.views.forEach(v => {
       const el = document.getElementById(`view-${v}`);
       if (v === viewName) {
@@ -1217,8 +1207,13 @@ const QuizArena = {
     try {
       let questions = [];
       if (isDaily) {
-        const data = await NetworkClient.request('/quiz/daily-challenge');
-        questions = data.questions;
+        try {
+          const data = await NetworkClient.request('/quiz/daily-challenge');
+          questions = data.questions;
+        } catch (netErr) {
+          console.warn('Daily challenge network fetch failed, falling back to local simulation.', netErr);
+          questions = await MockDatabase.handle(`/quiz/questions?category=${encodeURIComponent(category)}&difficulty=${encodeURIComponent(difficulty)}&limit=10`, 'GET');
+        }
       } else {
         // Set query limit based on mode
         let limit = 10;
@@ -1226,7 +1221,12 @@ const QuizArena = {
         if (mode === 'survival') limit = 50; // survival pool size
         if (mode === 'marathon') limit = 30;
 
-        questions = await NetworkClient.request(`/quiz/questions?category=${encodeURIComponent(category)}&difficulty=${encodeURIComponent(difficulty)}&limit=${limit}`);
+        try {
+          questions = await NetworkClient.request(`/quiz/questions?category=${encodeURIComponent(category)}&difficulty=${encodeURIComponent(difficulty)}&limit=${limit}`);
+        } catch (netErr) {
+          console.warn('Quiz questions network fetch failed, falling back to local simulation.', netErr);
+          questions = await MockDatabase.handle(`/quiz/questions?category=${encodeURIComponent(category)}&difficulty=${encodeURIComponent(difficulty)}&limit=${limit}`, 'GET');
+        }
       }
 
       if (!questions || questions.length === 0) {
@@ -1508,26 +1508,64 @@ const QuizArena = {
     if (tutorBox) tutorBox.classList.add('hidden');
     AppState.quiz.tutorMessages = null;
 
+    // Stop any active TTS before speaking
+    VoiceQuizController.stop();
+
+    // Automatically read question and option text
+    const ttsText = `Question: ${q.question_text}. Option A: ${q.option_a}. Option B: ${q.option_b}. Option C: ${q.option_c}. Option D: ${q.option_d}.`;
+    VoiceQuizController.speakText(ttsText, window.currentLang);
+
     // Launch Countdown Timer
     this.startTimer();
   },
 
   startTimer() {
     clearInterval(AppState.quiz.timerInterval);
-    const practiceChecked = document.getElementById('arena-practice-mode').checked;
-    const timerChecked = document.getElementById('practice-optional-timer').checked;
+    const practiceModeEl = document.getElementById('arena-practice-mode');
+    const optionalTimerEl = document.getElementById('practice-optional-timer');
+    const timerTextEl = document.getElementById('quiz-timer-text');
+
+    const practiceChecked = practiceModeEl ? practiceModeEl.checked : false;
+    const timerChecked = optionalTimerEl ? optionalTimerEl.checked : true;
 
     if (practiceChecked && !timerChecked) {
-      document.getElementById('quiz-timer-text').innerText = '⏳ Practice';
+      if (timerTextEl) timerTextEl.innerText = '⏳ Practice';
       return;
     }
 
     AppState.quiz.timeLeft = AppState.quiz.timeLimit || 15;
-    document.getElementById('quiz-timer-text').innerText = `⏳ ${AppState.quiz.timeLeft}s`;
+    if (timerTextEl) timerTextEl.innerText = `⏳ ${AppState.quiz.timeLeft}s`;
 
     AppState.quiz.timerInterval = setInterval(() => {
       AppState.quiz.timeLeft -= 1;
-      document.getElementById('quiz-timer-text').innerText = `⏳ ${AppState.quiz.timeLeft}s`;
+      if (timerTextEl) timerTextEl.innerText = `⏳ ${AppState.quiz.timeLeft}s`;
+
+      if (AppState.quiz.timeLeft <= 0) {
+        clearInterval(AppState.quiz.timerInterval);
+        this.handleTimeOut();
+      }
+    }, 1000);
+  },
+
+  resumeTimer() {
+    const practiceModeEl = document.getElementById('arena-practice-mode');
+    const optionalTimerEl = document.getElementById('practice-optional-timer');
+    const timerTextEl = document.getElementById('quiz-timer-text');
+
+    const practiceChecked = practiceModeEl ? practiceModeEl.checked : false;
+    const timerChecked = optionalTimerEl ? optionalTimerEl.checked : true;
+
+    if (practiceChecked && !timerChecked) {
+      if (timerTextEl) timerTextEl.innerText = '⏳ Practice';
+      return;
+    }
+
+    clearInterval(AppState.quiz.timerInterval);
+    if (timerTextEl) timerTextEl.innerText = `⏳ ${AppState.quiz.timeLeft}s`;
+
+    AppState.quiz.timerInterval = setInterval(() => {
+      AppState.quiz.timeLeft -= 1;
+      if (timerTextEl) timerTextEl.innerText = `⏳ ${AppState.quiz.timeLeft}s`;
 
       if (AppState.quiz.timeLeft <= 0) {
         clearInterval(AppState.quiz.timerInterval);
@@ -1539,6 +1577,7 @@ const QuizArena = {
   // Process Selection click
   handleAnswerSelection(selectedBtn, chosenKey) {
     clearInterval(AppState.quiz.timerInterval);
+    VoiceQuizController.stop();
 
     // Disable all options buttons to lock answer
     const buttons = document.querySelectorAll('.option-btn');
@@ -1573,7 +1612,8 @@ const QuizArena = {
       selectedBtn.classList.add('wrong');
       AudioSynth.playWrong();
 
-      const practiceMode = document.getElementById('arena-practice-mode').checked;
+      const practiceModeEl = document.getElementById('arena-practice-mode');
+      const practiceMode = practiceModeEl ? practiceModeEl.checked : false;
       if (!practiceMode) {
         AppState.quiz.lives -= 1;
       }
@@ -1581,9 +1621,12 @@ const QuizArena = {
       // Reset streak
       AppState.quiz.streakCount = 0;
 
-      // Highlight correct choice
+      // Highlight correct choice using specific option index span text matching
       buttons.forEach(b => {
-        if (b.innerText.startsWith(correctKey)) {
+        const idxSpan = b.querySelector('.option-index');
+        if (idxSpan && idxSpan.innerText.trim() === correctKey) {
+          b.classList.add('correct');
+        } else if (!idxSpan && b.innerText.startsWith(correctKey)) {
           b.classList.add('correct');
         }
       });
@@ -1607,6 +1650,12 @@ const QuizArena = {
       tutorBtn.classList.remove('hidden');
       tutorBtn.onclick = () => {
         AudioSynth.playClick();
+        
+        // Cancel the auto-next timer if user starts chatting with AI Tutor
+        if (AppState.quiz.autoNextTimeout) {
+          clearTimeout(AppState.quiz.autoNextTimeout);
+          AppState.quiz.autoNextTimeout = null;
+        }
 
         // Save chosen key on state so the tutor can access it later
         AppState.quiz.chosenKey = chosenKey;
@@ -1745,12 +1794,31 @@ const QuizArena = {
       hintEl.innerHTML = `<strong>Explanation:</strong> ${q.explanation || 'No detailed explanation provided.'}`;
       hintEl.classList.remove('hidden');
     }
+
+    ViewRefresher.updateQuizLivesDisplay();
+
+    // Check game over
+    const practiceModeEl = document.getElementById('arena-practice-mode');
+    const practiceMode = practiceModeEl ? practiceModeEl.checked : false;
+    if (!practiceMode && AppState.quiz.lives <= 0) {
+      AppState.quiz.autoNextTimeout = setTimeout(() => {
+        this.finish(true); // Game Over
+      }, 3000);
+      return;
+    }
+
+    // Schedule auto-next transition after 3000ms delay so the user can inspect correct feedback
+    AppState.quiz.autoNextTimeout = setTimeout(() => {
+      this.next();
+    }, 3000);
   },
 
   handleTimeOut() {
     AudioSynth.playWrong();
+    VoiceQuizController.stop();
 
-    const practiceMode = document.getElementById('arena-practice-mode').checked;
+    const practiceModeEl = document.getElementById('arena-practice-mode');
+    const practiceMode = practiceModeEl ? practiceModeEl.checked : false;
     if (!practiceMode) {
       AppState.quiz.lives -= 1;
     }
@@ -1762,9 +1830,12 @@ const QuizArena = {
     const q = AppState.quiz.questions[AppState.quiz.currentIndex];
     const correctKey = AppState.quiz.currentCorrectKey;
 
-    // Highlight correct
+    // Highlight correct choice using specific option index span text matching
     buttons.forEach(b => {
-      if (b.innerText.startsWith(correctKey)) {
+      const idxSpan = b.querySelector('.option-index');
+      if (idxSpan && idxSpan.innerText.trim() === correctKey) {
+        b.classList.add('correct');
+      } else if (!idxSpan && b.innerText.startsWith(correctKey)) {
         b.classList.add('correct');
       }
     });
@@ -1790,12 +1861,31 @@ const QuizArena = {
       hintEl.classList.remove('hidden');
     }
 
-    document.getElementById('btn-quiz-hint').classList.add('hidden');
-    document.getElementById('btn-quiz-next').classList.remove('hidden');
+    const hintBtn = document.getElementById('btn-quiz-hint');
+    if (hintBtn) hintBtn.classList.add('hidden');
+    const nextBtn = document.getElementById('btn-quiz-next');
+    if (nextBtn) nextBtn.classList.remove('hidden');
 
     // Immediately update progress bar to show current question as completed (timed out)
     const progressPercent = ((AppState.quiz.currentIndex + 1) / AppState.quiz.questions.length) * 100;
-    document.getElementById('quiz-progress-fill').style.width = `${progressPercent}%`;
+    const progressFill = document.getElementById('quiz-progress-fill');
+    if (progressFill) progressFill.style.width = `${progressPercent}%`;
+
+    // Update hearts lives UI
+    ViewRefresher.updateQuizLivesDisplay();
+
+    // Check game over
+    if (!practiceMode && AppState.quiz.lives <= 0) {
+      AppState.quiz.autoNextTimeout = setTimeout(() => {
+        this.finish(true); // Game Over
+      }, 3000);
+      return;
+    }
+
+    // Schedule auto-next transition after 3000ms delay so the user can inspect correct feedback
+    AppState.quiz.autoNextTimeout = setTimeout(() => {
+      this.next();
+    }, 3000);
   },
 
   getOptionValue(q, key) {
@@ -1926,6 +2016,34 @@ const QuizArena = {
 
         if (data.newCoins !== undefined) {
           ViewRefresher.updateCoinsDisplay(data.newCoins);
+        }
+
+        // Trigger quiz completion notification
+        NotificationController.trigger(
+          "Quiz Completed! 🏆", 
+          `Scored ${score}/${totalQuestions} in ${payload.category} (${payload.difficulty}). Earned +${data.xpEarned} XP and +${score * 10} Coins!`
+        );
+
+        // Check and trigger level-up notification
+        if (data.newTotalXp !== undefined && data.xpEarned !== undefined) {
+          const oldLevel = Math.floor((data.newTotalXp - data.xpEarned) / 1000) + 1;
+          const newLevel = Math.floor(data.newTotalXp / 1000) + 1;
+          if (newLevel > oldLevel) {
+            NotificationController.trigger(
+              "Level-up! 🌟", 
+              `Congratulations! You leveled up to Level ${newLevel}! Keep solving quizzes to reach new heights.`
+            );
+          }
+        }
+
+        // Trigger badge unlock notifications
+        if (data.unlockedBadges && data.unlockedBadges.length > 0) {
+          data.unlockedBadges.forEach(bId => {
+            NotificationController.trigger(
+              "Achievement Unlocked! 🏆", 
+              `New Achievement Unlocked: ${bId.replace('_', ' ').toUpperCase()}`
+            );
+          });
         }
 
         // Show XP Earned in summary if game over
@@ -2386,10 +2504,8 @@ const ViewRefresher = {
 
       // Apply selected theme
       if (profile.progress.selected_theme) {
-        document.body.className = '';
-        if (profile.progress.selected_theme !== 'dark') {
-          document.body.classList.add(profile.progress.selected_theme);
-        }
+        applyTheme(profile.progress.selected_theme);
+        AppState.quiz.savedTheme = profile.progress.selected_theme;
       }
 
       // Navigation user widget
@@ -2443,10 +2559,14 @@ const ViewRefresher = {
       const ratio = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0;
       document.getElementById('analytics-accuracy').innerText = `${ratio}%`;
 
+      // Level and tier calculations
+      const xp = profile.progress.total_xp || 0;
+      const level = Math.floor(Math.sqrt(xp / 100)) + 1;
+      const tier = level > 15 ? 'Elite Master' : level > 8 ? 'Senior Scholar' : 'Novice Learner';
+
       document.getElementById('analytics-skill-tier').innerText = tier;
 
       // Level calculations
-      const level = Math.floor(Math.sqrt(xp / 100)) + 1;
       const currentLevelXp = Math.round(100 * Math.pow(level - 1, 2));
       const nextLevelXp = Math.round(100 * Math.pow(level, 2));
       const levelXpProgress = xp - currentLevelXp;
@@ -2656,9 +2776,409 @@ const ViewRefresher = {
   }
 };
 
+// Theme Application Utility
+function applyTheme(themeName) {
+  const themes = ['theme-cyberpunk', 'theme-forest', 'theme-sunset', 'theme-light', 'theme_cyberpunk', 'theme_forest', 'theme_sunset', 'theme_light', 'light-mode', 'dark-mode'];
+  themes.forEach(t => document.body.classList.remove(t));
+
+  const formattedTheme = (themeName || 'dark').replace('_', '-');
+  
+  if (formattedTheme === 'light') {
+    document.body.classList.add('light-mode');
+  } else if (formattedTheme === 'dark') {
+    document.body.classList.add('dark-mode');
+  } else {
+    document.body.classList.add(formattedTheme);
+  }
+}
+
+// Notifications Controller
+const NotificationController = {
+  async init() {
+    const toggleBtn = document.getElementById('btn-notifications-toggle');
+    const clearBtn = document.getElementById('btn-clear-notifications');
+    const checkbox = document.getElementById('profile-notifications-enabled');
+
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const drawer = document.getElementById('drawer-notifications');
+        if (drawer) {
+          drawer.classList.toggle('hidden');
+          if (!drawer.classList.contains('hidden')) {
+            this.refresh();
+          }
+        }
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', async () => {
+        AudioSynth.playClick();
+        try {
+          await NetworkClient.request('/notifications/read', 'POST');
+          this.refresh();
+        } catch (err) {
+          console.error('Failed to clear notifications:', err);
+        }
+      });
+    }
+
+    if (checkbox) {
+      checkbox.checked = localStorage.getItem('notifications_enabled') !== 'false';
+      checkbox.addEventListener('change', () => {
+        localStorage.setItem('notifications_enabled', checkbox.checked.toString());
+        this.refresh();
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      const drawer = document.getElementById('drawer-notifications');
+      if (drawer && !drawer.classList.contains('hidden')) {
+        if (!drawer.contains(e.target) && e.target.id !== 'btn-notifications-toggle') {
+          drawer.classList.add('hidden');
+        }
+      }
+    });
+
+    this.checkDailyReminder();
+    this.refresh();
+  },
+
+  checkDailyReminder() {
+    const today = new Date().toDateString();
+    const lastActive = localStorage.getItem('last_active_date');
+    if (lastActive !== today) {
+      localStorage.setItem('last_active_date', today);
+      this.trigger(
+        "Daily Quiz Reminder 📅",
+        "Keep your streak going! Play today's daily challenge to earn bonus XP and Coins."
+      );
+    }
+  },
+
+  async trigger(title, message) {
+    const enabled = localStorage.getItem('notifications_enabled') !== 'false';
+    if (!enabled) return;
+
+    try {
+      await NetworkClient.request('/notifications', 'POST', { title, message });
+    } catch (err) {
+      console.error('Failed to trigger in-app notification:', err);
+    }
+    this.refresh();
+  },
+
+  async refresh() {
+    const listContainer = document.getElementById('notifications-list');
+    const badge = document.getElementById('notifications-unread-count');
+    
+    const enabled = localStorage.getItem('notifications_enabled') !== 'false';
+    if (!enabled) {
+      if (badge) badge.classList.add('hidden');
+      if (listContainer) {
+        listContainer.innerHTML = `<div class="no-notifications dict-key" data-key="notif-disabled" style="padding: 20px; text-align: center; color: var(--text-muted);">Notifications are disabled in Settings.</div>`;
+        translateUI(window.currentLang);
+      }
+      return;
+    }
+
+    try {
+      const data = await NetworkClient.request('/notifications');
+      const notifications = Array.isArray(data) ? data : [];
+      
+      const unreadCount = notifications.filter(n => !n.is_read).length;
+      if (badge) {
+        if (unreadCount > 0) {
+          badge.innerText = unreadCount;
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+
+      if (!listContainer) return;
+      if (notifications.length === 0) {
+        listContainer.innerHTML = `<div class="no-notifications dict-key" data-key="no-notif" style="padding: 20px; text-align: center; color: var(--text-muted);">No new notifications</div>`;
+        translateUI(window.currentLang);
+        return;
+      }
+
+      listContainer.innerHTML = '';
+      notifications.forEach(n => {
+        const item = document.createElement('div');
+        item.className = `notification-item ${!n.is_read ? 'unread' : ''}`;
+        
+        let timeStr = '';
+        if (n.created_at) {
+          const d = new Date(n.created_at);
+          timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        item.innerHTML = `
+          <div class="notification-title" style="font-weight: 600; color: var(--text-main); font-size: 13px; margin-bottom: 3px;">${n.title}</div>
+          <div class="notification-message" style="font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-bottom: 5px;">${n.message}</div>
+          <div class="notification-date" style="font-size: 10px; color: var(--text-dark-muted); text-align: right;">${timeStr}</div>
+        `;
+        listContainer.appendChild(item);
+      });
+      
+      translateUI(window.currentLang);
+    } catch (err) {
+      console.error('Refresh notifications fail:', err);
+    }
+  }
+};
+
+// AI Future Skill Predictor Chat Controller
+const PredictorChatController = {
+  chatMessages: [],
+
+  init() {
+    const form = document.getElementById('form-predictor-chat');
+    const input = document.getElementById('predictor-chat-input');
+    
+    if (!form || !input) return;
+
+    this.chatMessages = [
+      { role: 'assistant', content: "Hello! I am your AI Career Mentor. I have analyzed your quiz attempt history. Ask me questions about skills to improve, suggested pathways, career paths, or certifications!" }
+    ];
+    this.render();
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+      await this.sendMessage(text);
+    };
+
+    const chips = {
+      'btn-predictor-chip-career': "Suggest Career Paths based on my quiz stats.",
+      'btn-predictor-chip-skills': "Recommend Skills to improve based on my accuracy.",
+      'btn-predictor-chip-certs': "Suggest Certifications for my profile."
+    };
+
+    for (const [id, prompt] of Object.entries(chips)) {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.onclick = async () => {
+          AudioSynth.playClick();
+          await this.sendMessage(prompt);
+        };
+      }
+    }
+  },
+
+  render() {
+    const chatContainer = document.getElementById('predictor-chat-messages');
+    if (!chatContainer) return;
+
+    chatContainer.innerHTML = '';
+    this.chatMessages.forEach(msg => {
+      const bubble = document.createElement('div');
+      bubble.className = `tutor-message-bubble ${msg.role === 'assistant' ? 'assistant' : 'user'}`;
+      bubble.innerText = msg.content;
+      chatContainer.appendChild(bubble);
+    });
+
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  },
+
+  async sendMessage(text) {
+    this.chatMessages.push({ role: 'user', content: text });
+    this.render();
+
+    const chatContainer = document.getElementById('predictor-chat-messages');
+    
+    const typing = document.createElement('div');
+    typing.className = 'tutor-message-bubble assistant typing-bubble';
+    typing.innerText = 'AI Mentor is thinking...';
+    chatContainer.appendChild(typing);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    try {
+      let aiResponse = "";
+      if (AppState.isOnline) {
+        const response = await NetworkClient.request('/predictor/chat', 'POST', {
+          messages: this.chatMessages,
+          language: window.currentLang
+        });
+        aiResponse = response.response;
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        const history = JSON.parse(localStorage.getItem('mock_attempts') || '[]');
+        if (history.length === 0) {
+          aiResponse = "I noticed you haven't completed any quizzes yet. Please practice some quizzes first so I can analyze your strengths and weaknesses!";
+        } else {
+          const stats = {};
+          history.forEach(h => {
+            if (!stats[h.category]) stats[h.category] = { correct: 0, total: 0 };
+            stats[h.category].correct += h.score;
+            stats[h.category].total += h.total_questions;
+          });
+
+          const categories = Object.keys(stats);
+          const topCategory = categories.reduce((a, b) => (stats[a].correct / stats[a].total) > (stats[b].correct / stats[b].total) ? a : b);
+          const lowCategory = categories.reduce((a, b) => (stats[a].correct / stats[a].total) < (stats[b].correct / stats[b].total) ? a : b);
+
+          if (text.toLowerCase().includes('career')) {
+            aiResponse = `Based on your quiz history, your strongest category is **${topCategory}**! You would excel in roles like **${topCategory} Engineer** or **Backend Systems Architect**. Keep polishing your skills!`;
+          } else if (text.toLowerCase().includes('skill')) {
+            aiResponse = `You are performing great in **${topCategory}**. However, you should allocate more practice hours to **${lowCategory}** where your accuracy is lower. Try using practice mode without timers.`;
+          } else if (text.toLowerCase().includes('cert')) {
+            aiResponse = `For your strengths in **${topCategory}**, I recommend pursuing the following industry certifications:\n1. AWS Certified Developer Associate\n2. Oracle Certified Professional Java SE\n3. Google Professional Cloud Developer`;
+          } else {
+            aiResponse = `As your Career Advisor, I recommend focusing on improving your accuracy in **${lowCategory}**. How else can I guide you on career pathways or certifications?`;
+          }
+        }
+      }
+
+      typing.remove();
+      this.chatMessages.push({ role: 'assistant', content: aiResponse });
+      this.render();
+    } catch (err) {
+      typing.remove();
+      const errorMsg = err.error || err.message || 'AI service unavailable.';
+      this.chatMessages.push({ role: 'assistant', content: `Error: ${errorMsg}` });
+      this.render();
+    }
+  }
+};
+
+// 3. VOICE-BASED TEXT-TO-SPEECH (TTS) SYSTEM CONTROLLER
+const VoiceQuizController = {
+  utterance: null,
+  synth: window.speechSynthesis,
+  isPaused: false,
+  statusIndicator: null,
+  currentText: "",
+
+  init() {
+    this.statusIndicator = this.statusIndicator || document.getElementById('voice-status-indicator');
+    if (this.synth) {
+      try {
+        this.synth.cancel();
+      } catch (e) {
+        console.warn('Speech synthesis cancel failed:', e);
+      }
+    }
+    this.isPaused = false;
+    if (this.statusIndicator) this.statusIndicator.className = 'voice-status-glow';
+    
+    const pauseBtn = document.getElementById('btn-voice-pause');
+    if (pauseBtn) {
+      pauseBtn.classList.add('hidden');
+      pauseBtn.innerText = window.currentLang === 'ta' ? '⏸️ இடைநிறுத்து' : window.currentLang === 'hi' ? '⏸️ विराम दें' : '⏸️ Pause';
+    }
+    const stopBtn = document.getElementById('btn-voice-stop');
+    if (stopBtn) stopBtn.classList.add('hidden');
+  },
+
+  speakText(text, langCode = 'en') {
+    this.init();
+    if (!text) return;
+    this.currentText = text;
+
+    this.utterance = new SpeechSynthesisUtterance(text);
+
+    // Choose appropriate voice patterns matching localized Tamil/Hindi selections
+    if (this.synth) {
+      try {
+        const voices = this.synth.getVoices() || [];
+        if (voices.length > 0) {
+          let selectedVoice = voices.find(v => v.lang.startsWith(langCode));
+          if (!selectedVoice && langCode === 'ta') selectedVoice = voices.find(v => v.lang.includes('IN'));
+          if (!selectedVoice && langCode === 'hi') selectedVoice = voices.find(v => v.lang.includes('IN'));
+          if (selectedVoice) {
+            this.utterance.voice = selectedVoice;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to retrieve synthesis voices:', e);
+      }
+    }
+
+    // Calculate speech rate adjustment based on remaining time in timer
+    const wordsCount = text.split(/\s+/).length;
+    const normalWordsPerSec = 2.4; // 144 words per minute
+    const estimatedDuration = wordsCount / normalWordsPerSec;
+    
+    let rate = 1.0;
+    // Intelligently scale reading speed between 1.0 and 2.0 if estimated duration exceeds remaining time
+    if (AppState.quiz.timeLeft && AppState.quiz.timeLeft > 0 && estimatedDuration > AppState.quiz.timeLeft) {
+      rate = Math.min(2.0, estimatedDuration / AppState.quiz.timeLeft);
+    }
+    this.utterance.rate = rate;
+
+    this.utterance.onstart = () => {
+      if (this.statusIndicator) this.statusIndicator.classList.add('active');
+      const pauseBtn = document.getElementById('btn-voice-pause');
+      if (pauseBtn) pauseBtn.classList.remove('hidden');
+      const stopBtn = document.getElementById('btn-voice-stop');
+      if (stopBtn) stopBtn.classList.remove('hidden');
+    };
+
+    this.utterance.onend = () => {
+      if (this.statusIndicator) this.statusIndicator.classList.remove('active');
+      const pauseBtn = document.getElementById('btn-voice-pause');
+      if (pauseBtn) pauseBtn.classList.add('hidden');
+      const stopBtn = document.getElementById('btn-voice-stop');
+      if (stopBtn) stopBtn.classList.add('hidden');
+    };
+
+    if (this.synth) {
+      try {
+        this.synth.speak(this.utterance);
+      } catch (e) {
+        console.warn('Speech synthesis speak failed:', e);
+      }
+    }
+  },
+
+  pause() {
+    if (!this.synth) return;
+    try {
+      if (this.synth.speaking && !this.isPaused) {
+        this.synth.pause();
+        this.isPaused = true;
+        
+        const resumeText = window.currentLang === 'ta' ? '▶️ தொடர்' : window.currentLang === 'hi' ? '▶️ जारी रखें' : '▶️ Resume';
+        const pauseBtn = document.getElementById('btn-voice-pause');
+        if (pauseBtn) pauseBtn.innerText = resumeText;
+      } else if (this.isPaused) {
+        this.synth.resume();
+        this.isPaused = false;
+        
+        const pauseText = window.currentLang === 'ta' ? '⏸️ இடைநிறுத்து' : window.currentLang === 'hi' ? '⏸️ विराम दें' : '⏸️ Pause';
+        const pauseBtn = document.getElementById('btn-voice-pause');
+        if (pauseBtn) pauseBtn.innerText = pauseText;
+      }
+    } catch (e) {
+      console.warn('Speech synthesis pause/resume failed:', e);
+    }
+  },
+
+  stop() {
+    if (this.synth) {
+      try {
+        this.synth.cancel();
+      } catch (e) {
+        console.warn('Speech synthesis cancel failed:', e);
+      }
+    }
+    this.init();
+  }
+};
+
 // 9. EVENT BINDING & CORE EVENT LISTENER LOOPS
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🏁 Application Booted.');
+
+  NotificationController.init();
+  PredictorChatController.init();
 
   // A. Check connection state
   await NetworkClient.checkConnection();
@@ -3381,7 +3901,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       "admin-broadcast-label": "Broadcast Announcement",
       "btn-admin-broadcast-submit": "Send Broadcast",
       "admin-broadcast-history-title": "Broadcast History",
-      "admin-logs-title": "Access Audit Security Logins"
+      "admin-logs-title": "Access Audit Security Logins",
+      "btn-quiz-quit": "🚪 Quit",
+      "quit-modal-title": "Quit Quiz?",
+      "quit-modal-body": "Are you sure you want to quit the quiz? Your current progress in this quiz will be lost.",
+      "btn-quit-confirm": "Quit Quiz",
+      "btn-quit-cancel": "Continue Quiz",
+      "predictor-mentor-title": "🧙‍♂️ AI Career Mentor Chat",
+      "predictor-mentor-desc": "Ask follow-up questions to your career advisor or get dynamic study plans.",
+      "chip-career": "💼 Suggest Career Paths",
+      "chip-skills": "📈 Recommend Skills",
+      "chip-certs": "🎓 Suggest Certifications",
+      "btn-predictor-send": "Send",
+      "settings-label-notifications": "Enable In-App Notifications",
+      "btn-theme-restore-default": "Restore Default",
+      "btn-theme-remove-current": "Remove Theme",
+      "profile-label-theme": "Select Active Theme (Themes must be purchased from Shop)",
+      "notif-disabled": "Notifications are disabled in Settings.",
+      "no-notif": "No new notifications"
     },
     ta: {
       // Buttons and IDs
@@ -3559,7 +4096,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       "admin-broadcast-label": "அறிவிப்பு உரை",
       "btn-admin-broadcast-submit": "அறிவிப்பை அனுப்பு",
       "admin-broadcast-history-title": "அறிவிப்பு வரலாறு",
-      "admin-logs-title": "அணுகல் தணிக்கை பாதுகாப்பு உள்நுழைவுகள்"
+      "admin-logs-title": "அணுகல் தணிக்கை பாதுகாப்பு உள்நுழைவுகள்",
+      "btn-quiz-quit": "🚪 விலகு",
+      "quit-modal-title": "வினாடி வினாவிலிருந்து விலகவா?",
+      "quit-modal-body": "வினாடி வினாவிலிருந்து விலக வேண்டுமா? இந்த வினாடி வினாவில் உங்கள் தற்போதைய முன்னேற்றம் இழக்கப்படும்.",
+      "btn-quit-confirm": "விலகு",
+      "btn-quit-cancel": "தொடரவும்",
+      "predictor-mentor-title": "🧙‍♂️ AI தொழில் வழிகாட்டி அரட்டை",
+      "predictor-mentor-desc": "உங்கள் தொழில் ஆலோசகரிடம் தொடர் கேள்விகளைக் கேளுங்கள் அல்லது மாறும் ஆய்வுத் திட்டங்களைப் பெறுங்கள்.",
+      "chip-career": "💼 தொழில் பாதைகளை பரிந்துரைக்கவும்",
+      "chip-skills": "📈 மேம்படுத்த வேண்டிய திறன்கள்",
+      "chip-certs": "🎓 சான்றிதழ்களை பரிந்துரைக்கவும்",
+      "btn-predictor-send": "அனுப்பு",
+      "settings-label-notifications": "செயலி அறிவிப்புகளை இயக்கவும்",
+      "btn-theme-restore-default": "இயல்புநிலையை மீட்டமை",
+      "btn-theme-remove-current": "தீம் நீக்கவும்",
+      "profile-label-theme": "தீம் தேர்ந்தெடுக்கவும் (கடையில் இருந்து வாங்க வேண்டும்)",
+      "notif-disabled": "அறிவிப்புகள் அமைப்புகளில் முடக்கப்பட்டுள்ளன.",
+      "no-notif": "புதிய அறிவிப்புகள் இல்லை"
     },
     hi: {
       // Buttons and IDs
@@ -3737,7 +4291,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       "admin-broadcast-label": "उद्घोषणा पाठ",
       "btn-admin-broadcast-submit": "उद्घोषणा भेजें",
       "admin-broadcast-history-title": "उद्घोषणा इतिहास",
-      "admin-logs-title": "पहुंच ऑडिट सुरक्षा लॉगिन"
+      "admin-logs-title": "पहुंच ऑडिट सुरक्षा लॉगिन",
+      "btn-quiz-quit": "🚪 छोड़ें",
+      "quit-modal-title": "प्रश्नोत्तरी छोड़ें?",
+      "quit-modal-body": "क्या आप वास्तव में प्रश्नोत्तरी छोड़ना चाहते हैं? इस प्रश्नोत्तरी में आपकी वर्तमान प्रगति खो जाएगी।",
+      "btn-quit-confirm": "छोड़ें",
+      "btn-quit-cancel": "जारी रखें",
+      "predictor-mentor-title": "🧙‍♂️ एआई कैरियर मेंटर चैट",
+      "predictor-mentor-desc": "अपने कैरियर सलाहकार से अनुवर्ती प्रश्न पूछें या गतिशील अध्ययन योजनाएँ प्राप्त करें।",
+      "chip-career": "💼 कैरियर पथों का सुझाव दें",
+      "chip-skills": "📈 कौशल की सिफारिश करें",
+      "chip-certs": "🎓 प्रमाणपत्रों का सुझाव दें",
+      "btn-predictor-send": "भेजें",
+      "settings-label-notifications": "इन-ऐप सूचनाएं सक्षम करें",
+      "btn-theme-restore-default": "डिफ़ॉल्ट पुनर्स्थापित करें",
+      "btn-theme-remove-current": "थीम हटाएं",
+      "profile-label-theme": "सक्रिय थीम चुनें (दुकान से खरीदनी होगी)",
+      "notif-disabled": "सूचनाएं सेटिंग्स में अक्षम हैं।",
+      "no-notif": "कोई नई सूचना नहीं"
     }
   };
 
@@ -4133,70 +4704,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // 3. VOICE-BASED TEXT-TO-SPEECH (TTS) SYSTEM CONTROLLER
-  const VoiceQuizController = {
-    utterance: null,
-    synth: window.speechSynthesis,
-    isPaused: false,
-    statusIndicator: document.getElementById('voice-status-indicator'),
 
-    init() {
-      this.synth.cancel();
-      this.isPaused = false;
-      if (this.statusIndicator) this.statusIndicator.className = 'voice-status-glow';
-      document.getElementById('btn-voice-pause').classList.add('hidden');
-      document.getElementById('btn-voice-stop').classList.add('hidden');
-    },
-
-    speakText(text, langCode = 'en') {
-      this.init();
-      if (!text) return;
-
-      this.utterance = new SpeechSynthesisUtterance(text);
-
-      // Choose appropriate voice patterns matching localized Tamil/Hindi selections
-      if (this.synth.getVoices().length > 0) {
-        const voices = this.synth.getVoices();
-        let selectedVoice = voices.find(v => v.lang.startsWith(langCode));
-        if (!selectedVoice && langCode === 'ta') selectedVoice = voices.find(v => v.lang.includes('IN'));
-        if (!selectedVoice && langCode === 'hi') selectedVoice = voices.find(v => v.lang.includes('IN'));
-        if (selectedVoice) {
-          this.utterance.voice = selectedVoice;
-        }
-      }
-
-      this.utterance.onstart = () => {
-        if (this.statusIndicator) this.statusIndicator.classList.add('active');
-        document.getElementById('btn-voice-pause').classList.remove('hidden');
-        document.getElementById('btn-voice-stop').classList.remove('hidden');
-      };
-
-      this.utterance.onend = () => {
-        if (this.statusIndicator) this.statusIndicator.classList.remove('active');
-        document.getElementById('btn-voice-pause').classList.add('hidden');
-        document.getElementById('btn-voice-stop').classList.add('hidden');
-      };
-
-      this.synth.speak(this.utterance);
-    },
-
-    pause() {
-      if (this.synth.speaking && !this.isPaused) {
-        this.synth.pause();
-        this.isPaused = true;
-        document.getElementById('btn-voice-pause').innerText = '▶️ Resume';
-      } else if (this.isPaused) {
-        this.synth.resume();
-        this.isPaused = false;
-        document.getElementById('btn-voice-pause').innerText = '⏸️ Pause';
-      }
-    },
-
-    stop() {
-      this.synth.cancel();
-      this.init();
-    }
-  };
 
   document.getElementById('btn-voice-speak').addEventListener('click', () => {
     AudioSynth.playClick();
@@ -4214,6 +4722,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-voice-stop').addEventListener('click', () => {
     AudioSynth.playClick();
     VoiceQuizController.stop();
+  });
+
+  // Quit Quiz Event Listeners
+  document.getElementById('btn-quiz-quit').addEventListener('click', () => {
+    AudioSynth.playClick();
+    clearInterval(AppState.quiz.timerInterval);
+    VoiceQuizController.stop();
+    document.getElementById('modal-quit-quiz').classList.remove('hidden');
+  });
+
+  document.getElementById('btn-quit-cancel').addEventListener('click', () => {
+    AudioSynth.playClick();
+    document.getElementById('modal-quit-quiz').classList.add('hidden');
+    QuizArena.resumeTimer();
+  });
+
+  document.getElementById('btn-quit-confirm').addEventListener('click', () => {
+    AudioSynth.playClick();
+    document.getElementById('modal-quit-quiz').classList.add('hidden');
+    clearInterval(AppState.quiz.timerInterval);
+    VoiceQuizController.stop();
+    ViewController.switchView('dashboard');
   });
 
   // 4. MOCK GOOGLE AUTHENTICATION SYSTEM BINDINGS
@@ -4407,6 +4937,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
               await NetworkClient.request('/shop/purchase', 'POST', { itemId: item.id, itemName: item.name, itemType: item.type, cost: item.cost });
               alert(`${item.name} unlocked successfully!`);
+              NotificationController.trigger(
+                "Purchase Successful! 🛒",
+                `You have successfully purchased and unlocked: ${item.name} for ${item.cost} coins.`
+              );
               loadShopItemsCatalog();
               ViewRefresher.refreshDashboard();
             } catch (err) {
@@ -4466,9 +5000,43 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('profile-bio-input').value = profile.user.bio || '';
       document.getElementById('profile-fav-cat').value = profile.user.fav_category || 'AI';
 
+      // Seed notifications checkbox toggle state
+      const checkbox = document.getElementById('profile-notifications-enabled');
+      if (checkbox) {
+        checkbox.checked = localStorage.getItem('notifications_enabled') !== 'false';
+      }
+
       // Enable themes options if purchased
       const themeSelect = document.getElementById('profile-theme');
       themeSelect.value = profile.progress.selected_theme || 'dark';
+
+      // Store initial theme in AppState to allow reversion if user cancels
+      AppState.quiz.savedTheme = profile.progress.selected_theme || 'dark';
+
+      // Dropdown preview event listener
+      themeSelect.onchange = () => {
+        applyTheme(themeSelect.value);
+      };
+
+      // Restore default theme button click
+      const restoreBtn = document.getElementById('btn-theme-restore-default');
+      if (restoreBtn) {
+        restoreBtn.onclick = () => {
+          AudioSynth.playClick();
+          themeSelect.value = 'dark';
+          applyTheme('dark');
+        };
+      }
+
+      // Remove current theme button click
+      const removeBtn = document.getElementById('btn-theme-remove-current');
+      if (removeBtn) {
+        removeBtn.onclick = () => {
+          AudioSynth.playClick();
+          themeSelect.value = 'dark';
+          applyTheme('dark');
+        };
+      }
 
       Array.from(themeSelect.options).forEach(opt => {
         if (opt.value === 'dark' || opt.value === 'light') {
@@ -4578,7 +5146,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       username: document.getElementById('profile-username').value,
       bio: document.getElementById('profile-bio-input').value,
       fav_category: document.getElementById('profile-fav-cat').value,
-      theme: document.getElementById('profile-theme').value
+      theme: document.getElementById('profile-theme').value,
+      selected_theme: document.getElementById('profile-theme').value
     };
 
     if (AppState.quiz.selectedAvatarEmoji) payload.avatar = AppState.quiz.selectedAvatarEmoji;
@@ -4587,7 +5156,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const res = await NetworkClient.request('/profile', 'PUT', payload);
       alert(res.message);
+
+      // Save notification state
+      const checkbox = document.getElementById('profile-notifications-enabled');
+      if (checkbox) {
+        localStorage.setItem('notifications_enabled', checkbox.checked.toString());
+      }
+
+      // Commit theme permanently
+      AppState.quiz.savedTheme = payload.selected_theme;
+
       ViewRefresher.refreshDashboard();
+      NotificationController.refresh();
     } catch (err) {
       alert(err.message);
     }
@@ -4709,6 +5289,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         totalQuestions: AppState.quiz.questions.length
       });
       showCertificateModalView(cert);
+      NotificationController.trigger(
+        "Certificate Generated! 🎓",
+        `Your certificate for ${AppState.quiz.category} has been issued successfully. Verification ID: ${cert.cert_id || 'CERT-' + Date.now()}`
+      );
     } catch (err) {
       alert(err.message);
     }
@@ -4745,6 +5329,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         totalQuestions: AppState.quiz.questions.length
       });
       showCertificateModalView(cert);
+      NotificationController.trigger(
+        "Certificate Generated! 🎓",
+        `Your certificate for ${AppState.quiz.category} has been issued successfully. Verification ID: ${cert.cert_id || 'CERT-' + Date.now()}`
+      );
     } catch (err) {
       alert(err.message);
     }

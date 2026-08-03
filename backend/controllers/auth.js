@@ -64,6 +64,23 @@ async function register(req, res) {
     return res.status(400).json({ error: 'All fields are required.' });
   }
 
+  // Validate username syntax (alphanumeric or underscores only, 3-20 chars)
+  const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+  if (!usernameRegex.test(username)) {
+    return res.status(400).json({ error: 'Username must be 3-20 characters long and contain only letters, numbers, or underscores.' });
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ error: 'Please provide a valid email address.' });
+  }
+
+  // Validate password length
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+  }
+
   try {
     // Check if username is already taken in the public profiles table
     const { data: existingUser, error: checkError } = await supabaseAdmin

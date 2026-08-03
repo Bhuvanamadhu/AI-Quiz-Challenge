@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Quiz Challenge - Premium Tech Trivia</title>
+  <title>QuizNova AI</title>
   <!-- Google Fonts: Outfit and Inter for sleek modern UI typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -593,14 +593,24 @@
 
                   <!-- Theme selection -->
                   <div class="form-group">
-                    <label for="profile-theme">Select Active Theme (Themes must be purchased from Shop)</label>
-                    <select id="profile-theme">
-                      <option value="dark">Modern Dark (Default)</option>
-                      <option value="light">Premium Light</option>
-                      <option value="theme_cyberpunk" disabled>Cyberpunk Purple (Shop Item)</option>
-                      <option value="theme_forest" disabled>Forest Green (Shop Item)</option>
-                      <option value="theme_sunset" disabled>Sunset Orange (Shop Item)</option>
-                    </select>
+                    <label for="profile-theme" class="dict-key" data-key="profile-label-theme">Select Active Theme (Themes must be purchased from Shop)</label>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                      <select id="profile-theme" style="flex: 1; min-width: 150px;">
+                        <option value="dark">Modern Dark (Default)</option>
+                        <option value="light">Premium Light</option>
+                        <option value="theme_cyberpunk" disabled>Cyberpunk Purple (Shop Item)</option>
+                        <option value="theme_forest" disabled>Forest Green (Shop Item)</option>
+                        <option value="theme_sunset" disabled>Sunset Orange (Shop Item)</option>
+                      </select>
+                      <button type="button" id="btn-theme-restore-default" class="action-btn btn-secondary btn-sm" style="border-radius: var(--radius-sm); font-size: 11px; white-space: nowrap; height: 38px;">Restore Default</button>
+                      <button type="button" id="btn-theme-remove-current" class="action-btn btn-secondary btn-sm" style="border-radius: var(--radius-sm); font-size: 11px; white-space: nowrap; height: 38px; color: var(--accent-red); border-color: rgba(239,68,68,0.2);">Remove Theme</button>
+                    </div>
+                  </div>
+
+                  <!-- Notification settings toggle -->
+                  <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                    <input type="checkbox" id="profile-notifications-enabled" checked style="width: auto; margin: 0; cursor: pointer;">
+                    <label for="profile-notifications-enabled" class="dict-key" data-key="settings-label-notifications" style="margin: 0; cursor: pointer; font-size: 13px; font-weight: 500;">Enable In-App Notifications</label>
                   </div>
 
                   <button type="submit" class="action-btn btn-gradient btn-block">Save Changes</button>
@@ -729,12 +739,28 @@
                   <!-- Nodes pathways -->
                 </div>
 
-                <!-- AI Study Plan & Suggestions -->
-                <div class="study-modal-explanation" style="border-left-color: #a855f7; margin-top: 25px;">
-                  <h4 style="color: #a855f7; margin-bottom: 8px;">🧙‍♂️ AI Tutor Study Plan</h4>
-                  <div id="predictor-ai-study-plan" style="color: var(--text-main); font-size: 13px; line-height: 1.5;">
-                    Based on your history, start practicing SQL and JavaScript in Practice Mode with optional timers.
+                <!-- AI Career Mentor Chat Assistant -->
+                <div class="study-modal-explanation" style="border-left-color: #a855f7; margin-top: 25px; display: flex; flex-direction: column; gap: 12px; padding: 15px;">
+                  <h4 style="color: #a855f7; margin-bottom: 2px; display: flex; align-items: center; gap: 8px;" class="dict-key" data-key="predictor-mentor-title">🧙‍♂️ AI Career Mentor Chat</h4>
+                  <p style="font-size: 11px; color: var(--text-muted); margin: 0;" class="dict-key" data-key="predictor-mentor-desc">Ask follow-up questions to your career advisor or get dynamic study plans.</p>
+                  
+                  <!-- AI Career Mentor Chat Messages -->
+                  <div id="predictor-chat-messages" style="max-height: 250px; min-height: 120px; overflow-y: auto; padding: 10px; background: rgba(0,0,0,0.25); border: 1px solid var(--border-card); border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 10px;">
+                    <div class="tutor-message-bubble assistant">Hello! I am your AI Career Mentor. I have analyzed your quiz attempt history. Ask me questions about skills to improve, suggested pathways, career paths, or certifications!</div>
                   </div>
+
+                  <!-- Quick Chips for Career Mentor -->
+                  <div class="quick-chips-container" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 5px;">
+                    <button type="button" id="btn-predictor-chip-career" class="action-btn btn-secondary btn-sm" style="border-radius: var(--radius-sm); font-size: 11px; padding: 4px 10px;" class="dict-key" data-key="chip-career">💼 Suggest Career Paths</button>
+                    <button type="button" id="btn-predictor-chip-skills" class="action-btn btn-secondary btn-sm" style="border-radius: var(--radius-sm); font-size: 11px; padding: 4px 10px;" class="dict-key" data-key="chip-skills">📈 Recommend Skills</button>
+                    <button type="button" id="btn-predictor-chip-certs" class="action-btn btn-secondary btn-sm" style="border-radius: var(--radius-sm); font-size: 11px; padding: 4px 10px;" class="dict-key" data-key="chip-certs">🎓 Suggest Certifications</button>
+                  </div>
+
+                  <!-- Chat Input Form -->
+                  <form id="form-predictor-chat" style="display: flex; gap: 10px; margin-top: 5px;">
+                    <input type="text" id="predictor-chat-input" placeholder="Ask your AI Career Mentor..." style="flex: 1; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-card); background: var(--bg-app); color: var(--text-main); font-size: 13px; outline: none;" required>
+                    <button type="submit" id="btn-predictor-chat-send" class="action-btn btn-gradient btn-sm" style="border-radius: var(--radius-sm); padding: 8px 16px; min-width: 80px;" class="dict-key" data-key="btn-predictor-send">Send</button>
+                  </form>
                 </div>
               </div>
             </div>
@@ -761,6 +787,8 @@
                 style="font-size: 14px; width: 32px; height: 32px; margin-left: 15px; display: flex; align-items: center; justify-content: center;">🔖</button>
               <button id="btn-quiz-report" class="icon-btn quiz-report-btn" title="Report Question"
                 style="font-size: 14px; width: 32px; height: 32px; margin-left: 10px; display: flex; align-items: center; justify-content: center; color: var(--accent-red); border-color: rgba(239,68,68,0.2);">🚩</button>
+              <button id="btn-quiz-quit" class="icon-btn quiz-quit-btn" title="Quit Quiz"
+                style="font-size: 14px; width: 32px; height: 32px; margin-left: 10px; display: flex; align-items: center; justify-content: center; color: var(--accent-red); border-color: rgba(239,68,68,0.2); background: rgba(239,68,68,0.05);">🚪</button>
             </div>
           </div>
 
@@ -1331,6 +1359,18 @@
           Certificate</button>
         <button id="btn-cert-close" class="action-btn btn-secondary" style="flex: 1; min-width: 120px;">Back to
           Home</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUIT QUIZ CONFIRMATION MODAL -->
+  <div id="modal-quit-quiz" class="secure-auth-overlay hidden">
+    <div class="secure-auth-card animate-scale-up" style="max-width: 400px; text-align: center;">
+      <h3 style="margin-bottom: 15px; color: var(--accent-red);" class="dict-key" data-key="quit-modal-title">Quit Quiz?</h3>
+      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 25px;" class="dict-key" data-key="quit-modal-body">Are you sure you want to quit the quiz? Your current progress in this quiz will be lost.</p>
+      <div style="display: flex; gap: 10px;">
+        <button id="btn-quit-confirm" class="action-btn btn-gradient dict-key" style="flex: 1; background: var(--accent-red);" data-key="btn-quit-confirm">Quit Quiz</button>
+        <button id="btn-quit-cancel" class="action-btn btn-secondary dict-key" style="flex: 1;" data-key="btn-quit-cancel">Continue Quiz</button>
       </div>
     </div>
   </div>

@@ -79,12 +79,14 @@ app.post('/api/feedback', authController.verifyToken, featuresController.submitF
 app.post('/api/feedback/report', authController.verifyToken, featuresController.reportQuestion);
 
 app.get('/api/notifications', authController.verifyToken, featuresController.getNotifications);
+app.post('/api/notifications', authController.verifyToken, featuresController.addUserNotification);
 app.post('/api/notifications/read', authController.verifyToken, featuresController.markNotificationsRead);
 
 app.post('/api/certificates/claim', authController.verifyToken, featuresController.claimCertificate);
 app.get('/api/certificates', authController.verifyToken, featuresController.getCertificates);
 
 app.post('/api/tutor/explain', featuresController.askAiTutor);
+app.post('/api/predictor/chat', authController.verifyToken, featuresController.askSkillPredictor);
 app.post('/api/quiz/sync', authController.verifyToken, featuresController.syncOfflineAttempts);
 
 // ================= ADMIN CONSOLE ADDITIONS =================
