@@ -3336,6 +3336,25 @@ const VoiceQuizController = {
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🏁 Application Booted.');
 
+  // Mobile Hamburger menu toggle
+  const menuToggle = document.getElementById('btn-mobile-menu-toggle');
+  const headerActions = document.querySelector('.header-actions');
+  if (menuToggle && headerActions) {
+    menuToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      headerActions.classList.toggle('open');
+      menuToggle.innerHTML = headerActions.classList.contains('open') ? '<span>✕</span>' : '<span>☰</span>';
+    });
+
+    // Close menu when clicking outside of it
+    document.addEventListener('click', (e) => {
+      if (!headerActions.contains(e.target) && e.target !== menuToggle) {
+        headerActions.classList.remove('open');
+        menuToggle.innerHTML = '<span>☰</span>';
+      }
+    });
+  }
+
   // Dynamic Popup Card (Popcard) implementation
   window.showPopCard = function(title, message, type = 'error') {
     const modal = document.getElementById('modal-popcard');

@@ -34,11 +34,11 @@
       <div class="header-brand" id="btn-brand">  
         <img id="app-logo" src="assets/logo.png" alt="AI Quiz Challenge Logo" class="brand-logo">
         <span class="brand-name">AI Quiz <span class="gradient-text">Challenge</span></span>
-        </div>
+      </div>
 
-      <div class="header-actions">
-        <!-- Dynamic Coins Ball Orb -->
-        <div id="header-coins-ball" class="header-coins-ball" style="margin-right: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px; position: relative;">
+        <!-- Dynamic Coins Ball Orb (Always visible) -->
+        <div id="header-coins-ball" class="header-coins-ball">
           <span class="orb-icon">🪙</span>
           <span id="header-coins-val" class="orb-value">0</span>
           <div class="orb-tooltip-box" id="orb-tooltip-box">
@@ -49,52 +49,59 @@
           </div>
         </div>
 
-        <!-- Language Switcher Selector -->
-        <select id="select-language-toggle" class="icon-btn"
-          style="padding: 0 4px; font-size: 13px; border-radius: var(--radius-sm); border: 1px solid var(--border-card); background: var(--bg-card); color: var(--text-main); font-weight: 600; cursor: pointer; height: 36px; outline: none; margin-right: 10px;"
-          title="Select Language">
-          <option value="en">EN</option>
-          <option value="ta">தமிழ்</option>
-          <option value="hi">हिंदी</option>
-        </select>
-
-        <!-- Notification Bell -->
-        <div class="notification-bell-wrapper">
-          <button id="btn-notifications-toggle" class="icon-btn" title="Notifications">
-            <span>🔔</span>
-            <span id="notifications-unread-count" class="unread-count-badge hidden">0</span>
-          </button>
-          <div id="drawer-notifications" class="notification-drawer hidden">
-            <div class="notification-header">
-              <h4 class="dict-key" data-key="notifications-drawer-title">Notifications</h4>
-              <div style="display: flex; gap: 8px;">
-                <button id="btn-clear-notifications" class="clear-notifications-btn dict-key" data-key="btn-clear-notifications">Mark all read</button>
-                <button id="btn-delete-all-notifications" class="clear-notifications-btn dict-key" data-key="btn-delete-all-notifications" style="color: var(--status-wrong, #ff4d4d);">Delete all</button>
-              </div>
-            </div>
-            <div id="notifications-list" class="notification-list">
-              <div class="no-notifications">No new notifications</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Dark/Light Mode Button -->
-        <button id="btn-theme-toggle" class="icon-btn" title="Toggle Theme">
-          <span class="theme-icon">🌙</span>
+        <!-- Mobile Menu Toggle Button (visible on mobile only) -->
+        <button id="btn-mobile-menu-toggle" class="icon-btn mobile-only" title="Open Menu" style="display: none; width: 36px; height: 36px; align-items: center; justify-content: center;">
+          <span>☰</span>
         </button>
 
-        <!-- User Session Panel -->
-        <div id="user-session-widget">
-          <button id="btn-nav-login" class="nav-btn btn-primary-outline">Sign In</button>
-          <div id="user-profile-summary" class="profile-summary hidden" style="display: flex; align-items: center; gap: 8px;">
-            <div id="header-avatar-container" class="avatar-small" style="width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--bg-card); border: 1px solid var(--border-card); font-size: 12px; position: relative;">
-              <span id="header-avatar-emoji">👤</span>
-              <div class="avatar-frame-overlay" id="header-avatar-frame" style="border-width: 2px;"></div>
-            </div>
-            <span id="user-display-name" class="username-display">Guest Player</span>
-            <button id="btn-nav-logout" class="icon-btn" title="Log Out" style="margin-left: 4px;">
-              <span>🚪</span>
+        <div class="header-actions">
+          <!-- Language Switcher Selector -->
+          <select id="select-language-toggle" class="icon-btn"
+            style="padding: 0 4px; font-size: 13px; border-radius: var(--radius-sm); border: 1px solid var(--border-card); background: var(--bg-card); color: var(--text-main); font-weight: 600; cursor: pointer; height: 36px; outline: none;"
+            title="Select Language">
+            <option value="en">EN</option>
+            <option value="ta">தமிழ்</option>
+            <option value="hi">हिंदी</option>
+          </select>
+
+          <!-- Notification Bell -->
+          <div class="notification-bell-wrapper">
+            <button id="btn-notifications-toggle" class="icon-btn" title="Notifications">
+              <span>🔔</span>
+              <span id="notifications-unread-count" class="unread-count-badge hidden">0</span>
             </button>
+            <div id="drawer-notifications" class="notification-drawer hidden">
+              <div class="notification-header">
+                <h4 class="dict-key" data-key="notifications-drawer-title">Notifications</h4>
+                <div style="display: flex; gap: 8px;">
+                  <button id="btn-clear-notifications" class="clear-notifications-btn dict-key" data-key="btn-clear-notifications">Mark all read</button>
+                  <button id="btn-delete-all-notifications" class="clear-notifications-btn dict-key" data-key="btn-delete-all-notifications" style="color: var(--status-wrong, #ff4d4d);">Delete all</button>
+                </div>
+              </div>
+              <div id="notifications-list" class="notification-list">
+                <div class="no-notifications">No new notifications</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dark/Light Mode Button -->
+          <button id="btn-theme-toggle" class="icon-btn" title="Toggle Theme">
+            <span class="theme-icon">🌙</span>
+          </button>
+
+          <!-- User Session Panel -->
+          <div id="user-session-widget">
+            <button id="btn-nav-login" class="nav-btn btn-primary-outline">Sign In</button>
+            <div id="user-profile-summary" class="profile-summary hidden" style="display: flex; align-items: center; gap: 8px;">
+              <div id="header-avatar-container" class="avatar-small" style="width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--bg-card); border: 1px solid var(--border-card); font-size: 12px; position: relative;">
+                <span id="header-avatar-emoji">👤</span>
+                <div class="avatar-frame-overlay" id="header-avatar-frame" style="border-width: 2px;"></div>
+              </div>
+              <span id="user-display-name" class="username-display">Guest Player</span>
+              <button id="btn-nav-logout" class="icon-btn" title="Log Out" style="margin-left: 4px;">
+                <span>🚪</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
