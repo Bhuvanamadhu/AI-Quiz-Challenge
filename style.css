@@ -2845,3 +2845,157 @@ body.theme-light {
   pointer-events: none;
   z-index: 9999997;
 }
+
+/* ==========================================================
+   18. COMPREHENSIVE MOBILE RESPONSIVENESS PATCH
+   ========================================================== */
+
+@media (max-width: 768px) {
+  /* Layout adjustments */
+  .app-container {
+    padding: 0 12px;
+  }
+  
+  /* Header clean-up to prevent overflow */
+  .app-header {
+    height: auto;
+    padding: 12px 0;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  
+  .header-actions {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  /* Adjust grid columns for intermediate tablet widths */
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .quiz-options-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Certificate layout adaptation */
+  .certificate-layout-frame {
+    padding: 20px;
+    border-width: 4px;
+  }
+
+  .certificate-inner-border {
+    padding: 15px;
+  }
+
+  .cert-title {
+    font-size: 22px;
+  }
+
+  .cert-user-name {
+    font-size: 24px;
+  }
+
+  .cert-meta-stats-row {
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 0;
+  }
+
+  .cert-footer-signatures {
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    margin-top: 25px;
+  }
+  
+  .cert-signature-block {
+    width: 100%;
+    max-width: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Brand text hide on tiny phones */
+  .brand-name {
+    display: none;
+  }
+  
+  .header-brand {
+    gap: 0;
+  }
+
+  /* Stacking hero actions */
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .hero-logo-large {
+    width: 90px;
+    height: 90px;
+    padding: 15px;
+  }
+  
+  .hero-title {
+    font-size: 30px;
+  }
+
+  /* Grid details adjustments */
+  .stats-overview-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .badges-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Form actions buttons row */
+  .form-actions-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Custom Popup card size adjust */
+  .secure-auth-card {
+    padding: 20px 15px;
+  }
+  
+  /* Question box typography */
+  .quiz-question-box h2 {
+    font-size: 18px;
+  }
+  
+  .option-btn {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  /* Ultra-small screen configurations */
+  .header-actions {
+    gap: 4px;
+  }
+
+  .header-coins-ball {
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+
+  select#select-language-toggle {
+    font-size: 11px;
+    height: 30px;
+    margin-right: 4px;
+  }
+
+  .icon-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+  }
+}
