@@ -2999,3 +2999,22 @@ body.theme-light {
     font-size: 12px;
   }
 }
+
+/* Ensure data tables do not break layout page alignment on small screen touch viewports */
+.history-list-wrapper,
+.leaderboard-table-wrapper,
+.admin-questions-scroll,
+.admin-users-scroll {
+  overflow-x: auto !important;
+  width: 100%;
+}
+
+@media (max-width: 1024px), (pointer: coarse) {
+  .custom-cursor-arrow,
+  .cursor-trail-canvas {
+    display: none !important;
+  }
+  *, *::before, *::after {
+    cursor: auto !important;
+  }
+}
