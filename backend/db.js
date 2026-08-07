@@ -15,15 +15,31 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
-  console.error('❌ Supabase configurations are missing in .env file!');
+// Check if credentials are present
+const isConfigured = !!(supabaseUrl && supabaseAnonKey && supabaseServiceKey);
+
+if (!isConfigured) {
+  console.warn('⚠️ Supabase configurations are missing in environment variables!');
 }
 
 // Create a service-role level Supabase client for admin operations (bypasses RLS)
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false
+let rawSupabaseAdmin = null;
+if (isConfigured) {
+  rawSupabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false
+    }
+  });
+}
+
+// Proxy wrapper for supabaseAdmin to throw clear config errors rather than crashing on startup
+const supabaseAdmin = new Proxy({}, {
+  get(target, prop) {
+    if (!isConfigured) {
+      throw new Error('Supabase environment variables (SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY) are not configured. Please set them in your Vercel Dashboard Project Settings.');
+    }
+    return rawSupabaseAdmin[prop];
   }
 });
 
@@ -34,6 +50,10 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
  * @param {object} req - Express Request object
  */
 function getSupabaseClient(req) {
+  if (!isConfigured) {
+    throw new Error('Supabase environment variables (SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY) are not configured. Please set them in your Vercel Dashboard Project Settings.');
+  }
+
   let token = null;
   if (req && req.headers && req.headers['authorization']) {
     const authHeader = req.headers['authorization'];
