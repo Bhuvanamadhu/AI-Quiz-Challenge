@@ -12,7 +12,9 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
   <script src="definitions.js"></script>
+  <script src="cursor.js" defer></script>
 </head>
 
 <body class="dark-mode">
@@ -63,8 +65,11 @@
           </button>
           <div id="drawer-notifications" class="notification-drawer hidden">
             <div class="notification-header">
-              <h4>Notifications</h4>
-              <button id="btn-clear-notifications" class="clear-notifications-btn">Mark all read</button>
+              <h4 class="dict-key" data-key="notifications-drawer-title">Notifications</h4>
+              <div style="display: flex; gap: 8px;">
+                <button id="btn-clear-notifications" class="clear-notifications-btn dict-key" data-key="btn-clear-notifications">Mark all read</button>
+                <button id="btn-delete-all-notifications" class="clear-notifications-btn dict-key" data-key="btn-delete-all-notifications" style="color: var(--status-wrong, #ff4d4d);">Delete all</button>
+              </div>
             </div>
             <div id="notifications-list" class="notification-list">
               <div class="no-notifications">No new notifications</div>
@@ -80,9 +85,13 @@
         <!-- User Session Panel -->
         <div id="user-session-widget">
           <button id="btn-nav-login" class="nav-btn btn-primary-outline">Sign In</button>
-          <div id="user-profile-summary" class="profile-summary hidden">
+          <div id="user-profile-summary" class="profile-summary hidden" style="display: flex; align-items: center; gap: 8px;">
+            <div id="header-avatar-container" class="avatar-small" style="width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--bg-card); border: 1px solid var(--border-card); font-size: 12px; position: relative;">
+              <span id="header-avatar-emoji">👤</span>
+              <div class="avatar-frame-overlay" id="header-avatar-frame" style="border-width: 2px;"></div>
+            </div>
             <span id="user-display-name" class="username-display">Guest Player</span>
-            <button id="btn-nav-logout" class="icon-btn" title="Log Out">
+            <button id="btn-nav-logout" class="icon-btn" title="Log Out" style="margin-left: 4px;">
               <span>🚪</span>
             </button>
           </div>
@@ -99,7 +108,7 @@
           <div class="hero-logo-large">
             <img src="assets/logo.png" alt="Quiz Game Logo Large" class="hero-logo-img">
           </div>
-          <h1 class="hero-title">Test Your Brain in the <br><span class="gradient-text">AI Quiz Arena</span></h1>
+          <h1 class="hero-title dict-key" data-key="hero-title-text">Smart AI-Powered Education Quiz and <br><span class="gradient-text">Performance Tracking System</span></h1>
           <p class="hero-subtitle">
             Compete in 10 technical categories, climb the global leaderboard, earn unique badges, and unlock the daily
             challenge.
@@ -611,6 +620,12 @@
                   <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
                     <input type="checkbox" id="profile-notifications-enabled" checked style="width: auto; margin: 0; cursor: pointer;">
                     <label for="profile-notifications-enabled" class="dict-key" data-key="settings-label-notifications" style="margin: 0; cursor: pointer; font-size: 13px; font-weight: 500;">Enable In-App Notifications</label>
+                  </div>
+
+                  <!-- Speech/Voice settings toggle -->
+                  <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                    <input type="checkbox" id="profile-tts-enabled" style="width: auto; margin: 0; cursor: pointer;">
+                    <label for="profile-tts-enabled" class="dict-key" data-key="settings-label-tts" style="margin: 0; cursor: pointer; font-size: 13px; font-weight: 500;">Enable Text-to-Speech (TTS) for Questions</label>
                   </div>
 
                   <button type="submit" class="action-btn btn-gradient btn-block">Save Changes</button>
@@ -1375,6 +1390,18 @@
     </div>
   </div>
 
+  <!-- NOTIFICATION DELETE CONFIRMATION MODAL -->
+  <div id="modal-notif-delete-confirm" class="secure-auth-overlay hidden" style="z-index: 10000;">
+    <div class="secure-auth-card animate-scale-up" style="max-width: 400px; text-align: center;">
+      <h3 id="notif-delete-title" style="margin-bottom: 15px; color: var(--status-wrong, #ff4d4d);" class="dict-key" data-key="notif-delete-title">Confirm Deletion</h3>
+      <p id="notif-delete-body" style="font-size: 14px; color: var(--text-muted); margin-bottom: 25px;" class="dict-key" data-key="notif-delete-body">Are you sure you want to delete this notification?</p>
+      <div style="display: flex; gap: 10px;">
+        <button id="btn-notif-delete-confirm" class="action-btn btn-gradient dict-key" style="flex: 1; background: var(--status-wrong, #ff4d4d);" data-key="btn-notif-delete-confirm">Delete</button>
+        <button id="btn-notif-delete-cancel" class="action-btn btn-secondary dict-key" style="flex: 1;" data-key="btn-notif-delete-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- PASSWORD RECOVERY MODAL -->
   <div id="modal-password-reset" class="secure-auth-overlay hidden">
     <div class="secure-auth-card animate-scale-up">
@@ -1441,6 +1468,16 @@
             style="flex: 1;">Cancel</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- CUSTOM POPUP CARD (POPCARD) FOR ERROR/ALERT MESSAGES -->
+  <div id="modal-popcard" class="secure-auth-overlay hidden" style="z-index: 25000;">
+    <div class="secure-auth-card animate-scale-up" style="max-width: 420px; text-align: center; border: 1px solid rgba(239, 68, 68, 0.35); box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 25px rgba(239, 68, 68, 0.15); transition: all 0.3s ease;">
+      <div id="popcard-icon" style="font-size: 48px; margin-bottom: 12px; filter: drop-shadow(0 0 8px rgba(255,255,255,0.1));">❌</div>
+      <h3 id="popcard-title" style="margin-bottom: 10px; font-size: 20px; font-weight: 700; color: var(--accent-red, #ff4d4d);">Error Occurred</h3>
+      <p id="popcard-message" style="font-size: 14px; color: var(--text-muted); margin-bottom: 25px; line-height: 1.5; word-break: break-word; padding: 0 10px;">An unexpected error occurred.</p>
+      <button id="btn-popcard-ok" class="action-btn btn-gradient btn-block" style="border-radius: var(--radius-sm); font-weight: 700; cursor: none;">OK</button>
     </div>
   </div>
 

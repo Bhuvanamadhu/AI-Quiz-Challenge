@@ -81,6 +81,8 @@ app.post('/api/feedback/report', authController.verifyToken, featuresController.
 app.get('/api/notifications', authController.verifyToken, featuresController.getNotifications);
 app.post('/api/notifications', authController.verifyToken, featuresController.addUserNotification);
 app.post('/api/notifications/read', authController.verifyToken, featuresController.markNotificationsRead);
+app.delete('/api/notifications/:id', authController.verifyToken, featuresController.deleteNotification);
+app.delete('/api/notifications', authController.verifyToken, featuresController.deleteAllNotifications);
 
 app.post('/api/certificates/claim', authController.verifyToken, featuresController.claimCertificate);
 app.get('/api/certificates', authController.verifyToken, featuresController.getCertificates);

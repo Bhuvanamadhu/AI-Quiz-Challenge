@@ -354,6 +354,38 @@ async function markNotificationsRead(req, res) {
   }
 }
 
+async function deleteNotification(req, res) {
+  const userId = req.user.id;
+  const { id } = req.params;
+  try {
+    const supabase = getSupabaseClient(req);
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', parseInt(id))
+      .eq('user_id', userId);
+    if (error) throw error;
+    res.json({ message: 'Notification deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete notification: ' + err.message });
+  }
+}
+
+async function deleteAllNotifications(req, res) {
+  const userId = req.user.id;
+  try {
+    const supabase = getSupabaseClient(req);
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', userId);
+    if (error) throw error;
+    res.json({ message: 'All notifications deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete all notifications: ' + err.message });
+  }
+}
+
 // Certificates Registry
 async function claimCertificate(req, res) {
   const userId = req.user.id;
@@ -1073,6 +1105,8 @@ module.exports = {
   getNotifications,
   addUserNotification,
   markNotificationsRead,
+  deleteNotification,
+  deleteAllNotifications,
   claimCertificate,
   getCertificates,
   askAiTutor,

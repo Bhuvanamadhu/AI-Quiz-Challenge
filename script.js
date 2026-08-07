@@ -134,8 +134,8 @@ const FALLBACK_QUESTION_POOL = [
 
 // 3. APPLICATION STATE STORE
 const AppState = {
-  // Configs
-  apiBase: 'http://localhost:5000/api',
+  // Configs - dynamically resolve base URL of the API server (support standard serving & local file fallback)
+  apiBase: window.location.protocol.startsWith('http') ? `${window.location.origin}/api` : 'http://localhost:5000/api',
   isOnline: false,
 
   // User details
@@ -192,13 +192,13 @@ function translateUI(lang) {
 
 // 4. NETWORK CLIENT & MOCK ENGINE (Dual-Execution Router)
 const NetworkClient = {
-  // Check if API is available, otherwise log fallback
+  // Check if API is available, otherwise log offline mode
   async checkConnection() {
     try {
-      const res = await fetch(`${AppState.apiBase}/leaderboard`, { signal: AbortSignal.timeout(2000) });
+      const res = await fetch(`${AppState.apiBase}/leaderboard`, { signal: AbortSignal.timeout(2500) });
       if (res.ok) {
         AppState.isOnline = true;
-        document.getElementById('app-mode-label').innerText = 'Online Server Mode';
+        document.getElementById('app-mode-label').innerText = 'Full-Stack Connected';
         document.getElementById('app-mode-label').className = 'badge';
         console.log('📡 Connected to Express backend successfully!');
       } else {
@@ -206,18 +206,14 @@ const NetworkClient = {
       }
     } catch (e) {
       AppState.isOnline = false;
-      document.getElementById('app-mode-label').innerText = 'Offline Fallback Mode';
+      document.getElementById('app-mode-label').innerText = 'Offline (Server Down)';
       document.getElementById('app-mode-label').className = 'badge badge-role';
-      console.warn('⚠️ Server unreachable. Falling back to offline client-side simulation.', e.message);
+      console.error('⚠️ Server unreachable. Connect backend to interact with the database.', e.message);
     }
   },
 
-  // HTTP Request Helper
+  // HTTP Request Helper (No offline simulation fallback; pure full-stack API client)
   async request(endpoint, method = 'GET', body = null) {
-    if (!AppState.isOnline) {
-      return MockDatabase.handle(endpoint, method, body);
-    }
-
     const headers = { 'Content-Type': 'application/json' };
     if (AppState.token) {
       headers['Authorization'] = `Bearer ${AppState.token}`;
@@ -232,21 +228,26 @@ const NetworkClient = {
       config.body = JSON.stringify(body);
     }
 
+    let response;
     try {
-      const response = await fetch(`${AppState.apiBase}${endpoint}`, config);
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Network error');
-      }
-      return data;
-    } catch (e) {
-      // If server goes down mid-session, fallback gracefully
-      console.error(`API fail: ${endpoint}. Falling back to simulation.`, e);
-      AppState.isOnline = false;
-      document.getElementById('app-mode-label').innerText = 'Offline Fallback Mode';
-      document.getElementById('app-mode-label').className = 'badge badge-role';
-      return MockDatabase.handle(endpoint, method, body);
+      response = await fetch(`${AppState.apiBase}${endpoint}`, config);
+    } catch (networkError) {
+      console.error(`Network fail to ${endpoint}:`, networkError);
+      throw new Error(`Server is unreachable. Please verify the backend is running.`);
     }
+
+    let data;
+    try {
+      data = await response.json();
+    } catch (jsonError) {
+      throw new Error('Invalid server response format.');
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || `Server responded with status ${response.status}`);
+    }
+
+    return data;
   }
 };
 
@@ -293,8 +294,8 @@ const MockDatabase = {
     }
     if (!localStorage.getItem('mock_notifications')) {
       localStorage.setItem('mock_notifications', JSON.stringify([
-        { id: 1, user_id: 0, title: 'Welcome to AI Quiz Challenge!', message: 'Earn XP, climb the leaderboard, and unlock premium skins!', type: 'announcement', read: 0, created_at: new Date().toISOString() },
-        { id: 2, user_id: 0, title: 'Tamil & Hindi languages added!', message: 'Switch instantly in the header without page refresh.', type: 'announcement', read: 0, created_at: new Date().toISOString() }
+        { id: 1, user_id: 0, title: 'Welcome to AI Quiz Challenge!', message: 'Earn XP, climb the leaderboard, and unlock premium skins!', type: 'announcement', is_read: 0, created_at: new Date().toISOString() },
+        { id: 2, user_id: 0, title: 'Tamil & Hindi languages added!', message: 'Switch instantly in the header without page refresh.', type: 'announcement', is_read: 0, created_at: new Date().toISOString() }
       ]));
     }
     if (!localStorage.getItem('mock_feedback')) {
@@ -795,15 +796,29 @@ const MockDatabase = {
 
     // 1. Profile Update
     if (endpoint === '/profile' && method === 'PUT') {
-      const user = this.getMockUser();
-      if (!user || user.id === -1) return Promise.reject({ message: 'Session invalid.' });
+      const mockUsername = this.getMockUsername();
+      const users = JSON.parse(localStorage.getItem('mock_users') || '[]');
+      let user = users.find(u => u.username === mockUsername);
+      if (!user) {
+        if (mockUsername === 'guest') {
+          return Promise.reject({ message: 'Register or login to save profile details.' });
+        }
+        return Promise.reject({ message: 'Session invalid.' });
+      }
 
-      // Update user columns
+      // Update user columns in the list
       user.bio = body.bio !== undefined ? body.bio : user.bio;
       user.profile_pic = body.profile_pic !== undefined ? body.profile_pic : user.profile_pic;
       user.fav_category = body.fav_category !== undefined ? body.fav_category : user.fav_category;
-      if (body.username) {
+      if (body.username && body.username !== user.username) {
+        // Check uniqueness in mock list
+        if (users.some(u => u.username === body.username && u.id !== user.id)) {
+          return Promise.reject({ message: 'Username already in use.' });
+        }
         user.username = body.username;
+        // Update mock token so user remains logged in
+        AppState.token = `mock_jwt_token_for_${body.username}`;
+        localStorage.setItem('jwt_token', AppState.token);
       }
       localStorage.setItem('mock_users', JSON.stringify(users));
 
@@ -923,9 +938,25 @@ const MockDatabase = {
     // 8. Mark Notifications Read
     if (endpoint === '/notifications/read' && method === 'POST') {
       const list = JSON.parse(localStorage.getItem('mock_notifications') || '[]');
-      list.forEach(n => { n.read = 1; });
+      list.forEach(n => { n.is_read = 1; });
       localStorage.setItem('mock_notifications', JSON.stringify(list));
       return Promise.resolve({ message: 'Notifications cleared as read.' });
+    }
+
+    // 8a. Delete Notification
+    if (endpoint.startsWith('/notifications/') && method === 'DELETE') {
+      const parts = endpoint.split('/');
+      const id = parseInt(parts[parts.length - 1]);
+      let list = JSON.parse(localStorage.getItem('mock_notifications') || '[]');
+      list = list.filter(n => n.id !== id);
+      localStorage.setItem('mock_notifications', JSON.stringify(list));
+      return Promise.resolve({ message: 'Notification deleted successfully.' });
+    }
+
+    // 8b. Delete All Notifications
+    if (endpoint === '/notifications' && method === 'DELETE') {
+      localStorage.setItem('mock_notifications', JSON.stringify([]));
+      return Promise.resolve({ message: 'All notifications deleted successfully.' });
     }
 
     // 9. Claims Certificate Registry
@@ -1098,7 +1129,7 @@ console.log(result); // Matches correctOption standard</code></pre>
         title: body.title,
         message: body.message,
         type: 'broadcast',
-        read: 0,
+        is_read: 0,
         created_at: new Date().toISOString()
       };
       list.push(newNotif);
@@ -1207,13 +1238,8 @@ const QuizArena = {
     try {
       let questions = [];
       if (isDaily) {
-        try {
-          const data = await NetworkClient.request('/quiz/daily-challenge');
-          questions = data.questions;
-        } catch (netErr) {
-          console.warn('Daily challenge network fetch failed, falling back to local simulation.', netErr);
-          questions = await MockDatabase.handle(`/quiz/questions?category=${encodeURIComponent(category)}&difficulty=${encodeURIComponent(difficulty)}&limit=10`, 'GET');
-        }
+        const data = await NetworkClient.request('/quiz/daily-challenge');
+        questions = data.questions;
       } else {
         // Set query limit based on mode
         let limit = 10;
@@ -1221,12 +1247,7 @@ const QuizArena = {
         if (mode === 'survival') limit = 50; // survival pool size
         if (mode === 'marathon') limit = 30;
 
-        try {
-          questions = await NetworkClient.request(`/quiz/questions?category=${encodeURIComponent(category)}&difficulty=${encodeURIComponent(difficulty)}&limit=${limit}`);
-        } catch (netErr) {
-          console.warn('Quiz questions network fetch failed, falling back to local simulation.', netErr);
-          questions = await MockDatabase.handle(`/quiz/questions?category=${encodeURIComponent(category)}&difficulty=${encodeURIComponent(difficulty)}&limit=${limit}`, 'GET');
-        }
+        questions = await NetworkClient.request(`/quiz/questions?category=${encodeURIComponent(category)}&difficulty=${encodeURIComponent(difficulty)}&limit=${limit}`);
       }
 
       if (!questions || questions.length === 0) {
@@ -1234,7 +1255,9 @@ const QuizArena = {
         return;
       }
 
-      AppState.quiz.questions = questions;
+      // Shuffle questions list to guarantee they never appear in the same order
+      const shuffledQuestions = [...questions].sort(() => 0.5 - Math.random());
+      AppState.quiz.questions = shuffledQuestions;
 
       // Initialize bookmark IDs lists if logged in
       if (AppState.token) {
@@ -1511,9 +1534,12 @@ const QuizArena = {
     // Stop any active TTS before speaking
     VoiceQuizController.stop();
 
-    // Automatically read question and option text
-    const ttsText = `Question: ${q.question_text}. Option A: ${q.option_a}. Option B: ${q.option_b}. Option C: ${q.option_c}. Option D: ${q.option_d}.`;
-    VoiceQuizController.speakText(ttsText, window.currentLang);
+    // Automatically read question and option text if TTS is enabled in settings
+    if (localStorage.getItem('tts_enabled') === 'true') {
+      const displayOpts = AppState.quiz.currentOptions || [];
+      const ttsText = `Question: ${q.question_text}. Option A: ${displayOpts[0] ? displayOpts[0].text : q.option_a}. Option B: ${displayOpts[1] ? displayOpts[1].text : q.option_b}. Option C: ${displayOpts[2] ? displayOpts[2].text : q.option_c}. Option D: ${displayOpts[3] ? displayOpts[3].text : q.option_d}.`;
+      VoiceQuizController.speakText(ttsText, window.currentLang);
+    }
 
     // Launch Countdown Timer
     this.startTimer();
@@ -2340,7 +2366,9 @@ const QuizArena = {
       AppState.quiz.lifelines = { '5050': false, 'skip': false, 'time': false };
       AppState.quiz.answersLog = [];
       AppState.quiz.isDailyChallenge = false;
-      AppState.quiz.questions = questions;
+      // Shuffle bookmarks practice questions list
+      const shuffledQuestions = [...questions].sort(() => 0.5 - Math.random());
+      AppState.quiz.questions = shuffledQuestions;
 
       ViewController.switchView('quiz');
       this.renderQuestion();
@@ -2466,6 +2494,7 @@ const ViewRefresher = {
     try {
       // Fetch user profile stats
       const profile = await NetworkClient.request('/auth/me');
+      AppState.user = profile.user;
 
       // Update UI texts
       document.getElementById('dash-username').innerText = profile.user.username;
@@ -2492,7 +2521,13 @@ const ViewRefresher = {
       }
 
       const avatarEmojiEl = document.getElementById('dash-avatar-emoji');
-      if (avatarEmojiEl) avatarEmojiEl.innerText = profile.progress.avatar || '👤';
+      if (avatarEmojiEl) {
+        if (profile.user.profile_pic) {
+          avatarEmojiEl.innerHTML = `<img src="${profile.user.profile_pic}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+        } else {
+          avatarEmojiEl.innerText = profile.progress.avatar || '👤';
+        }
+      }
 
       const avatarFrameEl = document.getElementById('dash-avatar-frame');
       if (avatarFrameEl) {
@@ -2512,6 +2547,24 @@ const ViewRefresher = {
       document.getElementById('btn-nav-login').classList.add('hidden');
       document.getElementById('user-profile-summary').classList.remove('hidden');
       document.getElementById('user-display-name').innerText = profile.user.username;
+
+      // Header avatar visual update
+      const headerEmojiEl = document.getElementById('header-avatar-emoji');
+      if (headerEmojiEl) {
+        if (profile.user.profile_pic) {
+          headerEmojiEl.innerHTML = `<img src="${profile.user.profile_pic}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+        } else {
+          headerEmojiEl.innerText = profile.progress.avatar || '👤';
+        }
+      }
+
+      const headerFrameEl = document.getElementById('header-avatar-frame');
+      if (headerFrameEl) {
+        headerFrameEl.className = 'avatar-frame-overlay';
+        if (profile.progress.avatar_frame) {
+          headerFrameEl.classList.add(`avatar-frame-${profile.progress.avatar_frame}`);
+        }
+      }
 
       // Toggle Admin quick actions
       if (profile.user.role === 'admin') {
@@ -2794,9 +2847,13 @@ function applyTheme(themeName) {
 
 // Notifications Controller
 const NotificationController = {
+  pendingDeleteId: null,
+  pendingDeleteAll: false,
+
   async init() {
     const toggleBtn = document.getElementById('btn-notifications-toggle');
     const clearBtn = document.getElementById('btn-clear-notifications');
+    const deleteAllBtn = document.getElementById('btn-delete-all-notifications');
     const checkbox = document.getElementById('profile-notifications-enabled');
 
     if (toggleBtn) {
@@ -2821,6 +2878,30 @@ const NotificationController = {
         } catch (err) {
           console.error('Failed to clear notifications:', err);
         }
+      });
+    }
+
+    if (deleteAllBtn) {
+      deleteAllBtn.addEventListener('click', () => {
+        AudioSynth.playClick();
+        this.promptDeleteAll();
+      });
+    }
+
+    // Confirmation Modal button bindings
+    const modalConfirmBtn = document.getElementById('btn-notif-delete-confirm');
+    if (modalConfirmBtn) {
+      modalConfirmBtn.addEventListener('click', async () => {
+        AudioSynth.playClick();
+        await this.confirmDelete();
+      });
+    }
+
+    const modalCancelBtn = document.getElementById('btn-notif-delete-cancel');
+    if (modalCancelBtn) {
+      modalCancelBtn.addEventListener('click', () => {
+        AudioSynth.playClick();
+        this.cancelDelete();
       });
     }
 
@@ -2867,6 +2948,84 @@ const NotificationController = {
       console.error('Failed to trigger in-app notification:', err);
     }
     this.refresh();
+  },
+
+  promptDelete(id) {
+    this.pendingDeleteId = id;
+    this.pendingDeleteAll = false;
+    
+    const titleEl = document.getElementById('notif-delete-title');
+    const bodyEl = document.getElementById('notif-delete-body');
+    const confirmBtn = document.getElementById('btn-notif-delete-confirm');
+    
+    if (window.currentLang === 'ta') {
+      if (titleEl) titleEl.innerText = "நீக்குதலை உறுதிப்படுத்துக";
+      if (bodyEl) bodyEl.innerText = "இந்த அறிவிப்பை நீக்க வேண்டுமா?";
+      if (confirmBtn) confirmBtn.innerText = "நீக்கு";
+    } else if (window.currentLang === 'hi') {
+      if (titleEl) titleEl.innerText = "हटाने की पुष्टि करें";
+      if (bodyEl) bodyEl.innerText = "क्या आप इस अधिसूचना को हटाना चाहते हैं?";
+      if (confirmBtn) confirmBtn.innerText = "हटाएं";
+    } else {
+      if (titleEl) titleEl.innerText = "Confirm Deletion";
+      if (bodyEl) bodyEl.innerText = "Are you sure you want to delete this notification?";
+      if (confirmBtn) confirmBtn.innerText = "Delete";
+    }
+    
+    const modal = document.getElementById('modal-notif-delete-confirm');
+    if (modal) modal.classList.remove('hidden');
+  },
+
+  promptDeleteAll() {
+    this.pendingDeleteId = null;
+    this.pendingDeleteAll = true;
+    
+    const titleEl = document.getElementById('notif-delete-title');
+    const bodyEl = document.getElementById('notif-delete-body');
+    const confirmBtn = document.getElementById('btn-notif-delete-confirm');
+    
+    if (window.currentLang === 'ta') {
+      if (titleEl) titleEl.innerText = "நீக்குதலை உறுதிப்படுத்துக";
+      if (bodyEl) bodyEl.innerText = "அனைத்து அறிவிப்புகளையும் நீக்க வேண்டுமா?";
+      if (confirmBtn) confirmBtn.innerText = "அனைத்தையும் நீக்கு";
+    } else if (window.currentLang === 'hi') {
+      if (titleEl) titleEl.innerText = "हटाने की पुष्टि करें";
+      if (bodyEl) bodyEl.innerText = "क्या आप सभी अधिसूचनाओं को हटाना चाहते हैं?";
+      if (confirmBtn) confirmBtn.innerText = "सभी हटाएं";
+    } else {
+      if (titleEl) titleEl.innerText = "Confirm Deletion";
+      if (bodyEl) bodyEl.innerText = "Are you sure you want to delete all notifications?";
+      if (confirmBtn) confirmBtn.innerText = "Delete All";
+    }
+    
+    const modal = document.getElementById('modal-notif-delete-confirm');
+    if (modal) modal.classList.remove('hidden');
+  },
+
+  async confirmDelete() {
+    const modal = document.getElementById('modal-notif-delete-confirm');
+    if (modal) modal.classList.add('hidden');
+    
+    try {
+      if (this.pendingDeleteAll) {
+        await NetworkClient.request('/notifications', 'DELETE');
+      } else if (this.pendingDeleteId !== null) {
+        await NetworkClient.request(`/notifications/${this.pendingDeleteId}`, 'DELETE');
+      }
+    } catch (err) {
+      console.error('Delete notifications failed:', err);
+    }
+    
+    this.pendingDeleteId = null;
+    this.pendingDeleteAll = false;
+    this.refresh();
+  },
+
+  cancelDelete() {
+    const modal = document.getElementById('modal-notif-delete-confirm');
+    if (modal) modal.classList.add('hidden');
+    this.pendingDeleteId = null;
+    this.pendingDeleteAll = false;
   },
 
   async refresh() {
@@ -2916,10 +3075,20 @@ const NotificationController = {
         }
 
         item.innerHTML = `
-          <div class="notification-title" style="font-weight: 600; color: var(--text-main); font-size: 13px; margin-bottom: 3px;">${n.title}</div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+            <div class="notification-title" style="font-weight: 600; color: var(--text-main); font-size: 13px; margin-bottom: 3px;">${n.title}</div>
+            <button class="delete-notif-btn" data-id="${n.id}" style="background: none; border: none; color: var(--status-wrong, #ef4444); cursor: pointer; font-size: 12px; font-weight: bold; padding: 2px 4px; border-radius: var(--radius-sm); transition: opacity 0.2s; opacity: 0.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6;" title="Delete Notification">✕</button>
+          </div>
           <div class="notification-message" style="font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-bottom: 5px;">${n.message}</div>
           <div class="notification-date" style="font-size: 10px; color: var(--text-dark-muted); text-align: right;">${timeStr}</div>
         `;
+
+        item.querySelector('.delete-notif-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          AudioSynth.playClick();
+          this.promptDelete(n.id);
+        });
+
         listContainer.appendChild(item);
       });
       
@@ -2999,42 +3168,11 @@ const PredictorChatController = {
     chatContainer.scrollTop = chatContainer.scrollHeight;
 
     try {
-      let aiResponse = "";
-      if (AppState.isOnline) {
-        const response = await NetworkClient.request('/predictor/chat', 'POST', {
-          messages: this.chatMessages,
-          language: window.currentLang
-        });
-        aiResponse = response.response;
-      } else {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        const history = JSON.parse(localStorage.getItem('mock_attempts') || '[]');
-        if (history.length === 0) {
-          aiResponse = "I noticed you haven't completed any quizzes yet. Please practice some quizzes first so I can analyze your strengths and weaknesses!";
-        } else {
-          const stats = {};
-          history.forEach(h => {
-            if (!stats[h.category]) stats[h.category] = { correct: 0, total: 0 };
-            stats[h.category].correct += h.score;
-            stats[h.category].total += h.total_questions;
-          });
-
-          const categories = Object.keys(stats);
-          const topCategory = categories.reduce((a, b) => (stats[a].correct / stats[a].total) > (stats[b].correct / stats[b].total) ? a : b);
-          const lowCategory = categories.reduce((a, b) => (stats[a].correct / stats[a].total) < (stats[b].correct / stats[b].total) ? a : b);
-
-          if (text.toLowerCase().includes('career')) {
-            aiResponse = `Based on your quiz history, your strongest category is **${topCategory}**! You would excel in roles like **${topCategory} Engineer** or **Backend Systems Architect**. Keep polishing your skills!`;
-          } else if (text.toLowerCase().includes('skill')) {
-            aiResponse = `You are performing great in **${topCategory}**. However, you should allocate more practice hours to **${lowCategory}** where your accuracy is lower. Try using practice mode without timers.`;
-          } else if (text.toLowerCase().includes('cert')) {
-            aiResponse = `For your strengths in **${topCategory}**, I recommend pursuing the following industry certifications:\n1. AWS Certified Developer Associate\n2. Oracle Certified Professional Java SE\n3. Google Professional Cloud Developer`;
-          } else {
-            aiResponse = `As your Career Advisor, I recommend focusing on improving your accuracy in **${lowCategory}**. How else can I guide you on career pathways or certifications?`;
-          }
-        }
-      }
+      const response = await NetworkClient.request('/predictor/chat', 'POST', {
+        messages: this.chatMessages,
+        language: window.currentLang
+      });
+      const aiResponse = response.response;
 
       typing.remove();
       this.chatMessages.push({ role: 'assistant', content: aiResponse });
@@ -3176,6 +3314,67 @@ const VoiceQuizController = {
 // 9. EVENT BINDING & CORE EVENT LISTENER LOOPS
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🏁 Application Booted.');
+
+  // Dynamic Popup Card (Popcard) implementation
+  window.showPopCard = function(title, message, type = 'error') {
+    const modal = document.getElementById('modal-popcard');
+    const iconEl = document.getElementById('popcard-icon');
+    const titleEl = document.getElementById('popcard-title');
+    const msgEl = document.getElementById('popcard-message');
+    const btnEl = document.getElementById('btn-popcard-ok');
+    const cardEl = modal ? modal.querySelector('.secure-auth-card') : null;
+
+    if (!modal || !iconEl || !titleEl || !msgEl || !btnEl || !cardEl) return;
+
+    // Set text
+    titleEl.innerText = title;
+    msgEl.innerText = message;
+
+    // Adapt layout styling
+    if (type === 'success') {
+      iconEl.innerText = '✅';
+      titleEl.style.color = 'var(--accent-green, #10b981)';
+      cardEl.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+      cardEl.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5), 0 0 25px rgba(16, 185, 129, 0.2)';
+    } else if (type === 'warning') {
+      iconEl.innerText = '⚠️';
+      titleEl.style.color = 'var(--accent-amber, #f59e0b)';
+      cardEl.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+      cardEl.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5), 0 0 25px rgba(245, 158, 11, 0.2)';
+    } else {
+      iconEl.innerText = '❌';
+      titleEl.style.color = 'var(--accent-red, #ef4444)';
+      cardEl.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+      cardEl.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5), 0 0 25px rgba(239, 68, 68, 0.2)';
+    }
+
+    modal.classList.remove('hidden');
+
+    btnEl.onclick = () => {
+      AudioSynth.playClick();
+      modal.classList.add('hidden');
+    };
+  };
+
+  // Override standard window.alert to automatically route through popcard
+  window.alert = function (message) {
+    let type = 'error';
+    let title = 'Action Required';
+
+    const lowerMsg = String(message).toLowerCase();
+    if (lowerMsg.includes('success') || lowerMsg.includes('complete') || lowerMsg.includes('unlocked') || lowerMsg.includes('equipped') || lowerMsg.includes('copied')) {
+      type = 'success';
+      title = 'Success!';
+    } else if (lowerMsg.includes('fail') || lowerMsg.includes('error') || lowerMsg.includes('unreachable') || lowerMsg.includes('denied') || lowerMsg.includes('invalid') || lowerMsg.includes('cannot')) {
+      type = 'error';
+      title = 'Error Occurred';
+    } else if (lowerMsg.includes('warning') || lowerMsg.includes('select') || lowerMsg.includes('need') || lowerMsg.includes('sign in') || lowerMsg.includes('sure') || lowerMsg.includes('quit')) {
+      type = 'warning';
+      title = 'Notice';
+    }
+
+    window.showPopCard(title, message, type);
+  };
 
   NotificationController.init();
   PredictorChatController.init();
@@ -3752,7 +3951,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       "app-title": "AI Quiz Challenge",
       "tooltip-coins-title": "Coins Balance",
       "tooltip-coins-desc": "You earn 1 Coin for every 1 XP gained by answering questions correctly. Coins can be spent in the Reward Shop to unlock custom themes, frames, and avatars!",
-      "hero-title-text": "Test Your Brain in the AI Quiz Arena",
+      "hero-title-text": "Smart AI-Powered Education Quiz and <br><span class=\"gradient-text\">Performance Tracking System</span>",
       "hero-subtitle-text": "Compete in 10 technical categories, climb the global leaderboard, earn digital certificates, and unlock profile rewards!",
       "btn-start-arena": "Enter Quiz Arena 🎮",
       "btn-view-leaderboard-landing": "Leaderboard Rankings 🏆",
@@ -3947,8 +4146,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       "app-title": "AI வினாடி வினா சவால்",
       "tooltip-coins-title": "நாணயங்கள் இருப்பு",
       "tooltip-coins-desc": "கேள்விகளுக்குச் சரியாகப் பதிலளிப்பதன் மூலம் நீங்கள் பெறும் ஒவ்வொரு 1 எக்ஸ்பிக்கும் 1 நாணயம் கிடைக்கும். கடைப் பகுதியில் வினாக்கள், தீம்கள், பிரேம்கள் வாங்கப் பயன்படுத்தலாம்!",
-      "hero-title-text": "AI வினாடி வினா அரங்கில் உங்கள் மூளையை சோதிக்கவும்",
-      "hero-subtitle-text": "10 தொழில்நுட்ப பிரிவுகளில் போட்டியிடுங்கள், உலகளாவிய தரவரிசையில் ஏறி, டிஜிட்டல் சான்றிதழ்களைப் பெறுங்கள்!",
+      "hero-title-text": "Smart AI-Powered Education Quiz and <br><span class=\"gradient-text\">Performance Tracking System</span>",
+      "hero-subtitle-text": "10த் தொழில்நுட்பப் பிரிவுகளில் போட்டியிடுங்கள், உலகளாவிய தரவரிசையில் ஏறி, டிஜிட்டல் சான்றிதழ்களைப் பெறுங்கள்!",
       "btn-start-arena": "வினாடி வினா அரங்கில் நுழைக 🎮",
       "btn-view-leaderboard-landing": "தரவரிசை பட்டியல் 🏆",
       "auth-tab-login": "உள்நுழைவு",
@@ -4142,7 +4341,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       "app-title": "एआई क्विज चैलेंज",
       "tooltip-coins-title": "सिक्कों का संतुलन",
       "tooltip-coins-desc": "प्रश्नों के सही उत्तर देने पर आपको प्रत्येक 1 एक्सपी के लिए 1 सिक्का प्राप्त होता है। दुकान में अवतार फ्रेम, थीम आदि खरीदने के लिए इनका उपयोग करें!",
-      "hero-title-text": "एआई क्विज एरिना में अपने मस्तिष्क का परीक्षण करें",
+      "hero-title-text": "Smart AI-Powered Education Quiz and <br><span class=\"gradient-text\">Performance Tracking System</span>",
       "hero-subtitle-text": "10 तकनीकी श्रेणियों में प्रतिस्पर्धा करें, वैश्विक लीडरबोर्ड पर चढ़ें, डिजिटल प्रमाणपत्र अर्जित करें!",
       "btn-start-arena": "प्रश्नोत्तरी क्षेत्र में प्रवेश करें 🎮",
       "btn-view-leaderboard-landing": "लीडरबोर्ड रैंकिंग 🏆",
@@ -4324,7 +4523,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
           el.placeholder = dict[id];
         } else {
-          el.innerText = dict[id];
+          if (dict[id].includes('<')) {
+            el.innerHTML = dict[id];
+          } else {
+            el.innerText = dict[id];
+          }
         }
       }
     }
@@ -4336,7 +4539,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
           el.placeholder = dict[key];
         } else {
-          el.innerText = dict[key];
+          if (dict[key].includes('<')) {
+            el.innerHTML = dict[key];
+          } else {
+            el.innerText = dict[key];
+          }
         }
       }
     });
@@ -4710,7 +4917,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     AudioSynth.playClick();
     const q = AppState.quiz.questions[AppState.quiz.currentIndex];
     if (!q) return;
-    const ttsText = `Question: ${q.question_text}. Option A: ${q.option_a}. Option B: ${q.option_b}. Option C: ${q.option_c}. Option D: ${q.option_d}.`;
+    const displayOpts = AppState.quiz.currentOptions || [];
+    const ttsText = `Question: ${q.question_text}. Option A: ${displayOpts[0] ? displayOpts[0].text : q.option_a}. Option B: ${displayOpts[1] ? displayOpts[1].text : q.option_b}. Option C: ${displayOpts[2] ? displayOpts[2].text : q.option_c}. Option D: ${displayOpts[3] ? displayOpts[3].text : q.option_d}.`;
     VoiceQuizController.speakText(ttsText, window.currentLang);
   });
 
@@ -4995,6 +5203,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const history = await NetworkClient.request('/shop/history');
       const ownedThemeIds = history.filter(h => h.item_type === 'theme').map(h => h.item_id);
 
+      // Track active selections in AppState
+      AppState.quiz.selectedAvatarEmoji = profile.progress.avatar || '👤';
+      AppState.quiz.selectedBase64Photo = profile.user.profile_pic || '';
+
       // Seed fields
       document.getElementById('profile-username').value = profile.user.username;
       document.getElementById('profile-bio-input').value = profile.user.bio || '';
@@ -5004,6 +5216,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const checkbox = document.getElementById('profile-notifications-enabled');
       if (checkbox) {
         checkbox.checked = localStorage.getItem('notifications_enabled') !== 'false';
+      }
+
+      // Seed TTS settings checkbox toggle state
+      const ttsCheckbox = document.getElementById('profile-tts-enabled');
+      if (ttsCheckbox) {
+        ttsCheckbox.checked = localStorage.getItem('tts_enabled') === 'true';
       }
 
       // Enable themes options if purchased
@@ -5055,13 +5273,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       emojis.forEach(emo => {
         const span = document.createElement('div');
-        span.className = `avatar-select-option ${profile.progress.avatar === emo ? 'active' : ''}`;
+        span.className = `avatar-select-option ${(!profile.user.profile_pic && profile.progress.avatar === emo) ? 'active' : ''}`;
         span.innerText = emo;
         span.onclick = () => {
           AudioSynth.playClick();
           document.querySelectorAll('.avatar-select-option').forEach(s => s.classList.remove('active'));
           span.classList.add('active');
           AppState.quiz.selectedAvatarEmoji = emo;
+          AppState.quiz.selectedBase64Photo = ''; // Clear custom picture when emoji is clicked
+
+          // Reset custom photo preview to showing the emoji instead
+          picContainer.innerHTML = `<span id="profile-pic-text">${emo}</span><div class="avatar-frame-overlay" id="profile-frame-overlay"></div><span class="uploader-hover-label">Change Photo</span>`;
+          const frameOverlay = document.getElementById('profile-frame-overlay');
+          if (frameOverlay && profile.progress.avatar_frame) {
+            frameOverlay.className = `avatar-frame-overlay avatar-frame-${profile.progress.avatar_frame}`;
+          }
         };
         avatarGrid.appendChild(span);
       });
@@ -5072,6 +5298,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (profile.user.profile_pic) {
         picContainer.innerHTML = `<img src="${profile.user.profile_pic}" alt="Custom Profile Photo"><div class="avatar-frame-overlay" id="profile-frame-overlay"></div><span class="uploader-hover-label">Change Photo</span>`;
+      } else {
+        picContainer.innerHTML = `<span id="profile-pic-text">${profile.progress.avatar || '👤'}</span><div class="avatar-frame-overlay" id="profile-frame-overlay"></div><span class="uploader-hover-label">Change Photo</span>`;
       }
 
       // Add frames overlays
@@ -5088,7 +5316,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         reader.onload = (event) => {
           const base64 = event.target.result;
           picContainer.innerHTML = `<img src="${base64}" alt="Custom Photo"><div class="avatar-frame-overlay" id="profile-frame-overlay"></div><span class="uploader-hover-label">Change Photo</span>`;
+          const frameOverlay = document.getElementById('profile-frame-overlay');
+          if (frameOverlay && profile.progress.avatar_frame) {
+            frameOverlay.className = `avatar-frame-overlay avatar-frame-${profile.progress.avatar_frame}`;
+          }
           AppState.quiz.selectedBase64Photo = base64;
+          AppState.quiz.selectedAvatarEmoji = ''; // Clear selected emoji avatar when photo is uploaded
+          document.querySelectorAll('.avatar-select-option').forEach(s => s.classList.remove('active'));
         };
         reader.readAsDataURL(file);
       };
@@ -5147,11 +5381,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       bio: document.getElementById('profile-bio-input').value,
       fav_category: document.getElementById('profile-fav-cat').value,
       theme: document.getElementById('profile-theme').value,
-      selected_theme: document.getElementById('profile-theme').value
+      selected_theme: document.getElementById('profile-theme').value,
+      avatar: AppState.quiz.selectedAvatarEmoji || '',
+      profile_pic: AppState.quiz.selectedBase64Photo || ''
     };
-
-    if (AppState.quiz.selectedAvatarEmoji) payload.avatar = AppState.quiz.selectedAvatarEmoji;
-    if (AppState.quiz.selectedBase64Photo) payload.profile_pic = AppState.quiz.selectedBase64Photo;
 
     try {
       const res = await NetworkClient.request('/profile', 'PUT', payload);
@@ -5161,6 +5394,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const checkbox = document.getElementById('profile-notifications-enabled');
       if (checkbox) {
         localStorage.setItem('notifications_enabled', checkbox.checked.toString());
+      }
+
+      // Save TTS state
+      const ttsCheckbox = document.getElementById('profile-tts-enabled');
+      if (ttsCheckbox) {
+        localStorage.setItem('tts_enabled', ttsCheckbox.checked.toString());
       }
 
       // Commit theme permanently

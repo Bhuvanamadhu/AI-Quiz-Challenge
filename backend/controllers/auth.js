@@ -93,14 +93,13 @@ async function register(req, res) {
       return res.status(400).json({ error: 'Username already registered.' });
     }
 
-    // Call Supabase signup
-    const { data, error } = await supabaseAdmin.auth.signUp({
+    // Call Supabase admin.createUser to bypass email confirmation requirement
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      options: {
-        data: {
-          username: username
-        }
+      email_confirm: true,
+      user_metadata: {
+        username: username
       }
     });
 
@@ -109,7 +108,7 @@ async function register(req, res) {
     }
 
     res.status(201).json({ 
-      message: 'User registered successfully. Check email for verification if enabled.', 
+      message: 'User registered successfully with auto-confirmed email.', 
       userId: data.user ? data.user.id : null 
     });
   } catch (err) {
