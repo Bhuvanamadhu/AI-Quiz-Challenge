@@ -236,15 +236,20 @@ const NetworkClient = {
       throw new Error(`Server is unreachable. Please verify the backend is running.`);
     }
 
+    const text = await response.text();
     let data;
     try {
-      data = await response.json();
+      data = JSON.parse(text);
     } catch (jsonError) {
-      throw new Error('Invalid server response format.');
+      console.error("Server returned non-JSON response:", text);
+      // Clean up HTML tags if any to make it readable, truncate to 120 chars
+      const plainText = text.replace(/<[^>]*>/g, '').trim();
+      const preview = plainText ? plainText.substring(0, 120) : 'Empty response';
+      throw new Error(`Server response error (Status ${response.status}): ${preview}`);
     }
 
     if (!response.ok) {
-      throw new Error(data.error || `Server responded with status ${response.status}`);
+      throw new Error(data.error || `Server error: ${response.status}`);
     }
 
     return data;
