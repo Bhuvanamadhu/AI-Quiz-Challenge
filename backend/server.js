@@ -118,8 +118,8 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../index.html'));
 });
 
-// Start listening if run directly (local testing mode)
-if (require.main === module) {
+// Start listening if not running inside Vercel cloud environment
+if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`===================================================`);
     console.log(`🚀 AI Quiz Challenge Backend running on port ${PORT}`);
