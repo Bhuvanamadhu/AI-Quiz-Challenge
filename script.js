@@ -3420,6 +3420,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     AudioSynth.playClick();
     if (AppState.token) {
       ViewController.switchView('dashboard');
+      ViewRefresher.refreshDashboard();
     } else {
       ViewController.switchView('auth');
     }
@@ -5578,6 +5579,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     AudioSynth.playClick();
     document.getElementById('modal-quiz-celebration').classList.add('hidden');
     ViewController.switchView('dashboard');
+    ViewRefresher.refreshDashboard();
   };
 
   document.getElementById('btn-cel-home').onclick = () => {
