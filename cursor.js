@@ -87,57 +87,17 @@
     }
   });
 
-  // Magnetic & 3D Tilt Effect Initialization
+  // Hover Glow Effect Initialization (Magnetic/3D tilt effects completely removed)
   function initMagneticElement(el) {
     el.dataset.hasMagnetic = 'true';
 
-    // Store original transition style to restore later
-    const originalTransition = el.style.transition;
-    const isButton = el.matches('button, .action-btn, .quiz-option, .icon-btn, .nav-btn, .chip-btn, .star-btn, [role="button"]');
-
-    el.addEventListener('mousemove', (e) => {
+    el.addEventListener('mousemove', () => {
       // Dynamic glowing border shadow matching the AI Theme (Cyan/Purple neon)
       el.style.boxShadow = '0 10px 25px rgba(6, 182, 212, 0.25), 0 0 15px rgba(99, 102, 241, 0.3)';
-
-      if (!isButton) {
-        const rect = el.getBoundingClientRect();
-        // Center coordinates
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        
-        // Distance from center
-        const dx = e.clientX - cx;
-        const dy = e.clientY - cy;
-
-        // Magnetic Pull: Translate slightly toward cursor (max 10px)
-        const pullStrength = 0.15;
-        const pullX = Math.max(-10, Math.min(10, dx * pullStrength));
-        const pullY = Math.max(-10, Math.min(10, dy * pullStrength));
-
-        // 3D Tilt: Rotate depending on cursor position
-        const tiltStrengthX = (dy / (rect.height / 2)) * -6; // Pitch (rotates on X)
-        const tiltStrengthY = (dx / (rect.width / 2)) * 6;   // Yaw (rotates on Y)
-
-        // Apply transformations instantly during mousemove
-        el.style.transition = 'none';
-        el.style.transform = `perspective(1000px) translate3d(${pullX}px, ${pullY}px, 0) scale(1.04) rotateX(${tiltStrengthX}deg) rotateY(${tiltStrengthY}deg)`;
-      }
     });
 
     el.addEventListener('mouseleave', () => {
-      // Smooth return transition
-      el.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.4s ease';
-      if (!isButton) {
-        el.style.transform = '';
-      }
       el.style.boxShadow = '';
-      
-      // Restore original transition after return animation finishes
-      setTimeout(() => {
-        if (!isButton && el.style.transform === '') {
-          el.style.transition = originalTransition;
-        }
-      }, 400);
     });
   }
 
