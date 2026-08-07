@@ -135,7 +135,7 @@ const FALLBACK_QUESTION_POOL = [
 // 3. APPLICATION STATE STORE
 const AppState = {
   // Configs - dynamically resolve base URL of the API server (support standard serving & local file fallback)
-  apiBase: window.location.protocol.startsWith('http') ? `${window.location.origin}/api` : 'http://localhost:5000/api',
+  apiBase: window.location.port === '5000' ? '/api' : 'http://localhost:5000/api',
   isOnline: false,
 
   // User details
