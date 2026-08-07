@@ -135,7 +135,19 @@ const FALLBACK_QUESTION_POOL = [
 // 3. APPLICATION STATE STORE
 const AppState = {
   // Configs - dynamically resolve base URL of the API server (support standard serving & local file fallback)
-  apiBase: window.location.port === '5000' ? '/api' : 'http://localhost:5000/api',
+  apiBase: (() => {
+    if (window.location.port === '5000') {
+      return '/api';
+    }
+    // If opened on local network IP from a mobile/tablet device
+    if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      const isIP = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(window.location.hostname);
+      if (isIP) {
+        return `http://${window.location.hostname}:5000/api`;
+      }
+    }
+    return 'http://localhost:5000/api';
+  })(),
   isOnline: false,
 
   // User details
