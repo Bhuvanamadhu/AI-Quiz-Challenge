@@ -5345,9 +5345,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           div.className = 'bookmark-item-card';
           div.innerHTML = `
           <div class="bookmark-details">
-            <span class="badge" style="background: rgba(168,85,247,0.15); color:#c084fc;">ID: ${c.cert_id}</span>
+            <span class="badge" style="background: rgba(168,85,247,0.15); color:#c084fc;">ID: ${c.id || c.cert_id}</span>
             <div class="bookmark-question-text" style="font-weight:700;">Certificate: ${c.category} Completion</div>
-            <div style="font-size:11px; color:var(--text-muted);">Accuracy: ${c.score} / ${c.total_questions} - Claimed: ${c.claimed_at}</div>
+            <div style="font-size:11px; color:var(--text-muted);">Accuracy: ${c.score} / ${c.total_questions || c.totalQuestions} - Claimed: ${new Date(c.claimed_at).toLocaleDateString()}</div>
           </div>
           <button class="action-btn btn-secondary btn-sm claim-view-btn" style="border-radius: var(--radius-sm);">🎓 View</button>
         `;
@@ -5421,20 +5421,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   let activeClaimedCertificateObj = null;
 
   async function showCertificateModalView(certObj) {
-    activeClaimedCertificateObj = certObj;
+    if (!certObj) return;
 
-    document.getElementById('cert-user-name').innerText = certObj.user_name || 'Guest Player';
-    document.getElementById('cert-category-text').innerText = certObj.category;
-    document.getElementById('cert-score-text').innerText = `${certObj.score} / ${certObj.total_questions}`;
-    document.getElementById('cert-date-text').innerText = certObj.claimed_at;
-    document.getElementById('cert-id-text').innerText = `CERT-ID: ${certObj.cert_id}`;
+    // Handle nested claim response objects
+    if (certObj.certificate) {
+      certObj = certObj.certificate;
+    }
+
+    // Normalize property key mismatches between database schemas and local UI expectations
+    const normalizedCert = {
+      cert_id: certObj.id || certObj.cert_id || 'CERT-VERIFY',
+      user_name: certObj.username || certObj.user_name || 'Guest Player',
+      category: certObj.category || 'CS Theory',
+      score: certObj.score || 0,
+      total_questions: certObj.total_questions || certObj.totalQuestions || 10,
+      claimed_at: certObj.claimed_at || new Date().toISOString(),
+      style: certObj.certificate_style || certObj.style || 'classic'
+    };
+
+    activeClaimedCertificateObj = normalizedCert;
+
+    document.getElementById('cert-user-name').innerText = normalizedCert.user_name;
+    document.getElementById('cert-category-text').innerText = normalizedCert.category;
+    document.getElementById('cert-score-text').innerText = `${normalizedCert.score} / ${normalizedCert.total_questions}`;
+    
+    let dateStr = normalizedCert.claimed_at;
+    try {
+      dateStr = new Date(normalizedCert.claimed_at).toLocaleDateString();
+    } catch (e) {}
+    document.getElementById('cert-date-text').innerText = dateStr;
+    document.getElementById('cert-id-text').innerText = `CERT-ID: ${normalizedCert.cert_id}`;
 
     // Custom premium certificate aesthetics
     const captureNode = document.getElementById('certificate-capture-node');
     captureNode.className = 'certificate-layout-frame';
-    if (certObj.category === 'AI') {
+    if (normalizedCert.category === 'AI') {
       captureNode.classList.add('style-cyberpunk');
-    } else if (certObj.score === certObj.total_questions) {
+    } else if (normalizedCert.score === normalizedCert.total_questions) {
       captureNode.classList.add('style-royalty');
     }
 

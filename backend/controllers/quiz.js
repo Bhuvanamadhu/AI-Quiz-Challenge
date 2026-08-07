@@ -93,7 +93,6 @@ async function submitQuiz(req, res) {
 
     if (isPerfect) xpEarned += 50; // Perfect score bonus
 
-    const mode = (game_mode || 'classic').toLowerCase();
     if (mode === 'speed') xpEarned = Math.round(xpEarned * 1.3);
     if (mode === 'survival') xpEarned = Math.round(xpEarned * 1.5);
     if (mode === 'marathon') xpEarned = Math.round(xpEarned * 1.2);

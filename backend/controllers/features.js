@@ -34,10 +34,14 @@ async function updateProfile(req, res) {
   try {
     // Check username/email uniqueness if changing
     if (username || email) {
-      const { data: existing, error: checkError } = await supabaseAdmin
+      const orFilters = [];
+      if (username) orFilters.push(`username.eq.${username}`);
+      if (email) orFilters.push(`email.eq.${email}`);
+
+      const { data: existing } = await supabaseAdmin
         .from('profiles')
         .select('id')
-        .or(`username.eq.${username},email.eq.${email}`)
+        .or(orFilters.join(','))
         .neq('id', userId)
         .maybeSingle();
 
