@@ -14,9 +14,10 @@ const featuresController = require('./controllers/features');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Enable CORS and JSON parsing
+// Enable CORS and JSON parsing with increased payload size limits for custom profile photo uploads
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Simple in-memory rate limiter for auth endpoints
 const rateLimitMap = new Map();
