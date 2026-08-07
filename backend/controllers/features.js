@@ -627,7 +627,7 @@ async function syncOfflineAttempts(req, res) {
           })
           .eq('user_id', userId);
 
-        // Update leaderboard cache
+        // Update leaderboard cache resolving conflicts on unique user_id
         await supabaseAdmin
           .from('leaderboard')
           .upsert({
@@ -636,7 +636,7 @@ async function syncOfflineAttempts(req, res) {
             total_xp: newXp,
             quizzes_completed: newCompleted,
             updated_at: new Date().toISOString()
-          });
+          }, { onConflict: 'user_id' });
       }
     }
 

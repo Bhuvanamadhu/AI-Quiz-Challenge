@@ -145,7 +145,7 @@ async function submitQuiz(req, res) {
 
     if (updateProgErr) throw updateProgErr;
 
-    // Update Leaderboard cache
+    // Update Leaderboard cache resolving conflicts on unique user_id
     await supabaseAdmin
       .from('leaderboard')
       .upsert({
@@ -156,7 +156,7 @@ async function submitQuiz(req, res) {
         perfect_quizzes: newPerfectQuizzes,
         daily_streak: newStreak,
         updated_at: new Date().toISOString()
-      });
+      }, { onConflict: 'user_id' });
 
     // 4. Record the attempt details
     const computedAccuracy = accuracy !== undefined ? accuracy : Math.round((score / totalQuestions) * 100);
