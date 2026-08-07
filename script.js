@@ -139,10 +139,14 @@ const AppState = {
     if (window.location.port === '5000') {
       return '/api';
     }
-    // If opened on local network IP from a mobile/tablet device
+    // If opened on external production host or local network IP
     if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
       const isIP = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(window.location.hostname);
-      if (isIP) {
+      if (!isIP) {
+        // Cloud production URL (Vercel): use relative /api
+        return '/api';
+      } else {
+        // Local network IP (mobile testing): target laptop's port 5000
         return `http://${window.location.hostname}:5000/api`;
       }
     }

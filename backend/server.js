@@ -118,10 +118,15 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../index.html'));
 });
 
-// Start listening
-app.listen(PORT, () => {
-  console.log(`===================================================`);
-  console.log(`🚀 AI Quiz Challenge Backend running on port ${PORT}`);
-  console.log(`🔗 Access the web app at: http://localhost:${PORT}`);
-  console.log(`===================================================`);
-});
+// Start listening if run directly (local testing mode)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`===================================================`);
+    console.log(`🚀 AI Quiz Challenge Backend running on port ${PORT}`);
+    console.log(`🔗 Access the web app at: http://localhost:${PORT}`);
+    console.log(`===================================================`);
+  });
+}
+
+// Export Express app for Vercel Serverless loading
+module.exports = app;
