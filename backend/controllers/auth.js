@@ -21,22 +21,33 @@ async function verifyToken(req, res, next) {
     }
 
     // Fetch user details from public profiles table
-    const { data: profile, error: profileErr } = await supabaseAdmin
+    let { data: profile } = await supabaseAdmin
       .from('profiles')
-      .select('username, role')
+      .select('id, username, email, role')
       .eq('id', data.user.id)
-      .single();
+      .maybeSingle();
 
-    if (profileErr || !profile) {
-      return res.status(401).json({ error: 'User profile not found.' });
+    if (!profile && data.user.email) {
+      // Fallback: match by email in profiles table
+      const { data: profByEmail } = await supabaseAdmin
+        .from('profiles')
+        .select('id, username, email, role')
+        .ilike('email', data.user.email)
+        .maybeSingle();
+      if (profByEmail) {
+        profile = profByEmail;
+      }
     }
+
+    const detectedRole = (profile && profile.role) ? String(profile.role).toLowerCase().trim() : 'user';
+    const detectedUsername = (profile && profile.username) ? profile.username : (data.user.user_metadata?.username || (data.user.email ? data.user.email.split('@')[0] : 'User'));
 
     // Attach user profile info to req
     req.user = {
       id: data.user.id,
-      username: profile.username,
+      username: detectedUsername,
       email: data.user.email,
-      role: profile.role
+      role: detectedRole
     };
 
     next();
@@ -48,7 +59,7 @@ async function verifyToken(req, res, next) {
 // Middleware to verify Admin role
 async function verifyAdmin(req, res, next) {
   await verifyToken(req, res, () => {
-    if (req.user && req.user.role === 'admin') {
+    if (req.user && String(req.user.role).toLowerCase().trim() === 'admin') {
       next();
     } else {
       res.status(403).json({ error: 'Access denied. Admins only.' });
@@ -125,26 +136,122 @@ async function login(req, res) {
   }
 
   try {
-    let email = username;
+    const rawInput = String(username).trim();
+    const cleanUser = rawInput.toLowerCase();
+    const noSpaceUser = cleanUser.replace(/[\s_.-]+/g, '');
+    let resolvedEmail = null;
+    let preMatchedProfile = null;
 
-    // Check if input is a username (does not contain @)
-    if (!username.includes('@')) {
-      const { data: profile, error: profileErr } = await supabaseAdmin
+    // Case 1: Input contains '@' -> It is an email address
+    if (rawInput.includes('@')) {
+      const { data: emailMatches } = await supabaseAdmin
         .from('profiles')
-        .select('email')
-        .eq('username', username)
-        .maybeSingle();
+        .select('id, username, email, role')
+        .ilike('email', rawInput.trim());
 
-      if (profileErr || !profile) {
-        return res.status(400).json({ error: 'Invalid username or password.' });
+      if (emailMatches && emailMatches.length > 0) {
+        preMatchedProfile = emailMatches.find(p => String(p.role).toLowerCase() === 'admin') || emailMatches[0];
+        resolvedEmail = preMatchedProfile.email.toLowerCase();
+      } else {
+        resolvedEmail = rawInput.trim().toLowerCase();
       }
-      email = profile.email;
+    } else {
+      // Case 2: Generic Admin Aliases (e.g. 'admin', 'administrator', 'sysadmin', 'root')
+      const adminAliases = ['admin', 'administrator', 'sysadmin', 'root'];
+      if (adminAliases.includes(cleanUser)) {
+        const { data: adminProfiles } = await supabaseAdmin
+          .from('profiles')
+          .select('id, username, email, role')
+          .ilike('role', 'admin');
+
+        if (adminProfiles && adminProfiles.length > 0) {
+          preMatchedProfile = adminProfiles[0];
+          resolvedEmail = adminProfiles[0].email.toLowerCase();
+        }
+      }
+
+      // Case 3: Direct case-insensitive match on username
+      if (!resolvedEmail) {
+        const { data: directMatches } = await supabaseAdmin
+          .from('profiles')
+          .select('id, username, email, role')
+          .ilike('username', rawInput.trim());
+
+        if (directMatches && directMatches.length > 0) {
+          preMatchedProfile = directMatches.find(p => String(p.role).toLowerCase() === 'admin') || directMatches[0];
+          resolvedEmail = preMatchedProfile.email.toLowerCase();
+        }
+      }
+
+      // Case 4: No-space / punctuation-removed match (e.g. 'bhuvana madhu' -> 'bhuvanamadhu')
+      if (!resolvedEmail) {
+        const { data: noSpaceMatches } = await supabaseAdmin
+          .from('profiles')
+          .select('id, username, email, role')
+          .ilike('username', noSpaceUser);
+
+        if (noSpaceMatches && noSpaceMatches.length > 0) {
+          preMatchedProfile = noSpaceMatches.find(p => String(p.role).toLowerCase() === 'admin') || noSpaceMatches[0];
+          resolvedEmail = preMatchedProfile.email.toLowerCase();
+        }
+      }
+
+      // Case 5: Match against email username prefix (e.g. 'bhuvanamadhu' -> 'bhuvanamadhu@gmail.com')
+      if (!resolvedEmail) {
+        const { data: prefixMatches } = await supabaseAdmin
+          .from('profiles')
+          .select('id, username, email, role')
+          .ilike('email', `${noSpaceUser}@%`);
+
+        if (prefixMatches && prefixMatches.length > 0) {
+          preMatchedProfile = prefixMatches.find(p => String(p.role).toLowerCase() === 'admin') || prefixMatches[0];
+          resolvedEmail = preMatchedProfile.email.toLowerCase();
+        }
+      }
+
+      // Case 6: Word tokens match (e.g. 'bhuvana' from 'bhuvana madhu')
+      if (!resolvedEmail) {
+        const parts = rawInput.trim().split(/\s+/);
+        if (parts.length > 1) {
+          for (const word of parts) {
+            if (word.length >= 3) {
+              const { data: wordMatches } = await supabaseAdmin
+                .from('profiles')
+                .select('id, username, email, role')
+                .ilike('username', word);
+
+              if (wordMatches && wordMatches.length > 0) {
+                preMatchedProfile = wordMatches.find(p => String(p.role).toLowerCase() === 'admin') || wordMatches[0];
+                resolvedEmail = preMatchedProfile.email.toLowerCase();
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // Case 7: Partial substring match (strictly prioritizing admin if multiple)
+      if (!resolvedEmail) {
+        const { data: partialMatches } = await supabaseAdmin
+          .from('profiles')
+          .select('id, username, email, role')
+          .ilike('email', `%${noSpaceUser}%`);
+
+        if (partialMatches && partialMatches.length > 0) {
+          preMatchedProfile = partialMatches.find(p => String(p.role).toLowerCase() === 'admin') || partialMatches[0];
+          resolvedEmail = preMatchedProfile.email.toLowerCase();
+        }
+      }
     }
 
-    // Call Supabase sign in
+    if (!resolvedEmail) {
+      return res.status(400).json({ error: 'Invalid username or password.' });
+    }
+
+    // Call Supabase sign in with resolved email and password
     const { data, error } = await supabaseAdmin.auth.signInWithPassword({
-      email,
-      password
+      email: resolvedEmail,
+      password: String(password).trim()
     });
 
     if (error || !data || !data.user || !data.session) {
@@ -152,32 +259,56 @@ async function login(req, res) {
     }
 
     // Fetch user details from public profiles table
-    const { data: profile } = await supabaseAdmin
+    let { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('*')
       .eq('id', data.user.id)
-      .single();
+      .maybeSingle();
+
+    if (!profile && data.user.email) {
+      // Fallback: match by email in profiles table
+      const { data: profByEmail } = await supabaseAdmin
+        .from('profiles')
+        .select('*')
+        .ilike('email', data.user.email)
+        .maybeSingle();
+      if (profByEmail) {
+        profile = profByEmail;
+      }
+    }
 
     // Log the login activity
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '127.0.0.1';
     const userAgent = req.headers['user-agent'] || 'Unknown Device';
     
-    await supabaseAdmin
-      .from('login_history')
-      .insert({
-        user_id: data.user.id,
-        ip_address: ip,
-        user_agent: userAgent
-      });
+    try {
+      await supabaseAdmin
+        .from('login_history')
+        .insert({
+          user_id: data.user.id,
+          ip_address: ip,
+          user_agent: userAgent
+        });
+    } catch (logErr) {
+      console.warn('Failed to insert login history:', logErr.message);
+    }
+
+    const detectedRole = (profile && profile.role)
+      ? String(profile.role).toLowerCase().trim()
+      : (preMatchedProfile && preMatchedProfile.role ? String(preMatchedProfile.role).toLowerCase().trim() : 'user');
+
+    const detectedUsername = profile
+      ? profile.username
+      : (data.user.user_metadata?.username || (preMatchedProfile ? preMatchedProfile.username : username));
 
     res.json({
       message: 'Login successful.',
       token: data.session.access_token,
       user: {
         id: data.user.id,
-        username: profile ? profile.username : username,
+        username: detectedUsername,
         email: data.user.email,
-        role: profile ? profile.role : 'user'
+        role: detectedRole
       }
     });
   } catch (err) {
@@ -191,15 +322,37 @@ async function getProfile(req, res) {
     const userId = req.user.id;
 
     // Query profiles
-    const { data: user, error: userError } = await supabaseAdmin
+    let { data: user, error: userError } = await supabaseAdmin
       .from('profiles')
       .select('id, username, email, role, profile_pic, bio, fav_category, created_at')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
-    if (userError || !user) {
-      return res.status(404).json({ error: 'User profile not found.' });
+    if (!user && req.user.email) {
+      // Fallback query by email
+      const { data: userByEmail } = await supabaseAdmin
+        .from('profiles')
+        .select('id, username, email, role, profile_pic, bio, fav_category, created_at')
+        .ilike('email', req.user.email)
+        .maybeSingle();
+      if (userByEmail) {
+        user = userByEmail;
+      } else {
+        user = {
+          id: userId,
+          username: req.user.username || 'User',
+          email: req.user.email,
+          role: req.user.role || 'user',
+          profile_pic: '',
+          bio: '',
+          fav_category: 'AI',
+          created_at: new Date().toISOString()
+        };
+      }
     }
+
+    // Ensure role is normalized to lowercase
+    user.role = String(user.role || req.user.role || 'user').toLowerCase().trim();
 
     // Query progress
     const { data: progress } = await supabaseAdmin

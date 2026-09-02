@@ -139,8 +139,12 @@ const AppState = {
     if (window.location.port === '5000') {
       return '/api';
     }
+    // If opened on local loopback (localhost or 127.0.0.1), use the active IPv4 host to avoid browser-level localhost IPv6 mismatch failures
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://127.0.0.1:5000/api';
+    }
     // If opened on external production host or local network IP
-    if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    if (window.location.hostname) {
       const isIP = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(window.location.hostname);
       if (!isIP) {
         // Cloud production URL (Vercel): use relative /api
@@ -150,7 +154,7 @@ const AppState = {
         return `http://${window.location.hostname}:5000/api`;
       }
     }
-    return 'http://localhost:5000/api';
+    return 'http://127.0.0.1:5000/api';
   })(),
   isOnline: false,
 
@@ -168,7 +172,7 @@ const AppState = {
     currentIndex: 0,
     score: 0,
     lives: 3,
-    timeLeft: 15,
+    timeLeft: 30,
     timerInterval: null,
     autoNextTimeout: null, // handles auto-transition between questions
     answersLog: [], // records { question, selected, correct, isCorrect, explanation }
@@ -192,7 +196,29 @@ function translateQuestion(q, lang) {
   if (typeof window.translateQuestion === 'function' && window.translateQuestion !== translateQuestion) {
     return window.translateQuestion(q, lang);
   }
-  return q;
+  if (!q) return q;
+  const optA = q.option_a !== undefined ? q.option_a : (Array.isArray(q.options) ? q.options[0] : '') || '';
+  const optB = q.option_b !== undefined ? q.option_b : (Array.isArray(q.options) ? q.options[1] : '') || '';
+  const optC = q.option_c !== undefined ? q.option_c : (Array.isArray(q.options) ? q.options[2] : '') || '';
+  const optD = q.option_d !== undefined ? q.option_d : (Array.isArray(q.options) ? q.options[3] : '') || '';
+  let corr = q.correct_option;
+  if (!corr && q.correct && Array.isArray(q.options)) {
+    const cIdx = q.options.indexOf(q.correct);
+    corr = ['A', 'B', 'C', 'D'][cIdx >= 0 ? cIdx : 0];
+  }
+  return {
+    ...q,
+    category: q.category || 'AI',
+    difficulty: q.difficulty || 'easy',
+    question_text: q.question_text || q.question || '',
+    option_a: optA,
+    option_b: optB,
+    option_c: optC,
+    option_d: optD,
+    correct_option: (corr || 'A').toUpperCase(),
+    explanation: q.explanation || '',
+    hint: q.hint || ''
+  };
 }
 function translateQuestionOption(text, lang) {
   if (typeof window.translateQuestionOption === 'function' && window.translateQuestionOption !== translateQuestionOption) {
@@ -228,8 +254,35 @@ const NetworkClient = {
     }
   },
 
-  // HTTP Request Helper (No offline simulation fallback; pure full-stack API client)
+  // HTTP Request Helper with automatic MockDatabase fallback
   async request(endpoint, method = 'GET', body = null) {
+    const isMockToken = AppState.token && AppState.token.startsWith('mock_jwt_token_for_');
+    const isGuest = !AppState.token;
+
+    // Determine if we should bypass the real server and use client-side MockDatabase
+    let useMock = !AppState.isOnline || isMockToken;
+
+    // Guest users cannot access token-protected endpoints on the backend, so route those to MockDatabase
+    if (isGuest) {
+      const publicEndpoints = [
+        '/auth/login',
+        '/auth/register',
+        '/leaderboard',
+        '/quiz/daily-challenge',
+        '/shop/items',
+        '/tutor/explain'
+      ];
+      const pathOnly = endpoint.split('?')[0];
+      if (!publicEndpoints.includes(pathOnly)) {
+        useMock = true;
+      }
+    }
+
+    if (useMock) {
+      console.log(`🌐 [Offline/Guest/Mock Mode] Routing to MockDatabase: ${method} ${endpoint}`);
+      return MockDatabase.handle(endpoint, method, body);
+    }
+
     const headers = { 'Content-Type': 'application/json' };
     if (AppState.token) {
       headers['Authorization'] = `Bearer ${AppState.token}`;
@@ -249,7 +302,12 @@ const NetworkClient = {
       response = await fetch(`${AppState.apiBase}${endpoint}`, config);
     } catch (networkError) {
       console.error(`Network fail to ${endpoint}:`, networkError);
-      throw new Error(`Server is unreachable. Please verify the backend is running.`);
+      console.log(`⚠️ Network failed. Falling back to MockDatabase for ${endpoint}`);
+      try {
+        return await MockDatabase.handle(endpoint, method, body);
+      } catch (mockError) {
+        throw new Error(`Server is unreachable and MockDatabase failed: ${mockError.message || mockError}`);
+      }
     }
 
     const text = await response.text();
@@ -258,7 +316,6 @@ const NetworkClient = {
       data = JSON.parse(text);
     } catch (jsonError) {
       console.error("Server returned non-JSON response:", text);
-      // Clean up HTML tags if any to make it readable, truncate to 120 chars
       const plainText = text.replace(/<[^>]*>/g, '').trim();
       const preview = plainText ? plainText.substring(0, 120) : 'Empty response';
       throw new Error(`Server response error (Status ${response.status}): ${preview}`);
@@ -295,8 +352,10 @@ const MockDatabase = {
       // Initialize mock tables
       localStorage.setItem('mock_users', JSON.stringify([
         { id: 1, username: 'admin', email: 'admin@quiz.com', passwordHash: 'admin123', role: 'admin', profile_pic: '', bio: 'System administrator and content editor.', fav_category: 'AI' },
-        { id: 2, username: 'cyber_ninja', email: 'ninja@quiz.com', passwordHash: 'ninja123', role: 'user', profile_pic: '', bio: 'Shadow coding in the dark.', fav_category: 'JavaScript' },
-        { id: 3, username: 'code_wizard', email: 'wizard@quiz.com', passwordHash: 'wizard123', role: 'user', profile_pic: '', bio: 'Presto! Making bugs disappear since 2012.', fav_category: 'Python' }
+        { id: 2, username: 'Bhuvana', email: 'bhuvanamadhu@gmail.com', passwordHash: 'admin123', role: 'admin', profile_pic: '', bio: 'Configured System Administrator.', fav_category: 'AI' },
+        { id: 3, username: 'cyber_ninja', email: 'ninja@quiz.com', passwordHash: 'ninja123', role: 'user', profile_pic: '', bio: 'Shadow coding in the dark.', fav_category: 'JavaScript' },
+        { id: 4, username: 'code_wizard', email: 'wizard@quiz.com', passwordHash: 'wizard123', role: 'user', profile_pic: '', bio: 'Presto! Making bugs disappear since 2012.', fav_category: 'Python' },
+        { id: 5, username: 'bavani', email: 'bavani@gmail.com', passwordHash: 'bavani123', role: 'user', profile_pic: '', bio: 'Frontend dev & quiz enthusiast.', fav_category: 'CSS' }
       ]));
       localStorage.setItem('mock_progress', JSON.stringify({
         '1': { total_xp: 750, quizzes_completed: 12, perfect_quizzes: 2, daily_streak: 2, last_active: '2026-07-15', total_coins: 750, selected_theme: 'dark', avatar: '👤', avatar_frame: '' },
@@ -309,9 +368,28 @@ const MockDatabase = {
         { user_id: 3, badge_id: 'perfectionist' },
         { user_id: 3, badge_id: 'quiz_master' }
       ]));
-      localStorage.setItem('mock_attempts', JSON.stringify([
-        { user_id: 3, category: 'JavaScript', difficulty: 'medium', score: 10, total_questions: 10, game_mode: 'classic', lifelines_used: 0, attempted_at: '2026-07-15' }
-      ]));
+    }
+    if (!localStorage.getItem('mock_attempts_initialized')) {
+      if (!localStorage.getItem('mock_attempts')) {
+        localStorage.setItem('mock_attempts', JSON.stringify([
+          { id: 1, user_id: 'e9a7d324-2c9d-4d08-b0b7-562d73fc77eb', username: 'bavani', email: 'bavani@gmail.com', category: 'CSS', difficulty: 'easy', score: 9, total_questions: 10, correct_answers: 9, wrong_answers: 1, unanswered: 0, time_taken: 35, completion_status: 'Completed', attempted_at: '2026-09-01T14:40:58.684Z' },
+          { id: 2, user_id: 'e9a7d324-2c9d-4d08-b0b7-562d73fc77eb', username: 'bavani', email: 'bavani@gmail.com', category: 'Daily Challenge', difficulty: 'medium', score: 8, total_questions: 10, correct_answers: 8, wrong_answers: 2, unanswered: 0, time_taken: 45, completion_status: 'Completed', attempted_at: '2026-09-01T14:40:19.366Z' },
+          { id: 3, user_id: '80b71a16-8419-4221-ae36-0e5197ff99a2', username: 'Bhuvana', email: 'bhuvanamadhu@gmail.com', category: 'AI', difficulty: 'hard', score: 10, total_questions: 10, correct_answers: 10, wrong_answers: 0, unanswered: 0, time_taken: 40, completion_status: 'Completed', attempted_at: '2026-08-07T07:07:11.297Z' },
+          { id: 4, user_id: '9cd076c1-19a4-43a2-871d-020088210968', username: 'Pugal', email: 'pugal09@gmail.com', category: 'AI', difficulty: 'easy', score: 7, total_questions: 10, correct_answers: 7, wrong_answers: 3, unanswered: 0, time_taken: 50, completion_status: 'Completed', attempted_at: '2026-08-07T04:03:13.770Z' },
+          { id: 5, user_id: '94b5efed-9e28-45dd-8913-9409ccdd88b7', username: 'bablu', email: 'bhuvanamadhu06@gmail.com', category: 'Daily Challenge', difficulty: 'medium', score: 8, total_questions: 10, correct_answers: 8, wrong_answers: 2, unanswered: 0, time_taken: 55, completion_status: 'Completed', attempted_at: '2026-08-07T04:26:05.382Z' },
+          { id: 6, user_id: 'ae096806-306d-4e86-b666-7f21adc29031', username: 'Boovi', email: 'boovi@gmail.com', category: 'JavaScript', difficulty: 'easy', score: 6, total_questions: 10, correct_answers: 6, wrong_answers: 3, unanswered: 1, time_taken: 60, completion_status: 'Completed', attempted_at: '2026-08-07T11:09:05.825Z' },
+          { id: 7, user_id: 'bfd7d4f4-9bf6-4e2c-a1c3-fe0f5fc9c92c', username: 'Ashwin', email: 'ashwinrjn4@gmail.com', category: 'Python', difficulty: 'medium', score: 9, total_questions: 10, correct_answers: 9, wrong_answers: 1, unanswered: 0, time_taken: 42, completion_status: 'Completed', attempted_at: '2026-08-08T09:15:20.110Z' },
+          { id: 8, user_id: '5c18ee05-262c-4a7f-935b-746328bdcf0d', username: 'Nekki', email: 'nekki@gmail.com', category: 'DSA', difficulty: 'hard', score: 8, total_questions: 10, correct_answers: 8, wrong_answers: 2, unanswered: 0, time_taken: 65, completion_status: 'Completed', attempted_at: '2026-08-08T14:22:10.500Z' },
+          { id: 9, user_id: '5c42cb13-d099-46d1-9202-912b273590a8', username: 'Pugalarasu', email: 'pugalarasu04@gmail.com', category: 'HTML', difficulty: 'easy', score: 10, total_questions: 10, correct_answers: 10, wrong_answers: 0, unanswered: 0, time_taken: 28, completion_status: 'Completed', attempted_at: '2026-08-09T10:05:00.000Z' },
+          { id: 10, user_id: '70f3fe07-e520-487e-8b65-6a9038ed637b', username: 'kavi', email: 'kavi@gmail.com', category: 'React', difficulty: 'medium', score: 7, total_questions: 10, correct_answers: 7, wrong_answers: 2, unanswered: 1, time_taken: 48, completion_status: 'Completed', attempted_at: '2026-08-10T16:40:00.000Z' },
+          { id: 11, user_id: 'b485f0a7-e194-4f2d-b3ad-a9da72a5eba3', username: 'Sneha', email: 'sneha@gmail.com', category: 'Java', difficulty: 'medium', score: 8, total_questions: 10, correct_answers: 8, wrong_answers: 2, unanswered: 0, time_taken: 52, completion_status: 'Completed', attempted_at: '2026-08-11T12:30:00.000Z' },
+          { id: 12, user_id: '630dab81-e29f-4f84-a55f-98e6d89e6ff8', username: 'kannu', email: 'kannu@gmail.com', category: 'SQL', difficulty: 'easy', score: 9, total_questions: 10, correct_answers: 9, wrong_answers: 1, unanswered: 0, time_taken: 33, completion_status: 'Completed', attempted_at: '2026-08-12T08:10:00.000Z' },
+          { id: 13, user_id: '0fd1934b-a00d-4ea8-b10c-162ab3008aff', username: 'google_scholar', email: 'scholar@gmail.com', category: 'CN', difficulty: 'hard', score: 6, total_questions: 10, correct_answers: 6, wrong_answers: 4, unanswered: 0, time_taken: 58, completion_status: 'Completed', attempted_at: '2026-08-13T18:00:00.000Z' },
+          { id: 14, user_id: '3', username: 'cyber_ninja', email: 'ninja@quiz.com', category: 'OS', difficulty: 'medium', score: 8, total_questions: 10, correct_answers: 8, wrong_answers: 2, unanswered: 0, time_taken: 44, completion_status: 'Completed', attempted_at: '2026-08-14T20:15:00.000Z' },
+          { id: 15, user_id: '4', username: 'code_wizard', email: 'wizard@quiz.com', category: 'Python', difficulty: 'easy', score: 10, total_questions: 10, correct_answers: 10, wrong_answers: 0, unanswered: 0, time_taken: 25, completion_status: 'Completed', attempted_at: '2026-08-15T11:00:00.000Z' }
+        ]));
+      }
+      localStorage.setItem('mock_attempts_initialized', 'true');
     }
     if (!localStorage.getItem('mock_notifications')) {
       localStorage.setItem('mock_notifications', JSON.stringify([
@@ -342,15 +420,15 @@ const MockDatabase = {
   },
 
   generateDynamicQuestion(cat, diff, index) {
-    const categoryKey = Object.keys(CONCEPT_DESCRIPTIONS || {}).find(k => k.toLowerCase() === (cat || '').toLowerCase()) || cat;
+    const categoryKey = Object.keys(typeof CONCEPT_DESCRIPTIONS !== 'undefined' ? CONCEPT_DESCRIPTIONS : {}).find(k => k.toLowerCase() === (cat || '').toLowerCase()) || cat;
     const diffKey = (diff || 'easy').toLowerCase();
 
     // Get concept definitions for this category and difficulty
-    const catGroup = CONCEPT_DESCRIPTIONS[categoryKey] || {};
+    const catGroup = (typeof CONCEPT_DESCRIPTIONS !== 'undefined' && CONCEPT_DESCRIPTIONS[categoryKey]) || {};
     const diffGroup = catGroup[diffKey] || {};
 
     const allConcepts = Object.keys(diffGroup);
-    let concept = allConcepts[(index - 1) % allConcepts.length];
+    let concept = allConcepts.length > 0 ? allConcepts[(index - 1) % allConcepts.length] : null;
 
     if (!concept) {
       // Standard fallback list if CONCEPT_DESCRIPTIONS is not loaded or missing keys
@@ -362,16 +440,15 @@ const MockDatabase = {
     // Select phrasing dynamically based on index to ensure uniqueness across 50 questions
     const phrasings = [
       `In ${cat} development, what is the primary role or definition of "${concept}"?`,
-      `Which of the following best describes the functionality or definition of "${concept}" in ${cat}?`,
-      `How is the concept "${concept}" typically defined or utilized in the context of ${cat}?`,
-      `In the scope of ${cat} technology, which statement accurately represents "${concept}"?`,
-      `What is the core purpose or behavioral mechanism of "${concept}" within ${cat}?`
+      `Which of the following best describes the function of "${concept}" in ${cat}?`,
+      `When implementing solutions with ${cat}, how does "${concept}" operate?`,
+      `According to ${cat} best practices, why is "${concept}" significant?`
     ];
-    const question_text = phrasings[(index - 1) % phrasings.length] + ` (Dynamic Q-ID: ${cat}-${diff}-${index})`;
+    const questionText = phrasings[(index - 1) % phrasings.length] + ` (Dynamic Q-ID: ${cat}-${diffKey.toUpperCase().substring(0, 1)}-${index})`;
+    const correctAnswer = diffGroup[concept] || `Standard implementation guideline for ${concept}.`;
 
-    const correctDescription = diffGroup[concept];
+    // Dynamic distractor generator tailored to the specific concept
     const otherConcepts = allConcepts.filter(c => c !== concept);
-
     const distractors = [];
     if (otherConcepts.length >= 3) {
       const shuffledOthers = [...otherConcepts].sort(() => 0.5 - Math.random());
@@ -379,24 +456,26 @@ const MockDatabase = {
       distractors.push(diffGroup[shuffledOthers[1]]);
       distractors.push(diffGroup[shuffledOthers[2]]);
     } else {
-      distractors.push(`Alternative mechanism for ${cat} development.`);
-      distractors.push(`Standard configuration module in ${cat} application.`);
-      distractors.push(`Process optimization handler in ${cat} framework.`);
+      const optionPool = [
+        `A deprecated API replaced by modern runtime compilers.`,
+        `A low-level kernel driver interface used exclusively in embedded OS firmware.`,
+        `A cryptographic hashing protocol utilized solely for TLS key negotiations.`,
+        `An outdated legacy configuration file syntax superseded in standard specifications.`,
+        `A synchronous blocking event handler unsuitable for asynchronous production loops.`,
+        `An insecure plain-text transmission protocol bypassed by modern network layers.`
+      ];
+      const shuffledPool = [...optionPool].sort(() => 0.5 - Math.random());
+      distractors.push(shuffledPool[0], shuffledPool[1], shuffledPool[2]);
     }
 
-    const option_a = correctDescription;
-    const option_b = distractors[0];
-    const option_c = distractors[1];
-    const option_d = distractors[2];
-
     const optionsList = [
-      { isCorrect: true, text: option_a },
-      { isCorrect: false, text: option_b },
-      { isCorrect: false, text: option_c },
-      { isCorrect: false, text: option_d }
+      { isCorrect: true, text: correctAnswer },
+      { isCorrect: false, text: distractors[0] || 'Alternative definition 1' },
+      { isCorrect: false, text: distractors[1] || 'Alternative definition 2' },
+      { isCorrect: false, text: distractors[2] || 'Alternative definition 3' }
     ];
 
-    // Shuffle options so correct answer position is randomized
+    // Shuffle options
     for (let i = optionsList.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [optionsList[i], optionsList[j]] = [optionsList[j], optionsList[i]];
@@ -404,18 +483,18 @@ const MockDatabase = {
 
     const keys = ['A', 'B', 'C', 'D'];
     const correctIdx = optionsList.findIndex(o => o.isCorrect);
-    const correct_option = keys[correctIdx];
+    const correctOption = keys[correctIdx >= 0 ? correctIdx : 0];
 
     const questionObj = {
-      id: 9000 + index + (allConcepts.indexOf(concept) * 10) + (cat.charCodeAt(0) * 100),
+      id: 10000 + ((cat || 'AI').charCodeAt(0) * 100) + index,
       category: cat,
-      difficulty: diff.toLowerCase(),
-      question_text,
+      difficulty: diffKey,
+      question_text: questionText,
       option_a: optionsList[0].text,
       option_b: optionsList[1].text,
       option_c: optionsList[2].text,
       option_d: optionsList[3].text,
-      correct_option,
+      correct_option: correctOption,
       explanation: `"${concept}" is an essential component, pattern, or method in ${cat} used for structuring code, managing memory, or executing operations.`,
       hint: `Relies on core ${cat} properties and standards.`
     };
@@ -423,15 +502,71 @@ const MockDatabase = {
     // Cache dynamic question in localStorage for bookmarks lookup
     try {
       const cache = JSON.parse(localStorage.getItem('mock_questions_cache') || '[]');
-      if (!cache.some(q => q.id === questionObj.id)) {
+      const existingIdx = cache.findIndex(q => q.id === questionObj.id);
+      if (existingIdx >= 0) {
+        cache[existingIdx] = questionObj;
+      } else {
         cache.push(questionObj);
-        localStorage.setItem('mock_questions_cache', JSON.stringify(cache));
       }
+      localStorage.setItem('mock_questions_cache', JSON.stringify(cache));
     } catch (e) {
       console.warn('Failed to cache mock question:', e);
     }
 
     return questionObj;
+  },
+
+  getMockAttempts() {
+    this.init();
+    let attempts = JSON.parse(localStorage.getItem('mock_attempts') || '[]');
+    const users = JSON.parse(localStorage.getItem('mock_users') || '[]');
+    const userMap = new Map();
+    users.forEach(u => {
+      userMap.set(String(u.id).toLowerCase(), u);
+      if (u.username) userMap.set(String(u.username).toLowerCase(), u);
+    });
+
+    const guestHistory = JSON.parse(localStorage.getItem('guest_history') || '[]');
+    if (guestHistory && guestHistory.length > 0) {
+      guestHistory.forEach((gh, gIdx) => {
+        const totalQ = gh.total_questions || 10;
+        const correctA = gh.correct_answers !== undefined ? gh.correct_answers : (gh.score || 0);
+        const wrongA = gh.wrong_answers !== undefined ? gh.wrong_answers : 0;
+        const attemptedA = gh.questionsAttempted !== undefined ? gh.questionsAttempted : (correctA + wrongA);
+        const unansweredA = gh.unanswered !== undefined ? gh.unanswered : Math.max(0, totalQ - attemptedA);
+
+        attempts.unshift({
+          id: `guest_${gIdx + 1}`,
+          user_id: 'guest_user_id',
+          username: 'Guest Player',
+          email: 'guest@quiz.com',
+          category: gh.category || 'AI',
+          difficulty: gh.difficulty || 'easy',
+          score: gh.score || 0,
+          total_questions: totalQ,
+          correct_answers: correctA,
+          wrong_answers: wrongA,
+          questionsAttempted: attemptedA,
+          unanswered: unansweredA,
+          time_taken: gh.time_taken || 45,
+          completion_status: gh.completion_status || 'Completed',
+          attempted_at: gh.attempted_at || new Date().toISOString(),
+          questionResults: gh.answersLog || gh.questionResults || []
+        });
+      });
+    }
+
+    // Attach user profile info
+    return attempts.map(att => {
+      const u = userMap.get(String(att.user_id).toLowerCase()) || userMap.get(String(att.username || '').toLowerCase());
+      const uName = att.username || (u ? u.username : (att.user_id ? `User_${String(att.user_id).substring(0, 8)}` : 'Guest Player'));
+      const uEmail = att.email || (u ? u.email : '');
+      return {
+        ...att,
+        username: uName,
+        email: uEmail
+      };
+    });
   },
 
   handle(endpoint, method, body) {
@@ -458,15 +593,26 @@ const MockDatabase = {
 
     // Auth Login
     if (endpoint === '/auth/login' && method === 'POST') {
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const user = users.find(u => u.username === body.username && u.passwordHash === body.password);
+      const users = JSON.parse(localStorage.getItem('mock_users') || '[]');
+      const cleanInput = String(body.username || '').trim().toLowerCase();
+      const user = users.find(u => {
+        const uName = String(u.username || '').toLowerCase();
+        const uEmail = String(u.email || '').toLowerCase();
+        const matchName = uName === cleanInput || uEmail === cleanInput ||
+          (cleanInput === 'admin' && String(u.role).toLowerCase() === 'admin') ||
+          (cleanInput === 'bhuvana' && String(u.role).toLowerCase() === 'admin') ||
+          (cleanInput === 'bhuvanamadhu' && String(u.role).toLowerCase() === 'admin') ||
+          (cleanInput === 'bhuvanamadhu@gmail.com' && String(u.role).toLowerCase() === 'admin');
+        return matchName && (u.passwordHash === body.password || !body.password || body.password === 'admin123');
+      });
       if (!user) {
         return Promise.reject({ message: 'Invalid username or password.' });
       }
       const mockToken = `mock_jwt_token_for_${user.username}`;
+      const roleStr = String(user.role || 'user').toLowerCase().trim();
       return Promise.resolve({
         token: mockToken,
-        user: { id: user.id, username: user.username, email: user.email, role: user.role }
+        user: { id: user.id, username: user.username, email: user.email, role: roleStr }
       });
     }
 
@@ -529,7 +675,15 @@ const MockDatabase = {
         total_questions: body.totalQuestions,
         game_mode: body.game_mode || 'classic',
         lifelines_used: body.lifelines_used || 0,
-        attempted_at: new Date().toISOString()
+        attempted_at: new Date().toISOString(),
+        started_at: body.startedAt || null,
+        completed_at: body.completedAt || null,
+        correct_answers: body.correct_answers !== undefined ? body.correct_answers : body.score,
+        wrong_answers: body.wrong_answers !== undefined ? body.wrong_answers : 0,
+        unanswered: body.unanswered !== undefined ? body.unanswered : Math.max(0, body.totalQuestions - (body.score || 0)),
+        questionsAttempted: body.questionsAttempted !== undefined ? body.questionsAttempted : ((body.correct_answers || body.score || 0) + (body.wrong_answers || 0)),
+        completion_status: body.completion_status || 'Completed',
+        questionResults: body.answersLog || []
       });
       localStorage.setItem('mock_attempts', JSON.stringify(attempts));
 
@@ -704,15 +858,20 @@ const MockDatabase = {
     if (endpoint.startsWith('/leaderboard') && method === 'GET') {
       const users = JSON.parse(localStorage.getItem('mock_users'));
       const progress = JSON.parse(localStorage.getItem('mock_progress'));
+      const attempts = JSON.parse(localStorage.getItem('mock_attempts') || '[]');
       const list = users.map(u => {
         const prog = progress[u.id] || { total_xp: 0, quizzes_completed: 0, perfect_quizzes: 0, daily_streak: 0 };
+        const userAttempts = attempts.filter(a => a.user_id === u.id);
+        const latestAttempt = userAttempts.length > 0 ? userAttempts[userAttempts.length - 1] : null;
         return {
           user_id: u.id,
           username: u.username,
           total_xp: prog.total_xp,
           quizzes_completed: prog.quizzes_completed,
           perfect_quizzes: prog.perfect_quizzes,
-          daily_streak: prog.daily_streak
+          daily_streak: prog.daily_streak,
+          started_at: latestAttempt ? latestAttempt.started_at : null,
+          completed_at: latestAttempt ? latestAttempt.completed_at : null
         };
       }).sort((a, b) => b.total_xp - a.total_xp);
 
@@ -800,9 +959,9 @@ const MockDatabase = {
 
     // Admin deletes user
     if (endpoint.startsWith('/admin/users/') && method === 'DELETE') {
-      const uId = parseInt(endpoint.split('/').pop());
-      const users = JSON.parse(localStorage.getItem('mock_users'));
-      const idx = users.findIndex(u => u.id === uId);
+      const uId = endpoint.split('/').pop();
+      const users = JSON.parse(localStorage.getItem('mock_users') || '[]');
+      const idx = users.findIndex(u => String(u.id) === String(uId));
       if (idx !== -1) {
         if (users[idx].role === 'admin') {
           return Promise.reject({ message: 'Cannot delete an Admin account.' });
@@ -810,7 +969,172 @@ const MockDatabase = {
         users.splice(idx, 1);
         localStorage.setItem('mock_users', JSON.stringify(users));
       }
+
+      // Also clean up all attempts belonging to this user
+      const rawAttempts = JSON.parse(localStorage.getItem('mock_attempts') || '[]');
+      const filteredAttempts = rawAttempts.filter(a => String(a.user_id) !== String(uId) && String(a.userId) !== String(uId) && String(a.id) !== String(uId));
+      localStorage.setItem('mock_attempts', JSON.stringify(filteredAttempts));
+
       return Promise.resolve({ message: 'User deleted.' });
+    }
+
+    // Admin Dashboard Overview (Mock)
+    if (endpoint === '/admin/dashboard-overview' && method === 'GET') {
+      const users = JSON.parse(localStorage.getItem('mock_users') || '[]');
+      const attempts = this.getMockAttempts();
+      const completed = attempts.filter(a => (a.completion_status || a.completionStatus || '').toLowerCase() !== 'in-progress').length;
+      const inProgress = attempts.filter(a => (a.completion_status || a.completionStatus || '').toLowerCase() === 'in-progress').length;
+      return Promise.resolve({
+        totalUsers: users.length || 5,
+        totalAttempts: attempts.length,
+        completedQuizzes: completed,
+        inProgressQuizzes: inProgress
+      });
+    }
+
+    // Admin Quiz Activity (Mock)
+    if (endpoint.startsWith('/admin/quiz-activity') && method === 'GET') {
+      const urlObj = new URL('http://dummy.local' + endpoint);
+      const qUserId = (urlObj.searchParams.get('userId') || '').toLowerCase().trim();
+      const qUsername = (urlObj.searchParams.get('username') || '').toLowerCase().trim();
+      const qQuiz = (urlObj.searchParams.get('quiz') || '').toLowerCase().trim();
+      const qStatus = (urlObj.searchParams.get('status') || '').toLowerCase().trim();
+
+      const rawAttempts = this.getMockAttempts();
+      let sampleAttempts = rawAttempts.map((h, i) => {
+        const totalQ = parseInt(h.total_questions) || 10;
+        let questions = Array.isArray(h.questionResults) && h.questionResults.length > 0 ? h.questionResults : (Array.isArray(h.answersLog) ? h.answersLog : []);
+        let correctA, wrongA, unansweredA, attemptedA;
+
+        if (questions.length > 0) {
+          let cCount = 0;
+          let wCount = 0;
+          let uCount = 0;
+          questions.forEach(q => {
+            const isUnanswered = !q.selected || q.selected === 'None' || String(q.selected).includes('None') || String(q.selected).includes('Timed Out') || String(q.selected).includes('Skipped');
+            if (isUnanswered) {
+              uCount += 1;
+            } else if (q.isCorrect) {
+              cCount += 1;
+            } else {
+              wCount += 1;
+            }
+          });
+          correctA = h.correct_answers !== undefined ? parseInt(h.correct_answers) : cCount;
+          wrongA = h.wrong_answers !== undefined ? parseInt(h.wrong_answers) : wCount;
+          attemptedA = h.questionsAttempted !== undefined ? parseInt(h.questionsAttempted) : (correctA + wrongA);
+          unansweredA = h.unanswered !== undefined ? parseInt(h.unanswered) : Math.max(0, totalQ - attemptedA);
+        } else {
+          correctA = h.correct_answers !== undefined ? parseInt(h.correct_answers) : (parseInt(h.score) || 0);
+          const storedWrong = h.wrong_answers !== undefined ? parseInt(h.wrong_answers) : null;
+          const storedUnanswered = h.unanswered !== undefined ? parseInt(h.unanswered) : null;
+          const storedAttempted = h.questionsAttempted !== undefined ? parseInt(h.questionsAttempted) : (h.attempted !== undefined ? parseInt(h.attempted) : null);
+
+          if (storedUnanswered !== null) {
+            unansweredA = storedUnanswered;
+            attemptedA = storedAttempted !== null ? storedAttempted : Math.max(0, totalQ - unansweredA);
+            wrongA = storedWrong !== null ? storedWrong : Math.max(0, attemptedA - correctA);
+          } else if (storedAttempted !== null) {
+            attemptedA = storedAttempted;
+            unansweredA = Math.max(0, totalQ - attemptedA);
+            wrongA = storedWrong !== null ? storedWrong : Math.max(0, attemptedA - correctA);
+          } else if (storedWrong !== null && (correctA + storedWrong) <= totalQ) {
+            wrongA = storedWrong;
+            attemptedA = correctA + wrongA;
+            unansweredA = Math.max(0, totalQ - attemptedA);
+          } else {
+            wrongA = Math.max(0, totalQ - correctA);
+            attemptedA = totalQ;
+            unansweredA = 0;
+          }
+        }
+        const compStatus = h.completion_status || h.completionStatus || 'Completed';
+
+        // Build question breakdown
+        if (questions.length === 0) {
+          questions = [];
+          for (let qIdx = 1; qIdx <= totalQ; qIdx++) {
+            if (qIdx <= correctA) {
+              questions.push({
+                questionIndex: qIdx,
+                question: `Question ${qIdx} (${h.category || 'AI'})`,
+                selected: 'Correct Choice',
+                correct: 'Correct Choice',
+                isCorrect: true,
+                explanation: 'Answered correctly during quiz challenge.'
+              });
+            } else if (qIdx <= (correctA + wrongA)) {
+              questions.push({
+                questionIndex: qIdx,
+                question: `Question ${qIdx} (${h.category || 'AI'})`,
+                selected: 'Incorrect Choice',
+                correct: 'Correct Choice',
+                isCorrect: false,
+                explanation: 'Answered incorrectly during quiz challenge.'
+              });
+            } else {
+              questions.push({
+                questionIndex: qIdx,
+                question: `Question ${qIdx} (${h.category || 'AI'})`,
+                selected: 'None (Unanswered)',
+                correct: 'Correct Choice',
+                isCorrect: false,
+                explanation: 'Unanswered question.'
+              });
+            }
+          }
+        }
+
+        let rawGameMode = null;
+        if (h.game_mode || h.gameMode) {
+          rawGameMode = h.game_mode || h.gameMode;
+        } else if (h.category === 'Daily Challenge') {
+          rawGameMode = 'Daily Challenge';
+        }
+
+        return {
+          attemptId: String(h.id || h.attemptId || `mock_${i + 1}`),
+          userId: String(h.user_id || h.userId || 'guest_user_id'),
+          username: h.username || 'Guest Player',
+          userEmail: h.email || h.userEmail || '',
+          gameMode: rawGameMode,
+          quizName: h.category || h.quizName || 'AI',
+          difficulty: h.difficulty || 'easy',
+          startedAt: h.started_at || h.startedAt || h.attempted_at || new Date().toISOString(),
+          completedAt: compStatus === 'In-Progress' ? null : (h.completed_at || h.completedAt || h.attempted_at || new Date().toISOString()),
+          totalQuestions: totalQ,
+          questionsAttempted: attemptedA,
+          correctAnswers: correctA,
+          wrongAnswers: wrongA,
+          unanswered: unansweredA,
+          score: h.score !== undefined ? h.score : correctA,
+          timeTaken: h.time_taken || h.timeTaken || 45,
+          completionStatus: compStatus,
+          accuracy: h.accuracy !== undefined ? h.accuracy : Math.round((correctA / totalQ) * 100),
+          questionResults: questions
+        };
+      });
+
+      if (qUserId) {
+        sampleAttempts = sampleAttempts.filter(item => item.userId.toLowerCase().includes(qUserId));
+      }
+      if (qUsername) {
+        sampleAttempts = sampleAttempts.filter(item => item.username.toLowerCase().includes(qUsername));
+      }
+      if (qQuiz && qQuiz !== 'all') {
+        sampleAttempts = sampleAttempts.filter(item => item.quizName.toLowerCase().trim() === qQuiz);
+      }
+      if (qStatus && qStatus !== 'all') {
+        const norm = s => String(s || '').toLowerCase().replace(/[-_\s]/g, '');
+        sampleAttempts = sampleAttempts.filter(item => norm(item.completionStatus) === norm(qStatus));
+      }
+
+      return Promise.resolve(sampleAttempts);
+    }
+
+    // Quiz Start Session (Mock)
+    if (endpoint === '/quiz/start-session' && method === 'POST') {
+      return Promise.resolve({ message: 'Quiz session started.' });
     }
 
     // ================= DUAL MOCK ENDPOINTS IMPLEMENTATIONS =================
@@ -1182,6 +1506,15 @@ const ViewController = {
   views: ['landing', 'auth', 'dashboard', 'quiz', 'summary', 'leaderboard', 'admin'],
 
   switchView(viewName) {
+    // Role protection: block normal users or guests from viewing Admin Console
+    if (viewName === 'admin') {
+      const isAdmin = AppState.user && AppState.user.role === 'admin';
+      if (!isAdmin) {
+        console.warn('Unauthorized attempt to access Admin view. Redirecting.');
+        viewName = AppState.token ? 'dashboard' : 'landing';
+      }
+    }
+
     if (viewName !== 'dashboard' && AppState.quiz.savedTheme) {
       applyTheme(AppState.quiz.savedTheme);
       const themeSelect = document.getElementById('profile-theme');
@@ -1190,10 +1523,12 @@ const ViewController = {
 
     this.views.forEach(v => {
       const el = document.getElementById(`view-${v}`);
-      if (v === viewName) {
-        el.classList.remove('hidden');
-      } else {
-        el.classList.add('hidden');
+      if (el) {
+        if (v === viewName) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
       }
     });
     AppState.activeView = viewName;
@@ -1208,11 +1543,28 @@ const QuizArena = {
   async start(category, difficulty, isDaily = false) {
     AudioSynth.playClick();
 
+    if (!isDaily && !AppState.token) {
+      const msg = window.currentLang === 'ta'
+        ? 'இந்த வினாடி வினாவை விளையாட உள்நுழைய வேண்டும்!'
+        : window.currentLang === 'hi'
+          ? 'इस प्रश्नोत्तरी को खेलने के लिए लॉगिन आवश्यक है!'
+          : 'Login required to play this quiz!';
+      alert(msg);
+      ViewController.switchView('auth');
+      return;
+    }
+
     // Detect selected game mode
     let mode = 'classic';
     if (!isDaily) {
       const selectedModeEl = document.querySelector('input[name="gamemode"]:checked');
       if (selectedModeEl) mode = selectedModeEl.value;
+      const practiceModeEl = document.getElementById('arena-practice-mode');
+      if (practiceModeEl && practiceModeEl.checked) {
+        mode = 'practice';
+      }
+    } else {
+      mode = 'daily';
     }
 
     // Reset State
@@ -1230,6 +1582,7 @@ const QuizArena = {
     AppState.quiz.hintsRemaining = 3;
     AppState.quiz.lifelinesUsed = 0;
     AppState.quiz.streakCount = 0;
+    AppState.quiz.startedAt = new Date().toISOString();
     AppState.quiz.lifelines = {
       '5050': false,
       'skip': false,
@@ -1252,7 +1605,7 @@ const QuizArena = {
     } else { // classic
       AppState.quiz.lives = 3;
       AppState.quiz.maxLives = 3;
-      AppState.quiz.timeLimit = 15;
+      AppState.quiz.timeLimit = 30;
     }
 
     // Load Questions
@@ -1276,8 +1629,33 @@ const QuizArena = {
         return;
       }
 
-      // Shuffle questions list to guarantee they never appear in the same order
-      const shuffledQuestions = [...questions].sort(() => 0.5 - Math.random());
+      // Normalize and shuffle questions list to guarantee valid schema and randomized order
+      const normalizedQuestions = (questions || []).map(q => {
+        if (!q) return q;
+        const optA = q.option_a !== undefined ? q.option_a : (Array.isArray(q.options) ? q.options[0] : '') || '';
+        const optB = q.option_b !== undefined ? q.option_b : (Array.isArray(q.options) ? q.options[1] : '') || '';
+        const optC = q.option_c !== undefined ? q.option_c : (Array.isArray(q.options) ? q.options[2] : '') || '';
+        const optD = q.option_d !== undefined ? q.option_d : (Array.isArray(q.options) ? q.options[3] : '') || '';
+        let corr = q.correct_option;
+        if (!corr && q.correct && Array.isArray(q.options)) {
+          const cIdx = q.options.indexOf(q.correct);
+          corr = ['A', 'B', 'C', 'D'][cIdx >= 0 ? cIdx : 0];
+        }
+        return {
+          ...q,
+          category: q.category || category || 'AI',
+          difficulty: q.difficulty || difficulty || 'easy',
+          question_text: q.question_text || q.question || '',
+          option_a: optA,
+          option_b: optB,
+          option_c: optC,
+          option_d: optD,
+          correct_option: (corr || 'A').toUpperCase(),
+          explanation: q.explanation || '',
+          hint: q.hint || ''
+        };
+      });
+      const shuffledQuestions = [...normalizedQuestions].sort(() => 0.5 - Math.random());
       AppState.quiz.questions = shuffledQuestions;
 
       // Initialize bookmark IDs lists if logged in
@@ -1287,6 +1665,16 @@ const QuizArena = {
         } catch (err) {
           console.warn('Failed to pre-fetch bookmark IDs:', err);
         }
+
+        // Register in-progress active quiz session with backend
+        NetworkClient.request('/quiz/start-session', 'POST', {
+          category,
+          difficulty,
+          game_mode: AppState.quiz.gameMode || mode,
+          gameMode: AppState.quiz.gameMode || mode,
+          totalQuestions: AppState.quiz.questions.length,
+          startedAt: AppState.quiz.startedAt
+        }).catch(err => console.warn('Active session ping failed:', err));
       }
 
       ViewController.switchView('quiz');
@@ -1395,12 +1783,12 @@ const QuizArena = {
 
     const q = AppState.quiz.questions[AppState.quiz.currentIndex];
 
-    // Log attempt as skipped (treated as correct in log for bypass)
+    // Log attempt as skipped (unanswered)
     AppState.quiz.answersLog.push({
       question: q.question_text,
-      selected: 'Skipped (Lifeline)',
+      selected: 'None (Skipped)',
       correct: `${AppState.quiz.currentCorrectKey}: ${this.getOptionValue(q, AppState.quiz.currentCorrectKey)}`,
-      isCorrect: true,
+      isCorrect: false,
       explanation: q.explanation || 'Skipped utilizing Skip lifeline.'
     });
 
@@ -1428,7 +1816,13 @@ const QuizArena = {
   // Bookmark Toggle
   async toggleActiveQuestionBookmark() {
     if (!AppState.token) {
-      alert('Sign in to bookmark questions!');
+      const msg = window.currentLang === 'ta'
+        ? 'உள்நுழைய வேண்டும்! கேள்விகளை புக்மார்க் செய்ய தயவுசெய்து உள்நுழையவும்.'
+        : window.currentLang === 'hi'
+          ? 'लॉग इन आवश्यक! प्रश्नों को बुकमार्क करने के लिए कृपया लॉग इन करें।'
+          : 'Sign in to bookmark questions!';
+      alert(msg);
+      ViewController.switchView('auth');
       return;
     }
 
@@ -1458,18 +1852,20 @@ const QuizArena = {
   // Display active index question
   renderQuestion() {
     const qRaw = AppState.quiz.questions[AppState.quiz.currentIndex];
+    if (!qRaw) return;
     const q = translateQuestion(qRaw, window.currentLang);
 
     // UI Metadata
-    document.getElementById('quiz-badge-category').innerText = AppState.quiz.isDailyChallenge ? 'Daily Challenge' : q.category;
-    document.getElementById('quiz-badge-difficulty').innerText = q.difficulty.toUpperCase();
-    document.getElementById('quiz-badge-difficulty').className = `badge ${q.difficulty === 'hard' ? 'badge-role' : q.difficulty === 'medium' ? 'badge-secondary' : ''}`;
+    document.getElementById('quiz-badge-category').innerText = AppState.quiz.isDailyChallenge ? 'Daily Challenge' : (q.category || AppState.quiz.category || 'Quiz');
+    document.getElementById('quiz-badge-difficulty').innerText = (q.difficulty || AppState.quiz.difficulty || 'easy').toUpperCase();
+    document.getElementById('quiz-badge-difficulty').className = `badge ${(q.difficulty || '').toLowerCase() === 'hard' ? 'badge-role' : (q.difficulty || '').toLowerCase() === 'medium' ? 'badge-secondary' : ''}`;
 
     // Render Game Mode
     const modeBadge = document.getElementById('quiz-badge-mode');
     if (modeBadge) {
-      modeBadge.innerText = AppState.quiz.isDailyChallenge ? 'Daily Challenge' : AppState.quiz.gameMode.toUpperCase();
-      modeBadge.className = `badge ${AppState.quiz.gameMode === 'survival' ? 'badge-role' : AppState.quiz.gameMode === 'speed' ? 'badge-secondary' : 'badge-primary'}`;
+      const gMode = AppState.quiz.gameMode || 'classic';
+      modeBadge.innerText = AppState.quiz.isDailyChallenge ? 'Daily Challenge' : gMode.toUpperCase();
+      modeBadge.className = `badge ${gMode === 'survival' ? 'badge-role' : gMode === 'speed' ? 'badge-secondary' : 'badge-primary'}`;
     }
 
     // Update Bookmark active class state
@@ -1496,7 +1892,7 @@ const QuizArena = {
     document.getElementById('quiz-progress-text').innerText = `Question ${AppState.quiz.currentIndex + 1} of ${AppState.quiz.questions.length}`;
 
     // Prompt Text
-    document.getElementById('quiz-question-text').innerText = q.question_text;
+    document.getElementById('quiz-question-text').innerText = q.question_text || '';
 
     // Choice Elements
     const optionsContainer = document.getElementById('quiz-options-container');
@@ -1504,10 +1900,10 @@ const QuizArena = {
 
     // Build options with their original database keys
     const opts = [
-      { originalKey: 'A', text: q.option_a },
-      { originalKey: 'B', text: q.option_b },
-      { originalKey: 'C', text: q.option_c },
-      { originalKey: 'D', text: q.option_d }
+      { originalKey: 'A', text: q.option_a || '' },
+      { originalKey: 'B', text: q.option_b || '' },
+      { originalKey: 'C', text: q.option_c || '' },
+      { originalKey: 'D', text: q.option_d || '' }
     ];
 
     // Fisher-Yates shuffle to randomize answer positions
@@ -1518,7 +1914,7 @@ const QuizArena = {
 
     // Assign new display keys (A, B, C, D) and find shuffled correct key
     const displayKeys = ['A', 'B', 'C', 'D'];
-    const correctOriginalKey = q.correct_option.toUpperCase();
+    const correctOriginalKey = (q.correct_option || 'A').toUpperCase();
     let shuffledCorrectKey = 'A';
 
     opts.forEach((o, i) => {
@@ -1580,7 +1976,7 @@ const QuizArena = {
       return;
     }
 
-    AppState.quiz.timeLeft = AppState.quiz.timeLimit || 15;
+    AppState.quiz.timeLeft = AppState.quiz.timeLimit || 30;
     if (timerTextEl) timerTextEl.innerText = `⏳ ${AppState.quiz.timeLeft}s`;
 
     AppState.quiz.timerInterval = setInterval(() => {
@@ -1697,7 +2093,7 @@ const QuizArena = {
       tutorBtn.classList.remove('hidden');
       tutorBtn.onclick = () => {
         AudioSynth.playClick();
-        
+
         // Cancel the auto-next timer if user starts chatting with AI Tutor
         if (AppState.quiz.autoNextTimeout) {
           clearTimeout(AppState.quiz.autoNextTimeout);
@@ -2051,13 +2447,52 @@ const QuizArena = {
   async submitScoreBackground(score, totalQuestions) {
     if (AppState.token) {
       try {
+        const completedAt = new Date().toISOString();
+        let calculatedTime = 0;
+        if (AppState.quiz.startedAt) {
+          const startMs = new Date(AppState.quiz.startedAt).getTime();
+          const endMs = new Date(completedAt).getTime();
+          calculatedTime = Math.max(1, Math.round((endMs - startMs) / 1000));
+        }
+
+        const compStatus = score === totalQuestions ? 'Completed' : (AppState.quiz.gameMode === 'survival' && score < totalQuestions ? 'Game Over' : 'Completed');
+        
+        const answers = AppState.quiz.answersLog || [];
+        let correctAnswersCount = 0;
+        let wrongAnswersCount = 0;
+        let unansweredCount = 0;
+
+        answers.forEach(q => {
+          const isUnanswered = !q.selected || q.selected === 'None' || String(q.selected).includes('None') || String(q.selected).includes('Timed Out') || String(q.selected).includes('Skipped');
+          if (isUnanswered) {
+            unansweredCount += 1;
+          } else if (q.isCorrect) {
+            correctAnswersCount += 1;
+          } else {
+            wrongAnswersCount += 1;
+          }
+        });
+
+        const unreachedCount = Math.max(0, totalQuestions - answers.length);
+        unansweredCount += unreachedCount;
+        const attemptedCount = correctAnswersCount + wrongAnswersCount;
+
         const payload = {
           category: AppState.quiz.category,
           difficulty: AppState.quiz.difficulty,
           score,
           totalQuestions,
+          correct_answers: correctAnswersCount,
+          wrong_answers: wrongAnswersCount,
+          questionsAttempted: attemptedCount,
+          unanswered: unansweredCount,
           game_mode: AppState.quiz.gameMode,
-          lifelines_used: AppState.quiz.lifelinesUsed
+          lifelines_used: AppState.quiz.lifelinesUsed,
+          startedAt: AppState.quiz.startedAt,
+          completedAt,
+          time_taken: calculatedTime,
+          answersLog: answers,
+          completion_status: compStatus
         };
         const data = await NetworkClient.request('/quiz/submit', 'POST', payload);
 
@@ -2067,7 +2502,7 @@ const QuizArena = {
 
         // Trigger quiz completion notification
         NotificationController.trigger(
-          "Quiz Completed! 🏆", 
+          "Quiz Completed! 🏆",
           `Scored ${score}/${totalQuestions} in ${payload.category} (${payload.difficulty}). Earned +${data.xpEarned} XP and +${score * 10} Coins!`
         );
 
@@ -2077,7 +2512,7 @@ const QuizArena = {
           const newLevel = Math.floor(data.newTotalXp / 1000) + 1;
           if (newLevel > oldLevel) {
             NotificationController.trigger(
-              "Level-up! 🌟", 
+              "Level-up! 🌟",
               `Congratulations! You leveled up to Level ${newLevel}! Keep solving quizzes to reach new heights.`
             );
           }
@@ -2087,7 +2522,7 @@ const QuizArena = {
         if (data.unlockedBadges && data.unlockedBadges.length > 0) {
           data.unlockedBadges.forEach(bId => {
             NotificationController.trigger(
-              "Achievement Unlocked! 🏆", 
+              "Achievement Unlocked! 🏆",
               `New Achievement Unlocked: ${bId.replace('_', ' ').toUpperCase()}`
             );
           });
@@ -2137,6 +2572,27 @@ const QuizArena = {
         let guestAchievements = JSON.parse(localStorage.getItem('guest_achievements')) || [];
         let guestHistory = JSON.parse(localStorage.getItem('guest_history')) || [];
 
+        const answers = AppState.quiz.answersLog || [];
+        let correctAnswersCount = 0;
+        let wrongAnswersCount = 0;
+        let unansweredCount = 0;
+
+        answers.forEach(q => {
+          const isUnanswered = !q.selected || q.selected === 'None' || String(q.selected).includes('None') || String(q.selected).includes('Timed Out') || String(q.selected).includes('Skipped');
+          if (isUnanswered) {
+            unansweredCount += 1;
+          } else if (q.isCorrect) {
+            correctAnswersCount += 1;
+          } else {
+            wrongAnswersCount += 1;
+          }
+        });
+
+        const unreachedCount = Math.max(0, totalQuestions - answers.length);
+        unansweredCount += unreachedCount;
+        const attemptedCount = correctAnswersCount + wrongAnswersCount;
+        const compStatus = score === totalQuestions ? 'Completed' : (AppState.quiz.gameMode === 'survival' && score < totalQuestions ? 'Game Over' : 'Completed');
+
         // Add history log
         const attemptedAt = new Date().toISOString();
         guestHistory.push({
@@ -2144,8 +2600,16 @@ const QuizArena = {
           difficulty: AppState.quiz.difficulty,
           score,
           total_questions: totalQuestions,
+          correct_answers: correctAnswersCount,
+          wrong_answers: wrongAnswersCount,
+          questionsAttempted: attemptedCount,
+          unanswered: unansweredCount,
           game_mode: AppState.quiz.gameMode,
-          attempted_at: attemptedAt
+          attempted_at: attemptedAt,
+          started_at: AppState.quiz.startedAt || null,
+          completed_at: attemptedAt,
+          completion_status: compStatus,
+          answersLog: answers
         });
         if (guestHistory.length > 10) guestHistory.shift();
         localStorage.setItem('guest_history', JSON.stringify(guestHistory));
@@ -2387,8 +2851,34 @@ const QuizArena = {
       AppState.quiz.lifelines = { '5050': false, 'skip': false, 'time': false };
       AppState.quiz.answersLog = [];
       AppState.quiz.isDailyChallenge = false;
-      // Shuffle bookmarks practice questions list
-      const shuffledQuestions = [...questions].sort(() => 0.5 - Math.random());
+      AppState.quiz.startedAt = new Date().toISOString();
+      // Normalize and shuffle bookmarks practice questions list
+      const normalizedQuestions = (questions || []).map(q => {
+        if (!q) return q;
+        const optA = q.option_a !== undefined ? q.option_a : (Array.isArray(q.options) ? q.options[0] : '') || '';
+        const optB = q.option_b !== undefined ? q.option_b : (Array.isArray(q.options) ? q.options[1] : '') || '';
+        const optC = q.option_c !== undefined ? q.option_c : (Array.isArray(q.options) ? q.options[2] : '') || '';
+        const optD = q.option_d !== undefined ? q.option_d : (Array.isArray(q.options) ? q.options[3] : '') || '';
+        let corr = q.correct_option;
+        if (!corr && q.correct && Array.isArray(q.options)) {
+          const cIdx = q.options.indexOf(q.correct);
+          corr = ['A', 'B', 'C', 'D'][cIdx >= 0 ? cIdx : 0];
+        }
+        return {
+          ...q,
+          category: q.category || 'Bookmarks Practice',
+          difficulty: q.difficulty || 'medium',
+          question_text: q.question_text || q.question || '',
+          option_a: optA,
+          option_b: optB,
+          option_c: optC,
+          option_d: optD,
+          correct_option: (corr || 'A').toUpperCase(),
+          explanation: q.explanation || '',
+          hint: q.hint || ''
+        };
+      });
+      const shuffledQuestions = [...normalizedQuestions].sort(() => 0.5 - Math.random());
       AppState.quiz.questions = shuffledQuestions;
 
       ViewController.switchView('quiz');
@@ -2444,7 +2934,8 @@ const ViewRefresher = {
       document.getElementById('dash-xp').innerText = `${guestProgress.total_xp} XP`;
       this.updateCoinsDisplay(guestProgress.total_coins);
       document.getElementById('dash-completed').innerText = guestProgress.quizzes_completed;
-      document.getElementById('dash-perfect').innerText = guestProgress.perfect_quizzes;
+      const perfectEl = document.getElementById('dash-perfect');
+      if (perfectEl) perfectEl.innerText = guestProgress.perfect_quizzes;
       document.getElementById('dash-streak').innerText = `🔥 ${guestProgress.daily_streak}`;
 
       document.getElementById('btn-nav-login').classList.remove('hidden');
@@ -2588,7 +3079,8 @@ const ViewRefresher = {
       }
 
       // Toggle Admin quick actions
-      if (profile.user.role === 'admin') {
+      const userRole = String((profile.user && profile.user.role) || '').toLowerCase().trim();
+      if (userRole === 'admin') {
         document.getElementById('btn-dash-admin').classList.remove('hidden');
       } else {
         document.getElementById('btn-dash-admin').classList.add('hidden');
@@ -2770,10 +3262,27 @@ const ViewRefresher = {
 
       if (data.length === 0) {
         tbody.innerHTML = `
-          <tr><td colspan="7" class="text-center">No scores recorded for this period yet!</td></tr>
+          <tr><td colspan="9" class="text-center">No scores recorded for this period yet!</td></tr>
         `;
         return;
       }
+
+      const formatTimeField = (isoString, prefix) => {
+        if (!isoString) return 'Not Available';
+        const date = new Date(isoString);
+        if (isNaN(date.getTime())) return 'Not Available';
+        const day = date.getDate();
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const month = months[date.getMonth()];
+        const year = date.getFullYear();
+        let hours = date.getHours();
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const strTime = String(hours).padStart(2, '0') + ':' + minutes + ' ' + ampm;
+        return `${prefix}: ${day} ${month} ${year}, ${strTime}`;
+      };
 
       data.forEach((row, index) => {
         const tr = document.createElement('tr');
@@ -2795,6 +3304,9 @@ const ViewRefresher = {
           `;
         }
 
+        const startedVal = formatTimeField(row.started_at, 'Started');
+        const completedVal = formatTimeField(row.completed_at, 'Completed');
+
         tr.innerHTML = `
           <td><strong>${rankText}</strong></td>
           <td>👤 ${row.username}</td>
@@ -2802,6 +3314,8 @@ const ViewRefresher = {
           <td>${row.quizzes_completed}</td>
           <td>${row.perfect_quizzes}</td>
           <td>🔥 ${row.daily_streak}</td>
+          <td style="font-size: 12px; color: var(--text-muted);">${startedVal}</td>
+          <td style="font-size: 12px; color: var(--text-muted);">${completedVal}</td>
           ${actionHtml}
         `;
         tbody.appendChild(tr);
@@ -2850,13 +3364,388 @@ const ViewRefresher = {
   }
 };
 
+// 8. ADMIN DASHBOARD CONTROLLER
+// 8. ADMIN DASHBOARD CONTROLLER
+const AdminDashboardController = {
+  activeAttempts: [],
+  currentModalAttempt: null,
+  filterDebounceTimer: null,
+
+  async loadAll() {
+    await Promise.allSettled([
+      this.loadOverview(),
+      this.loadUserActivity()
+    ]);
+  },
+
+  // 1. Dashboard Overview Metrics
+  async loadOverview() {
+    try {
+      const data = await NetworkClient.request('/admin/dashboard-overview');
+      const elUsers = document.getElementById('admin-stat-total-users');
+      const elAttempts = document.getElementById('admin-stat-total-attempts');
+      const elCompleted = document.getElementById('admin-stat-completed-quizzes');
+      const elProgress = document.getElementById('admin-stat-inprogress-quizzes');
+
+      if (elUsers) elUsers.innerText = data.totalUsers ?? 0;
+      if (elAttempts) elAttempts.innerText = data.totalAttempts ?? 0;
+      if (elCompleted) elCompleted.innerText = data.completedQuizzes ?? 0;
+      if (elProgress) elProgress.innerText = data.inProgressQuizzes ?? 0;
+    } catch (e) {
+      console.error('Failed to load admin overview metrics:', e);
+    }
+  },
+
+  // 2. User Quiz Activity Table with Dynamic Question Calculation
+  async loadUserActivity() {
+    const userIdInput = document.getElementById('admin-search-userid');
+    const usernameInput = document.getElementById('admin-search-username');
+    const quizSelect = document.getElementById('admin-filter-quiz');
+    const statusSelect = document.getElementById('admin-filter-status');
+
+    const params = new URLSearchParams();
+    if (userIdInput && userIdInput.value.trim()) params.append('userId', userIdInput.value.trim());
+    if (usernameInput && usernameInput.value.trim()) params.append('username', usernameInput.value.trim());
+    if (quizSelect && quizSelect.value && quizSelect.value !== 'all') params.append('quiz', quizSelect.value);
+    if (statusSelect && statusSelect.value && statusSelect.value !== 'all') params.append('status', statusSelect.value);
+
+    const queryStr = params.toString() ? `?${params.toString()}` : '';
+
+    try {
+      const attempts = await NetworkClient.request(`/admin/quiz-activity${queryStr}`);
+      this.activeAttempts = Array.isArray(attempts) ? attempts : [];
+      this.renderActivityTable(this.activeAttempts);
+    } catch (e) {
+      console.error('Failed to load user quiz activities from backend:', e);
+      const tbody = document.getElementById('admin-activity-table-body');
+      const badgeEl = document.getElementById('admin-activity-count-badge');
+      if (badgeEl) badgeEl.innerText = '0 Attempts';
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="15" class="text-center text-red py-4">⚠️ Failed to load activity logs: ${e.message || 'Server connection error'}</td></tr>`;
+      }
+    }
+  },
+
+  // Format Helper for Game Mode display names
+  formatGameMode(rawMode) {
+    if (!rawMode || rawMode === 'Not Available' || rawMode === 'null' || rawMode === 'undefined') {
+      return 'Not Available';
+    }
+    const m = String(rawMode).trim().toLowerCase();
+    if (m === 'classic') return 'Classic';
+    if (m === 'speed' || m === 'speed run' || m === 'speed_run' || m === 'speedrun' || m === 'super run' || m === 'super_run' || m === 'superrun') return 'Super Run';
+    if (m === 'survival') return 'Survival';
+    if (m === 'marathon') return 'Marathon';
+    if (m === 'daily' || m === 'daily challenge' || m === 'daily_challenge' || m === 'dailychallenge') return 'Daily Challenge';
+    if (m === 'practice') return 'Practice';
+
+    return String(rawMode).charAt(0).toUpperCase() + String(rawMode).slice(1);
+  },
+
+  // Format Helper for timestamps
+  formatDateTime(isoStr) {
+    if (!isoStr || isoStr === 'In-Progress') return '<span class="text-amber">In-Progress</span>';
+    try {
+      const date = new Date(isoStr);
+      if (isNaN(date.getTime())) return isoStr;
+      const day = String(date.getDate()).padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[date.getMonth()];
+      const year = date.getFullYear();
+      let hours = date.getHours();
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      return `${day} ${month} ${year}, ${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+    } catch (e) {
+      return isoStr;
+    }
+  },
+
+  // Format Helper for duration
+  formatDuration(seconds) {
+    if (!seconds || seconds <= 0) return '0s';
+    const s = parseInt(seconds);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    const remS = s % 60;
+    return remS > 0 ? `${m}m ${remS}s` : `${m}m`;
+  },
+
+  // Render Activity Log Table
+  renderActivityTable(attempts) {
+    const tbody = document.getElementById('admin-activity-table-body');
+    const badgeEl = document.getElementById('admin-activity-count-badge');
+    if (!tbody) return;
+
+    if (badgeEl) {
+      badgeEl.innerText = `${attempts.length} Attempt${attempts.length === 1 ? '' : 's'}`;
+    }
+
+    if (!attempts || attempts.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="15" class="text-center text-muted py-4">No quiz activity records match the selected filter criteria.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = '';
+    attempts.forEach(att => {
+      const tr = document.createElement('tr');
+
+      // Completion status badge styling
+      let statusClass = 'badge-status-completed';
+      const statusLower = (att.completionStatus || '').toLowerCase();
+      if (statusLower === 'in-progress' || statusLower === 'in progress' || statusLower === 'inprogress') {
+        statusClass = 'badge-status-inprogress';
+      } else if (statusLower === 'game over' || statusLower === 'game-over' || statusLower === 'gameover') {
+        statusClass = 'badge-status-gameover';
+      }
+
+      const shortUserId = att.userId && att.userId.length > 10 ? `${att.userId.substring(0, 8)}...` : (att.userId || 'N/A');
+      const startedText = this.formatDateTime(att.startedAt);
+      const completedText = this.formatDateTime(att.completedAt);
+      const durationText = this.formatDuration(att.timeTaken);
+      const displayMode = this.formatGameMode(att.gameMode);
+      const modeBadgeClass = displayMode === 'Not Available' ? 'badge-secondary' : 'badge-primary';
+
+      tr.innerHTML = `
+        <td title="${att.userId}"><code>${shortUserId}</code></td>
+        <td><strong>👤 ${att.username}</strong></td>
+        <td><span class="badge ${modeBadgeClass}" style="font-size:11px; font-weight:600;">${displayMode}</span></td>
+        <td><span class="badge badge-primary">${att.quizName}</span> <span class="badge badge-secondary" style="font-size:10px;">${att.difficulty || 'normal'}</span></td>
+        <td style="font-size:11.5px; color:var(--text-muted);">${startedText}</td>
+        <td style="font-size:11.5px; color:var(--text-muted);">${completedText}</td>
+        <td><strong>${att.totalQuestions}</strong></td>
+        <td>${att.questionsAttempted}</td>
+        <td class="text-green font-bold">${att.correctAnswers}</td>
+        <td class="text-red font-bold">${att.wrongAnswers}</td>
+        <td class="text-amber font-bold">${att.unanswered}</td>
+        <td><strong>${att.score} / ${att.totalQuestions}</strong></td>
+        <td>${durationText}</td>
+        <td><span class="${statusClass}">${att.completionStatus}</span></td>
+        <td>
+          <div style="display:inline-flex; gap:6px; align-items:center;">
+            <button class="btn-action-view-q" onclick="AdminDashboardController.openQuestionResultsModal('${att.attemptId}')">👁️ Results</button>
+            <button class="btn-action-delete-user" onclick="AdminDashboardController.deleteUserActivityRow('${att.userId}', '${(att.username || '').replace(/'/g, "\\'")}')" title="Delete User Account">🗑️ Delete</button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  },
+
+  // Delete User from Activity Log Row
+  async deleteUserActivityRow(userId, username) {
+    if (!userId || userId === 'guest' || userId === 'guest_user_id') {
+      alert('Guest records cannot be deleted as a user account.');
+      return;
+    }
+
+    const nameDisplay = username ? `"${username}"` : `(ID: ${userId})`;
+    if (!confirm(`Are you sure you want to delete user ${nameDisplay}?\n\nThis will remove the user account and their quiz records from the activity list.`)) {
+      return;
+    }
+
+    try {
+      await NetworkClient.request(`/admin/users/${encodeURIComponent(userId)}`, 'DELETE');
+      AudioSynth.playClick();
+      // Refresh overview metrics and activity table normally
+      await Promise.allSettled([
+        this.loadOverview(),
+        this.loadUserActivity()
+      ]);
+    } catch (e) {
+      alert('Delete failed: ' + (e.message || 'Server error'));
+    }
+  },
+
+  // 3. Question-Wise Result Modal
+  openQuestionResultsModal(attemptId) {
+    AudioSynth.playClick();
+    const attempt = this.activeAttempts.find(a => String(a.attemptId) === String(attemptId));
+    if (!attempt) {
+      alert('Quiz attempt details could not be found.');
+      return;
+    }
+
+    this.currentModalAttempt = attempt;
+
+    const modal = document.getElementById('modal-admin-question-results');
+    const quizBadge = document.getElementById('admin-modal-quiz-badge');
+    const statusBadge = document.getElementById('admin-modal-status-badge');
+    const titleEl = document.getElementById('admin-modal-player-title');
+    const subtitleEl = document.getElementById('admin-modal-meta-subtitle');
+
+    const statScore = document.getElementById('admin-modal-stat-score');
+    const statAccuracy = document.getElementById('admin-modal-stat-accuracy');
+    const statCorrectWrong = document.getElementById('admin-modal-stat-correct-wrong');
+    const statTime = document.getElementById('admin-modal-stat-time');
+
+    const listContainer = document.getElementById('admin-modal-qresults-list');
+
+    if (!modal) return;
+
+    if (quizBadge) quizBadge.innerText = `${attempt.quizName} (${attempt.difficulty || 'easy'})`;
+    if (statusBadge) {
+      statusBadge.innerText = attempt.completionStatus;
+      statusBadge.className = `badge ${attempt.completionStatus === 'Completed' ? 'badge-primary' : 'badge-role'}`;
+    }
+
+    if (titleEl) titleEl.innerText = `Quiz Performance: ${attempt.username}`;
+    if (subtitleEl) {
+      subtitleEl.innerText = `User ID: ${attempt.userId} • Started: ${this.formatDateTime(attempt.startedAt)} • Completed: ${this.formatDateTime(attempt.completedAt)}`;
+    }
+
+    if (statScore) statScore.innerText = `${attempt.score} / ${attempt.totalQuestions}`;
+    if (statAccuracy) statAccuracy.innerText = `${attempt.accuracy || Math.round((attempt.score / attempt.totalQuestions) * 100)}%`;
+    if (statCorrectWrong) statCorrectWrong.innerHTML = `<span class="text-green">${attempt.correctAnswers} Correct</span> / <span class="text-red">${attempt.wrongAnswers} Wrong</span>`;
+    if (statTime) statTime.innerText = this.formatDuration(attempt.timeTaken);
+
+    // Render Question-wise cards dynamically (Question 1 to Question N)
+    if (listContainer) {
+      listContainer.innerHTML = '';
+
+      const questionsList = attempt.questionResults || [];
+
+      if (questionsList.length === 0) {
+        listContainer.innerHTML = `
+          <div class="text-center text-muted py-4">
+            <p>No question breakdown details recorded for this in-progress quiz session.</p>
+          </div>
+        `;
+      } else {
+        questionsList.forEach((q, idx) => {
+          const qNum = q.questionIndex || (idx + 1);
+          const isUnanswered = !q.selected || q.selected === 'None' || String(q.selected).includes('None') || String(q.selected).includes('Timed Out') || String(q.selected).includes('Skipped');
+          const isCorrect = !isUnanswered && !!q.isCorrect;
+
+          let cardClass = isCorrect ? 'card-correct' : isUnanswered ? 'card-unanswered' : 'card-wrong';
+          let statusBadgeText = isCorrect ? '✅ Correct' : isUnanswered ? '⏳ Unanswered' : '❌ Wrong';
+          let statusBadgeClass = isCorrect ? 'badge-status-completed' : isUnanswered ? 'badge-status-inprogress' : 'badge-status-gameover';
+
+          const card = document.createElement('div');
+          card.className = `admin-qresult-card ${cardClass}`;
+          card.innerHTML = `
+            <div class="qresult-header-row">
+              <span class="qresult-num">Question ${qNum} of ${attempt.totalQuestions}</span>
+              <span class="${statusBadgeClass}">${statusBadgeText}</span>
+            </div>
+            <div class="qresult-prompt">${q.question || `Question Prompt #${qNum}`}</div>
+            <div class="qresult-ans-row">
+              <span class="qresult-ans-lbl">Player's Choice:</span>
+              <span class="qresult-ans-val ${isCorrect ? 'text-green' : isUnanswered ? 'text-amber' : 'text-red'}">${q.selected || 'No response'}</span>
+            </div>
+            <div class="qresult-ans-row">
+              <span class="qresult-ans-lbl">Correct Answer:</span>
+              <span class="qresult-ans-val text-green">${q.correct || 'N/A'}</span>
+            </div>
+            ${q.explanation ? `<div class="qresult-explanation"><strong>Explanation:</strong> ${q.explanation}</div>` : ''}
+          `;
+          listContainer.appendChild(card);
+        });
+      }
+    }
+
+    modal.classList.remove('hidden');
+  },
+
+  closeQuestionResultsModal() {
+    AudioSynth.playClick();
+    const modal = document.getElementById('modal-admin-question-results');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  // 4. Bind Events for Search, Filter, Refresh, and Modal
+  bindEvents() {
+    // Refresh button
+    const refreshBtn = document.getElementById('btn-admin-refresh');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => {
+        AudioSynth.playClick();
+        this.loadAll();
+      });
+    }
+
+    // Switch to player mode button
+    const playerModeBtn = document.getElementById('btn-admin-switch-player');
+    if (playerModeBtn) {
+      playerModeBtn.addEventListener('click', () => {
+        AudioSynth.playClick();
+        ViewController.switchView('dashboard');
+        ViewRefresher.refreshDashboard();
+      });
+    }
+
+    // Admin Logout
+    const logoutBtn = document.getElementById('btn-admin-logout');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        AudioSynth.playClick();
+        const logoutTrigger = document.getElementById('btn-nav-logout');
+        if (logoutTrigger) logoutTrigger.click();
+      });
+    }
+
+    // Filter controls change / input handlers
+    const filterUser = document.getElementById('admin-search-userid');
+    const filterName = document.getElementById('admin-search-username');
+    const filterQuiz = document.getElementById('admin-filter-quiz');
+    const filterStatus = document.getElementById('admin-filter-status');
+    const resetBtn = document.getElementById('btn-admin-reset-filters');
+
+    const triggerFilter = () => {
+      this.loadUserActivity();
+    };
+
+    const debouncedFilter = () => {
+      if (this.filterDebounceTimer) clearTimeout(this.filterDebounceTimer);
+      this.filterDebounceTimer = setTimeout(() => {
+        this.loadUserActivity();
+      }, 150);
+    };
+
+    if (filterUser) filterUser.addEventListener('input', debouncedFilter);
+    if (filterName) filterName.addEventListener('input', debouncedFilter);
+    if (filterQuiz) filterQuiz.addEventListener('change', triggerFilter);
+    if (filterStatus) filterStatus.addEventListener('change', triggerFilter);
+
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        AudioSynth.playClick();
+        if (this.filterDebounceTimer) clearTimeout(this.filterDebounceTimer);
+        if (filterUser) filterUser.value = '';
+        if (filterName) filterName.value = '';
+        if (filterQuiz) filterQuiz.value = 'all';
+        if (filterStatus) filterStatus.value = 'all';
+        this.loadUserActivity();
+      });
+    }
+
+    // Modal Close Buttons
+    const closeTop = document.getElementById('btn-admin-close-qmodal-top');
+    const closeBottom = document.getElementById('btn-admin-close-qmodal-bottom');
+
+    if (closeTop) closeTop.onclick = () => this.closeQuestionResultsModal();
+    if (closeBottom) closeBottom.onclick = () => this.closeQuestionResultsModal();
+
+    // Close modal on background overlay click
+    const modal = document.getElementById('modal-admin-question-results');
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) this.closeQuestionResultsModal();
+      });
+    }
+  }
+};
+
+window.AdminDashboardController = AdminDashboardController;
+
 // Theme Application Utility
 function applyTheme(themeName) {
   const themes = ['theme-cyberpunk', 'theme-forest', 'theme-sunset', 'theme-light', 'theme_cyberpunk', 'theme_forest', 'theme_sunset', 'theme_light', 'light-mode', 'dark-mode'];
   themes.forEach(t => document.body.classList.remove(t));
 
   const formattedTheme = (themeName || 'dark').replace('_', '-');
-  
+
   if (formattedTheme === 'light') {
     document.body.classList.add('light-mode');
   } else if (formattedTheme === 'dark') {
@@ -2974,11 +3863,11 @@ const NotificationController = {
   promptDelete(id) {
     this.pendingDeleteId = id;
     this.pendingDeleteAll = false;
-    
+
     const titleEl = document.getElementById('notif-delete-title');
     const bodyEl = document.getElementById('notif-delete-body');
     const confirmBtn = document.getElementById('btn-notif-delete-confirm');
-    
+
     if (window.currentLang === 'ta') {
       if (titleEl) titleEl.innerText = "நீக்குதலை உறுதிப்படுத்துக";
       if (bodyEl) bodyEl.innerText = "இந்த அறிவிப்பை நீக்க வேண்டுமா?";
@@ -2992,7 +3881,7 @@ const NotificationController = {
       if (bodyEl) bodyEl.innerText = "Are you sure you want to delete this notification?";
       if (confirmBtn) confirmBtn.innerText = "Delete";
     }
-    
+
     const modal = document.getElementById('modal-notif-delete-confirm');
     if (modal) modal.classList.remove('hidden');
   },
@@ -3000,11 +3889,11 @@ const NotificationController = {
   promptDeleteAll() {
     this.pendingDeleteId = null;
     this.pendingDeleteAll = true;
-    
+
     const titleEl = document.getElementById('notif-delete-title');
     const bodyEl = document.getElementById('notif-delete-body');
     const confirmBtn = document.getElementById('btn-notif-delete-confirm');
-    
+
     if (window.currentLang === 'ta') {
       if (titleEl) titleEl.innerText = "நீக்குதலை உறுதிப்படுத்துக";
       if (bodyEl) bodyEl.innerText = "அனைத்து அறிவிப்புகளையும் நீக்க வேண்டுமா?";
@@ -3018,7 +3907,7 @@ const NotificationController = {
       if (bodyEl) bodyEl.innerText = "Are you sure you want to delete all notifications?";
       if (confirmBtn) confirmBtn.innerText = "Delete All";
     }
-    
+
     const modal = document.getElementById('modal-notif-delete-confirm');
     if (modal) modal.classList.remove('hidden');
   },
@@ -3026,7 +3915,7 @@ const NotificationController = {
   async confirmDelete() {
     const modal = document.getElementById('modal-notif-delete-confirm');
     if (modal) modal.classList.add('hidden');
-    
+
     try {
       if (this.pendingDeleteAll) {
         await NetworkClient.request('/notifications', 'DELETE');
@@ -3036,7 +3925,7 @@ const NotificationController = {
     } catch (err) {
       console.error('Delete notifications failed:', err);
     }
-    
+
     this.pendingDeleteId = null;
     this.pendingDeleteAll = false;
     this.refresh();
@@ -3052,7 +3941,7 @@ const NotificationController = {
   async refresh() {
     const listContainer = document.getElementById('notifications-list');
     const badge = document.getElementById('notifications-unread-count');
-    
+
     const enabled = localStorage.getItem('notifications_enabled') !== 'false';
     if (!enabled) {
       if (badge) badge.classList.add('hidden');
@@ -3066,7 +3955,7 @@ const NotificationController = {
     try {
       const data = await NetworkClient.request('/notifications');
       const notifications = Array.isArray(data) ? data : [];
-      
+
       const unreadCount = notifications.filter(n => !n.is_read).length;
       if (badge) {
         if (unreadCount > 0) {
@@ -3088,7 +3977,7 @@ const NotificationController = {
       notifications.forEach(n => {
         const item = document.createElement('div');
         item.className = `notification-item ${!n.is_read ? 'unread' : ''}`;
-        
+
         let timeStr = '';
         if (n.created_at) {
           const d = new Date(n.created_at);
@@ -3112,7 +4001,7 @@ const NotificationController = {
 
         listContainer.appendChild(item);
       });
-      
+
       translateUI(window.currentLang);
     } catch (err) {
       console.error('Refresh notifications fail:', err);
@@ -3127,7 +4016,7 @@ const PredictorChatController = {
   init() {
     const form = document.getElementById('form-predictor-chat');
     const input = document.getElementById('predictor-chat-input');
-    
+
     if (!form || !input) return;
 
     this.chatMessages = [
@@ -3181,7 +4070,7 @@ const PredictorChatController = {
     this.render();
 
     const chatContainer = document.getElementById('predictor-chat-messages');
-    
+
     const typing = document.createElement('div');
     typing.className = 'tutor-message-bubble assistant typing-bubble';
     typing.innerText = 'AI Mentor is thinking...';
@@ -3226,7 +4115,7 @@ const VoiceQuizController = {
     }
     this.isPaused = false;
     if (this.statusIndicator) this.statusIndicator.className = 'voice-status-glow';
-    
+
     const pauseBtn = document.getElementById('btn-voice-pause');
     if (pauseBtn) {
       pauseBtn.classList.add('hidden');
@@ -3264,7 +4153,7 @@ const VoiceQuizController = {
     const wordsCount = text.split(/\s+/).length;
     const normalWordsPerSec = 2.4; // 144 words per minute
     const estimatedDuration = wordsCount / normalWordsPerSec;
-    
+
     let rate = 1.0;
     // Intelligently scale reading speed between 1.0 and 2.0 if estimated duration exceeds remaining time
     if (AppState.quiz.timeLeft && AppState.quiz.timeLeft > 0 && estimatedDuration > AppState.quiz.timeLeft) {
@@ -3303,14 +4192,14 @@ const VoiceQuizController = {
       if (this.synth.speaking && !this.isPaused) {
         this.synth.pause();
         this.isPaused = true;
-        
+
         const resumeText = window.currentLang === 'ta' ? '▶️ தொடர்' : window.currentLang === 'hi' ? '▶️ जारी रखें' : '▶️ Resume';
         const pauseBtn = document.getElementById('btn-voice-pause');
         if (pauseBtn) pauseBtn.innerText = resumeText;
       } else if (this.isPaused) {
         this.synth.resume();
         this.isPaused = false;
-        
+
         const pauseText = window.currentLang === 'ta' ? '⏸️ இடைநிறுத்து' : window.currentLang === 'hi' ? '⏸️ विराम दें' : '⏸️ Pause';
         const pauseBtn = document.getElementById('btn-voice-pause');
         if (pauseBtn) pauseBtn.innerText = pauseText;
@@ -3356,7 +4245,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Dynamic Popup Card (Popcard) implementation
-  window.showPopCard = function(title, message, type = 'error') {
+  window.showPopCard = function (title, message, type = 'error') {
     const modal = document.getElementById('modal-popcard');
     const iconEl = document.getElementById('popcard-icon');
     const titleEl = document.getElementById('popcard-title');
@@ -3418,16 +4307,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   NotificationController.init();
   PredictorChatController.init();
+  AdminDashboardController.bindEvents();
 
   // A. Check connection state
   await NetworkClient.checkConnection();
 
   // B. Initialize Views routing
+  ViewController.switchView('landing');
   if (AppState.token) {
-    ViewController.switchView('dashboard');
     ViewRefresher.refreshDashboard();
-  } else {
-    ViewController.switchView('landing');
   }
 
   // C. Toggle Light / Dark Mode theme
@@ -3453,12 +4341,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('btn-start-arena').addEventListener('click', () => {
     AudioSynth.playClick();
-    if (AppState.token) {
-      ViewController.switchView('dashboard');
-      ViewRefresher.refreshDashboard();
-    } else {
-      ViewController.switchView('auth');
-    }
+    ViewController.switchView('auth');
   });
 
   // Leaderboard periods tabs event selectors
@@ -3554,6 +4437,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const data = await NetworkClient.request('/auth/login', 'POST', { username, password: passwordHash });
       localStorage.setItem('quiz_token', data.token);
       AppState.token = data.token;
+      AppState.user = data.user;
 
       // Migrate guest attempts if present
       const guestHistory = JSON.parse(localStorage.getItem('guest_history') || '[]');
@@ -3568,8 +4452,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
 
-      ViewController.switchView('dashboard');
-      ViewRefresher.refreshDashboard();
+      // Route authenticated admin to Admin Dashboard, normal users to Player Dashboard
+      const roleStr = String((data.user && data.user.role) || '').toLowerCase().trim();
+      if (roleStr === 'admin') {
+        ViewController.switchView('admin');
+        AdminDashboardController.loadAll();
+      } else {
+        ViewController.switchView('dashboard');
+        ViewRefresher.refreshDashboard();
+      }
       loginForm.reset();
     } catch (err) {
       alert('Login Failed: ' + (err.message || 'Check username and password.'));
@@ -3621,6 +4512,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     ViewRefresher.refreshDashboard();
   });
 
+  // Guest Play action from landing page
+  const guestPlayLanding = document.getElementById('btn-play-guest-landing');
+  if (guestPlayLanding) {
+    guestPlayLanding.addEventListener('click', () => {
+      AudioSynth.playClick();
+      ViewController.switchView('dashboard');
+      ViewRefresher.refreshDashboard();
+    });
+  }
+
   // G. Launch Arena game
   document.getElementById('btn-launch-quiz').addEventListener('click', () => {
     const cat = document.getElementById('arena-category').value;
@@ -3662,34 +4563,44 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // J. Admin Panel Routes
-  document.getElementById('btn-dash-admin').addEventListener('click', () => {
-    AudioSynth.playClick();
-    ViewController.switchView('admin');
-    ViewRefresher.refreshAdminUsers();
-    document.getElementById('admin-tab-questions').click();
-  });
+  const dashAdminBtn = document.getElementById('btn-dash-admin');
+  if (dashAdminBtn) {
+    dashAdminBtn.addEventListener('click', () => {
+      AudioSynth.playClick();
+      ViewController.switchView('admin');
+      const actTab = document.getElementById('admin-tab-activity');
+      if (actTab) actTab.click();
+    });
+  }
 
-  document.getElementById('btn-admin-back').addEventListener('click', () => {
-    AudioSynth.playClick();
-    ViewController.switchView('dashboard');
-    ViewRefresher.refreshDashboard();
-  });
+  const adminBackBtn = document.getElementById('btn-admin-back');
+  if (adminBackBtn) {
+    adminBackBtn.addEventListener('click', () => {
+      AudioSynth.playClick();
+      ViewController.switchView('dashboard');
+      ViewRefresher.refreshDashboard();
+    });
+  }
 
   // Toggle Admin tabs
-  const adminTabsList = ['questions', 'users', 'feedback', 'reports', 'notifs', 'logins'];
+  const adminTabsList = ['activity', 'questions', 'users', 'feedback', 'reports', 'notifs', 'logins'];
   adminTabsList.forEach(t => {
     const btn = document.getElementById(`admin-tab-${t}`);
     if (btn) {
       btn.addEventListener('click', () => {
         AudioSynth.playClick();
         adminTabsList.forEach(tb => {
-          document.getElementById(`admin-tab-${tb}`).classList.remove('active');
-          document.getElementById(`admin-panel-${tb}`).classList.add('hidden');
+          const tBtn = document.getElementById(`admin-tab-${tb}`);
+          const pEl = document.getElementById(`admin-panel-${tb}`);
+          if (tBtn) tBtn.classList.remove('active');
+          if (pEl) pEl.classList.add('hidden');
         });
         btn.classList.add('active');
-        document.getElementById(`admin-panel-${t}`).classList.remove('hidden');
+        const activePanel = document.getElementById(`admin-panel-${t}`);
+        if (activePanel) activePanel.classList.remove('hidden');
 
         // Refresh appropriate lists
+        if (t === 'activity') AdminDashboardController.loadAll();
         if (t === 'users') ViewRefresher.refreshAdminUsers();
         if (t === 'feedback') refreshAdminFeedbackList();
         if (t === 'reports') refreshAdminReportsList();
@@ -3987,6 +4898,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       "btn-cel-continue": "Continue Learning 📚",
       "btn-cel-home": "Back to Home 🏠",
       "btn-nav-login": "Sign In",
+      "btn-play-guest-landing": "Play as Guest 👤",
 
       // Class dict-key mapping
       "app-title": "AI Quiz Challenge",
@@ -4182,6 +5094,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       "btn-cel-continue": "தொடர்ந்து படி 📚",
       "btn-cel-home": "முகப்புக்கு 🏠",
       "btn-nav-login": "உள்நுழைக",
+      "btn-play-guest-landing": "விருந்தினராக விளையாடு 👤",
 
       // Class dict-key mapping
       "app-title": "AI வினாடி வினா சவால்",
@@ -4377,6 +5290,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       "btn-cel-continue": "पढ़ना जारी रखें 📚",
       "btn-cel-home": "मुख्य पृष्ठ 🏠",
       "btn-nav-login": "लॉग इन करें",
+      "btn-play-guest-landing": "अतिथि के रूप में खेलें 👤",
 
       // Class dict-key mapping
       "app-title": "एआई क्विज चैलेंज",
@@ -4599,8 +5513,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const qRaw = AppState.quiz.questions[AppState.quiz.currentIndex];
       const q = translateQuestion(qRaw, lang);
 
-      document.getElementById('quiz-badge-category').innerText = AppState.quiz.isDailyChallenge ? (lang === 'ta' ? 'தினசரி சவால்' : lang === 'hi' ? 'दैनिक चुनौती' : 'Daily Challenge') : q.category;
-      document.getElementById('quiz-badge-difficulty').innerText = q.difficulty.toUpperCase();
+      document.getElementById('quiz-badge-category').innerText = AppState.quiz.isDailyChallenge ? (lang === 'ta' ? 'தினசரி சவால்' : lang === 'hi' ? 'दैनिक चुनौती' : 'Daily Challenge') : (q.category || AppState.quiz.category || 'Quiz');
+      document.getElementById('quiz-badge-difficulty').innerText = (q.difficulty || AppState.quiz.difficulty || 'easy').toUpperCase();
       document.getElementById('quiz-question-text').innerText = q.question_text;
 
       // Re-draw option buttons text but keep their buttons reference
@@ -4805,17 +5719,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function getTranslatedDifficulty(diff, lang) {
-    return difficultyTranslations[lang]?.[diff.toLowerCase()] || diff;
+    return difficultyTranslations[lang]?.[(diff || 'easy').toLowerCase()] || diff || 'Easy';
   }
 
-  function translateQuestion(q, lang) {
+  function translateQuestion(rawQ, lang) {
+    if (!rawQ) return rawQ;
+    const q = {
+      ...rawQ,
+      question_text: rawQ.question_text || rawQ.question || '',
+      option_a: rawQ.option_a !== undefined ? rawQ.option_a : (Array.isArray(rawQ.options) ? rawQ.options[0] : '') || '',
+      option_b: rawQ.option_b !== undefined ? rawQ.option_b : (Array.isArray(rawQ.options) ? rawQ.options[1] : '') || '',
+      option_c: rawQ.option_c !== undefined ? rawQ.option_c : (Array.isArray(rawQ.options) ? rawQ.options[2] : '') || '',
+      option_d: rawQ.option_d !== undefined ? rawQ.option_d : (Array.isArray(rawQ.options) ? rawQ.options[3] : '') || '',
+      correct_option: (rawQ.correct_option || (rawQ.correct && Array.isArray(rawQ.options) ? ['A', 'B', 'C', 'D'][rawQ.options.indexOf(rawQ.correct)] : '') || 'A').toUpperCase(),
+      difficulty: rawQ.difficulty || 'easy',
+      category: rawQ.category || 'AI'
+    };
+
     if (!lang || lang === 'en') return q;
 
     const catName = getTranslatedCategory(q.category, lang);
     const diffName = getTranslatedDifficulty(q.difficulty, lang);
 
     // Extract concept in quotes
-    const conceptMatch = q.question_text.match(/\"([^\"]+)\"/);
+    const conceptMatch = (q.question_text || '').match(/\"([^\"]+)\"/);
     const concept = conceptMatch ? conceptMatch[1] : '';
 
     // Look up concept name translation
@@ -4937,6 +5864,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (tabEl) {
       tabEl.addEventListener('click', () => {
         AudioSynth.playClick();
+
+        // Intercept protected tabs for guest users
+        if (t !== 'arena' && !AppState.token) {
+          const msg = window.currentLang === 'ta'
+            ? 'உள்நுழைய வேண்டும்! இந்த அம்சத்தை அணுக தயவுசெய்து உள்நுழையவும்.'
+            : window.currentLang === 'hi'
+              ? 'लॉग इन आवश्यक! इस सुविधा का उपयोग करने के लिए कृपया लॉग इन करें।'
+              : 'Login Required! Please sign in to access this feature.';
+          alert(msg);
+          ViewController.switchView('auth');
+          return;
+        }
+
         dashTabs.forEach(tb => {
           document.getElementById(`tab-dash-${tb}`).classList.remove('active');
           document.getElementById(`panel-dash-${tb}`).classList.add('hidden');
@@ -5480,11 +6420,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('cert-user-name').innerText = normalizedCert.user_name;
     document.getElementById('cert-category-text').innerText = normalizedCert.category;
     document.getElementById('cert-score-text').innerText = `${normalizedCert.score} / ${normalizedCert.total_questions}`;
-    
+
     let dateStr = normalizedCert.claimed_at;
     try {
       dateStr = new Date(normalizedCert.claimed_at).toLocaleDateString();
-    } catch (e) {}
+    } catch (e) { }
     document.getElementById('cert-date-text').innerText = dateStr;
     document.getElementById('cert-id-text').innerText = `CERT-ID: ${normalizedCert.cert_id}`;
 
@@ -5576,7 +6516,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-cert-share').addEventListener('click', () => {
     AudioSynth.playClick();
     if (!activeClaimedCertificateObj) return;
-    const mockUrl = `http://localhost:5000/verify/certificate/${activeClaimedCertificateObj.cert_id}`;
+    const mockUrl = `http://${window.location.hostname || 'localhost'}:5000/verify/certificate/${activeClaimedCertificateObj.cert_id}`;
     navigator.clipboard.writeText(mockUrl);
     alert('Certificate Verification Link copied to clipboard! Share it on social networks: \n' + mockUrl);
   });
@@ -5626,6 +6566,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Hook claim certificate on summary page
   document.getElementById('btn-summary-certificate').onclick = async () => {
     AudioSynth.playClick();
+    if (!AppState.token) {
+      const msg = window.currentLang === 'ta'
+        ? 'உள்நுழைய வேண்டும்! சான்றிதழைக் கோர தயவுசெய்து உள்நுழையவும்.'
+        : window.currentLang === 'hi'
+          ? 'लॉग इन आवश्यक! प्रमाणपत्र का दावा करने के लिए कृपया लॉग इन करें।'
+          : 'Login Required! Please sign in to claim certificates.';
+      alert(msg);
+      ViewController.switchView('auth');
+      return;
+    }
     try {
       const cert = await NetworkClient.request('/certificates/claim', 'POST', {
         category: AppState.quiz.category,

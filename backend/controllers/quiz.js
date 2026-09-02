@@ -33,11 +33,68 @@ async function getQuestions(req, res) {
   }
 }
 
+// In-memory active quiz sessions registry for real-time in-progress tracking
+const activeSessions = new Map();
+
+function getActiveSessions() {
+  const now = Date.now();
+  // Clear any sessions older than 2 hours to avoid stale records
+  for (const [key, val] of activeSessions.entries()) {
+    if (val.timestamp && (now - val.timestamp > 2 * 60 * 60 * 1000)) {
+      activeSessions.delete(key);
+    }
+  }
+  return Array.from(activeSessions.values());
+}
+
+function registerActiveSession(sessionData) {
+  activeSessions.set(sessionData.userId, {
+    ...sessionData,
+    timestamp: Date.now()
+  });
+}
+
+function clearActiveSession(userId) {
+  activeSessions.delete(userId);
+}
+
+// Start in-progress quiz session
+async function startQuizSession(req, res) {
+  try {
+    const userId = req.user.id;
+    const username = req.user.username;
+    const { category, difficulty, game_mode, gameMode, totalQuestions, startedAt } = req.body;
+
+    const total = parseInt(totalQuestions) || 10;
+    const start = startedAt || new Date().toISOString();
+    const resolvedMode = game_mode || gameMode || 'classic';
+
+    registerActiveSession({
+      userId,
+      username,
+      category: category || 'AI',
+      difficulty: difficulty || 'easy',
+      game_mode: resolvedMode,
+      gameMode: resolvedMode,
+      totalQuestions: total,
+      startedAt: start,
+      status: 'In-Progress'
+    });
+
+    res.json({ message: 'Active quiz session started.', userId });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to start quiz session: ' + err.message });
+  }
+}
+
 // Submit quiz answers and update statistics & achievements
 async function submitQuiz(req, res) {
   const userId = req.user.id;
-  const { category, difficulty, score, game_mode, lifelines_used, time_taken, accuracy, correct_answers, wrong_answers } = req.body;
+  const { category, difficulty, score, game_mode, gameMode, lifelines_used, time_taken, accuracy, correct_answers, wrong_answers, startedAt, completedAt, answersLog, unanswered, completion_status } = req.body;
   const totalQuestions = req.body.totalQuestions || req.body.total;
+
+  // Clear in-progress session on submission
+  clearActiveSession(userId);
 
   if (score === undefined || !totalQuestions || !category || !difficulty) {
     return res.status(400).json({ error: 'Invalid submission data.' });
@@ -55,8 +112,8 @@ async function submitQuiz(req, res) {
     return res.status(400).json({ error: 'Invalid difficulty parameter.' });
   }
 
-  const validModes = ['classic', 'speed', 'survival', 'marathon'];
-  const mode = (game_mode || 'classic').toLowerCase();
+  const validModes = ['classic', 'speed', 'survival', 'marathon', 'daily', 'practice', 'super run', 'speed run'];
+  const mode = (game_mode || gameMode || 'classic').toLowerCase();
   if (!validModes.includes(mode)) {
     return res.status(400).json({ error: 'Invalid game mode parameter.' });
   }
@@ -146,25 +203,90 @@ async function submitQuiz(req, res) {
     if (updateProgErr) throw updateProgErr;
 
     // Update Leaderboard cache resolving conflicts on unique user_id
-    await supabaseAdmin
-      .from('leaderboard')
-      .upsert({
-        user_id: userId,
-        username: req.user.username,
-        total_xp: newXp,
-        quizzes_completed: newQuizzesCompleted,
-        perfect_quizzes: newPerfectQuizzes,
-        daily_streak: newStreak,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
+    try {
+      const { data: updatedLb } = await supabaseAdmin
+        .from('leaderboard')
+        .update({
+          username: req.user.username,
+          total_xp: newXp,
+          quizzes_completed: newQuizzesCompleted,
+          perfect_quizzes: newPerfectQuizzes,
+          daily_streak: newStreak,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .select();
+
+      if (!updatedLb || updatedLb.length === 0) {
+        await supabaseAdmin
+          .from('leaderboard')
+          .insert({
+            user_id: userId,
+            username: req.user.username,
+            total_xp: newXp,
+            quizzes_completed: newQuizzesCompleted,
+            perfect_quizzes: newPerfectQuizzes,
+            daily_streak: newStreak
+          });
+      }
+    } catch (lbEx) {
+      console.warn('⚠️ Leaderboard cache update note:', lbEx.message);
+    }
 
     // 4. Record the attempt details
-    const computedAccuracy = accuracy !== undefined ? accuracy : Math.round((score / totalQuestions) * 100);
-    const computedCorrect = correct_answers !== undefined ? correct_answers : score;
-    const computedWrong = wrong_answers !== undefined ? wrong_answers : (totalQuestions - score);
-    const computedTime = time_taken || 0;
+    const parsedTotal = totalQuestions ? parseInt(totalQuestions) : 10;
+    const rawLog = Array.isArray(answersLog) ? answersLog : [];
+    
+    let logCorrect = 0;
+    let logWrong = 0;
+    let logUnanswered = 0;
+    
+    if (rawLog.length > 0) {
+      rawLog.forEach(q => {
+        const isUnanswered = !q.selected || q.selected === 'None' || String(q.selected).includes('None') || String(q.selected).includes('Timed Out') || String(q.selected).includes('Skipped');
+        if (isUnanswered) {
+          logUnanswered += 1;
+        } else if (q.isCorrect) {
+          logCorrect += 1;
+        } else {
+          logWrong += 1;
+        }
+      });
+      logUnanswered += Math.max(0, parsedTotal - rawLog.length);
+    }
 
-    const { error: insertAttemptErr } = await supabaseAdmin
+    const computedCorrect = correct_answers !== undefined ? parseInt(correct_answers) : (rawLog.length > 0 ? logCorrect : parseInt(score));
+    const computedWrong = wrong_answers !== undefined 
+      ? parseInt(wrong_answers) 
+      : (rawLog.length > 0 ? logWrong : Math.max(0, parsedTotal - computedCorrect - (unanswered !== undefined ? parseInt(unanswered) : 0)));
+    const computedAttempted = req.body.questionsAttempted !== undefined 
+      ? parseInt(req.body.questionsAttempted) 
+      : (req.body.attempted !== undefined ? parseInt(req.body.attempted) : (computedCorrect + computedWrong));
+    const computedUnanswered = unanswered !== undefined 
+      ? parseInt(unanswered) 
+      : (rawLog.length > 0 ? logUnanswered : Math.max(0, parsedTotal - computedAttempted));
+
+    const computedAccuracy = accuracy !== undefined ? accuracy : Math.round((computedCorrect / parsedTotal) * 100);
+    const computedTime = time_taken || 0;
+    const computedStatus = completion_status || (mode === 'survival' && score < parsedTotal ? 'Game Over' : 'Completed');
+
+    // Build rich attempt metadata bundle (preserves dynamic questions, answersLog, timing, and status)
+    const attemptMetadata = JSON.stringify({
+      cert: 'Not Claimed',
+      startedAt: startedAt || new Date().toISOString(),
+      completedAt: completedAt || new Date().toISOString(),
+      status: computedStatus,
+      game_mode: game_mode || gameMode || mode,
+      gameMode: game_mode || gameMode || mode,
+      unanswered: computedUnanswered,
+      attempted: computedAttempted,
+      correct: computedCorrect,
+      wrong: computedWrong,
+      questions: rawLog
+    });
+
+    const dbClient = getSupabaseClient(req) || supabaseAdmin;
+    let { error: insertAttemptErr } = await dbClient
       .from('quiz_attempts')
       .insert({
         user_id: userId,
@@ -178,8 +300,28 @@ async function submitQuiz(req, res) {
         time_taken: computedTime,
         xp_earned: xpEarned,
         coins_earned: xpEarned,
-        certificate_status: 'Not Claimed'
+        certificate_status: attemptMetadata
       });
+
+    if (insertAttemptErr) {
+      const { error: adminRetryErr } = await supabaseAdmin
+        .from('quiz_attempts')
+        .insert({
+          user_id: userId,
+          category,
+          difficulty,
+          score,
+          total_questions: totalQuestions,
+          accuracy: computedAccuracy,
+          correct_answers: computedCorrect,
+          wrong_answers: computedWrong,
+          time_taken: computedTime,
+          xp_earned: xpEarned,
+          coins_earned: xpEarned,
+          certificate_status: attemptMetadata
+        });
+      insertAttemptErr = adminRetryErr;
+    }
 
     if (insertAttemptErr) throw insertAttemptErr;
 
@@ -296,6 +438,9 @@ async function getLeaderboard(req, res) {
           user_id,
           score,
           total_questions,
+          attempted_at,
+          started_at,
+          completed_at,
           profiles ( username )
         `)
         .gte('attempted_at', cutoffDate.toISOString());
@@ -326,13 +471,23 @@ async function getLeaderboard(req, res) {
             period_score: 0,
             quizzes_completed: 0,
             perfect_quizzes: 0,
-            daily_streak: streak
+            daily_streak: streak,
+            started_at: null,
+            completed_at: null,
+            _latest_attempted_at: null
           };
         }
         userMap[uid].period_score += att.score;
         userMap[uid].quizzes_completed += 1;
         if (att.score === att.total_questions) {
           userMap[uid].perfect_quizzes += 1;
+        }
+
+        // Track the latest attempt's started_at and completed_at
+        if (!userMap[uid]._latest_attempted_at || new Date(att.attempted_at) > new Date(userMap[uid]._latest_attempted_at)) {
+          userMap[uid]._latest_attempted_at = att.attempted_at;
+          userMap[uid].started_at = att.started_at;
+          userMap[uid].completed_at = att.completed_at;
         }
       });
 
@@ -467,5 +622,9 @@ module.exports = {
   submitQuiz,
   getLeaderboard,
   getDailyChallenge,
-  deleteLeaderboardScore
+  deleteLeaderboardScore,
+  startQuizSession,
+  getActiveSessions,
+  registerActiveSession,
+  clearActiveSession
 };

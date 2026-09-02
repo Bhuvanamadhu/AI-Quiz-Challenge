@@ -52,7 +52,9 @@ CREATE TABLE IF NOT EXISTS public.quiz_attempts (
   time_taken INTEGER NOT NULL,
   xp_earned INTEGER NOT NULL,
   coins_earned INTEGER NOT NULL,
-  certificate_status TEXT DEFAULT 'Not Claimed' NOT NULL
+  certificate_status TEXT DEFAULT 'Not Claimed' NOT NULL,
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ
 );
 
 -- Quiz Progress / Stats Table (accumulates player stats, streaks, level, and wallet)
@@ -89,7 +91,9 @@ CREATE TABLE IF NOT EXISTS public.leaderboard (
   perfect_quizzes INTEGER DEFAULT 0 NOT NULL,
   daily_streak INTEGER DEFAULT 0 NOT NULL,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
-  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ
 );
 
 -- Achievements Table (unlocked medals/badges for user progress milestones)

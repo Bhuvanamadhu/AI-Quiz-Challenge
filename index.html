@@ -321,7 +321,7 @@
                       <label for="mode-classic" class="mode-btn">
                         <span class="mode-icon">🎮</span>
                         <span class="mode-title">Classic</span>
-                        <span class="mode-desc">10 Qs, 3 lives, 15s timer</span>
+                        <span class="mode-desc">10 Qs, 3 lives, 30s timer</span>
                       </label>
                     </div>
                     <div class="mode-option">
@@ -805,7 +805,7 @@
             </div>
             <div class="arena-stats" style="display: flex; align-items: center;">
               <span id="quiz-lives" class="lives-indicator" style="margin-right: 15px;">❤️❤️❤️</span>
-              <span id="quiz-timer-text" class="timer-countdown">⏳ 15s</span>
+              <span id="quiz-timer-text" class="timer-countdown">⏳ 30s</span>
               <button id="btn-quiz-bookmark" class="icon-btn quiz-bookmark-btn" title="Bookmark Question"
                 style="font-size: 14px; width: 32px; height: 32px; margin-left: 15px; display: flex; align-items: center; justify-content: center;">🔖</button>
               <button id="btn-quiz-report" class="icon-btn quiz-report-btn" title="Report Question"
@@ -999,12 +999,14 @@
                   <th>Quizzes Completed</th>
                   <th>Perfect Score</th>
                   <th>Streak</th>
+                  <th>Game Started At</th>
+                  <th>Game Completed At</th>
                   <th class="dict-key" data-key="lb-th-actions">Actions</th>
                 </tr>
               </thead>
               <tbody id="leaderboard-table-body">
                 <tr>
-                  <td colspan="7" class="text-center">Loading leaderboard rankings...</td>
+                  <td colspan="9" class="text-center">Loading leaderboard rankings...</td>
                 </tr>
               </tbody>
             </table>
@@ -1014,23 +1016,162 @@
 
       <!-- 7. ADMIN PANEL VIEW -->
       <section id="view-admin" class="app-view hidden">
-        <div class="card admin-card">
+        <div class="card admin-card admin-dashboard-root">
           <div class="admin-header">
-            <h2>⚙️ Admin Control Console</h2>
-            <button id="btn-admin-back" class="action-btn btn-secondary btn-sm">🔙 Dashboard</button>
+            <div class="admin-title-area">
+              <div class="admin-title-row">
+                <h2>🛡️ Admin Command Center</h2>
+                <span class="badge badge-role admin-live-pill"><span class="live-dot"></span> System Live</span>
+              </div>
+              <p class="admin-subtitle">Live player activity monitor, dynamic quiz scoring analytics & administration console</p>
+            </div>
+            <div class="admin-header-actions">
+              <button id="btn-admin-refresh" class="action-btn btn-secondary btn-sm" title="Refresh all data">🔄 Refresh Data</button>
+              <button id="btn-admin-switch-player" class="action-btn btn-primary btn-sm" title="Switch to Player View">🎮 Player Mode</button>
+              <button id="btn-admin-logout" class="action-btn btn-secondary btn-sm btn-danger-subtle" title="Sign out">🚪 Logout</button>
+            </div>
           </div>
 
           <div class="admin-tabs">
-            <button id="admin-tab-questions" class="admin-tab active">Questions</button>
-            <button id="admin-tab-users" class="admin-tab">Users</button>
-            <button id="admin-tab-feedback" class="admin-tab">Feedback</button>
-            <button id="admin-tab-reports" class="admin-tab">Reports</button>
-            <button id="admin-tab-notifs" class="admin-tab">Broadcasts</button>
-            <button id="admin-tab-logins" class="admin-tab">Login Logs</button>
+            <button id="admin-tab-activity" class="admin-tab active">📊 Quiz Activity</button>
+            <button id="admin-tab-questions" class="admin-tab">❓ Question Bank</button>
+            <button id="admin-tab-users" class="admin-tab">👥 Player Accounts</button>
+            <button id="admin-tab-feedback" class="admin-tab">⭐ Feedback</button>
+            <button id="admin-tab-reports" class="admin-tab">🚩 Reports</button>
+            <button id="admin-tab-notifs" class="admin-tab">📢 Broadcasts</button>
+            <button id="admin-tab-logins" class="admin-tab">🔒 Login Audits</button>
           </div>
 
-          <!-- Panel 1: Questions Manager -->
-          <div id="admin-panel-questions" class="admin-panel-content">
+          <!-- Primary Panel: Live Activity & Overview -->
+          <div id="admin-panel-activity" class="admin-panel-content">
+            <!-- 1. Overview Metric Cards Grid -->
+            <div class="admin-overview-grid">
+              <div class="admin-metric-card">
+                <div class="metric-icon-wrap metric-users">👥</div>
+                <div class="metric-info">
+                  <div class="metric-lbl">Total Users</div>
+                  <div class="metric-val" id="admin-stat-total-users">0</div>
+                  <div class="metric-sub">Registered accounts</div>
+                </div>
+              </div>
+              <div class="admin-metric-card">
+                <div class="metric-icon-wrap metric-attempts">🎯</div>
+                <div class="metric-info">
+                  <div class="metric-lbl">Total Quiz Attempts</div>
+                  <div class="metric-val" id="admin-stat-total-attempts">0</div>
+                  <div class="metric-sub">All-time plays logged</div>
+                </div>
+              </div>
+              <div class="admin-metric-card">
+                <div class="metric-icon-wrap metric-completed">✅</div>
+                <div class="metric-info">
+                  <div class="metric-lbl">Completed Quizzes</div>
+                  <div class="metric-val" id="admin-stat-completed-quizzes">0</div>
+                  <div class="metric-sub">Successfully submitted</div>
+                </div>
+              </div>
+              <div class="admin-metric-card">
+                <div class="metric-icon-wrap metric-progress">⏳</div>
+                <div class="metric-info">
+                  <div class="metric-lbl">In-progress Quizzes</div>
+                  <div class="metric-val" id="admin-stat-inprogress-quizzes">0</div>
+                  <div class="metric-sub">Active live sessions</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Search & Filter Bar -->
+            <div class="admin-filter-container">
+              <div class="filter-header">
+                <h3>🔍 Filter & Search User Activity</h3>
+                <button id="btn-admin-reset-filters" class="btn-text-action">Reset Filters</button>
+              </div>
+              <div class="admin-filter-grid">
+                <div class="filter-input-group">
+                  <label for="admin-search-userid">User ID</label>
+                  <input type="text" id="admin-search-userid" placeholder="Search by User ID (UUID)...">
+                </div>
+                <div class="filter-input-group">
+                  <label for="admin-search-username">Username</label>
+                  <input type="text" id="admin-search-username" placeholder="Search by player username...">
+                </div>
+                <div class="filter-input-group">
+                  <label for="admin-filter-quiz">Quiz Name</label>
+                  <select id="admin-filter-quiz">
+                    <option value="all">All Quizzes</option>
+                    <option value="AI">AI</option>
+                    <option value="HTML">HTML</option>
+                    <option value="CSS">CSS</option>
+                    <option value="JavaScript">JavaScript</option>
+                    <option value="Java">Java</option>
+                    <option value="Python">Python</option>
+                    <option value="C">C</option>
+                    <option value="C++">C++</option>
+                    <option value="SQL">SQL</option>
+                    <option value="DBMS">DBMS</option>
+                    <option value="MongoDB">MongoDB</option>
+                    <option value="NodeJS">NodeJS</option>
+                    <option value="React">React</option>
+                    <option value="DSA">DSA</option>
+                    <option value="OS">OS</option>
+                    <option value="CN">CN</option>
+                    <option value="SE">SE</option>
+                    <option value="Daily Challenge">Daily Challenge</option>
+                  </select>
+                </div>
+                <div class="filter-input-group">
+                  <label for="admin-filter-status">Completion Status</label>
+                  <select id="admin-filter-status">
+                    <option value="all">All Statuses</option>
+                    <option value="Completed">Completed</option>
+                    <option value="In-Progress">In-Progress</option>
+                    <option value="Game Over">Game Over</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. User Quiz Activity Table -->
+            <div class="admin-activity-section">
+              <div class="admin-section-header-row">
+                <h3>📋 User Quiz Activity Log</h3>
+                <span id="admin-activity-count-badge" class="badge badge-secondary">0 Attempts</span>
+              </div>
+              <div class="admin-table-container admin-activity-scroll">
+                <table class="data-table admin-activity-table">
+                  <thead>
+                    <tr>
+                      <th>User ID</th>
+                      <th>Username</th>
+                      <th>Game Mode</th>
+                      <th>Quiz Name</th>
+                      <th>Game Started At</th>
+                      <th>Game Completed At</th>
+                      <th>Total Qs</th>
+                      <th>Attempted</th>
+                      <th>Correct</th>
+                      <th>Wrong</th>
+                      <th>Unanswered</th>
+                      <th>Score</th>
+                      <th>Time Taken</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-activity-table-body">
+                    <tr>
+                      <td colspan="15" class="text-center py-4">
+                        <div class="spinner-inline"></div> Loading user quiz activities...
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 2: Questions Manager -->
+          <div id="admin-panel-questions" class="admin-panel-content hidden">
             <div class="admin-panel-split">
               <!-- Form to create/edit question -->
               <div class="admin-form-container">
@@ -1446,6 +1587,52 @@
         <button type="button" class="action-btn btn-secondary btn-block btn-close-reset"
           style="margin-top: 10px;">Cancel</button>
       </form>
+    </div>
+  </div>
+
+  <!-- ADMIN QUESTION-WISE RESULT MODAL -->
+  <div id="modal-admin-question-results" class="secure-auth-overlay hidden" style="z-index: 22000;">
+    <div class="secure-auth-card admin-qmodal-card animate-scale-up">
+      <div class="admin-qmodal-header">
+        <div>
+          <div class="admin-qmodal-tag-row">
+            <span class="badge badge-primary" id="admin-modal-quiz-badge">Quiz Attempt</span>
+            <span class="badge" id="admin-modal-status-badge">Completed</span>
+          </div>
+          <h2 id="admin-modal-player-title" style="margin-top: 6px;">Player Quiz Breakdown</h2>
+          <p id="admin-modal-meta-subtitle" class="text-muted" style="font-size: 13px; margin-top: 2px;">Reviewing question-by-question performance</p>
+        </div>
+        <button id="btn-admin-close-qmodal-top" class="admin-modal-close-icon" title="Close">✕</button>
+      </div>
+
+      <!-- Quick Summary Metric Bar -->
+      <div class="admin-qmodal-stats-bar">
+        <div class="qmodal-stat">
+          <span class="qmodal-stat-lbl">Score</span>
+          <span class="qmodal-stat-val" id="admin-modal-stat-score">0 / 0</span>
+        </div>
+        <div class="qmodal-stat">
+          <span class="qmodal-stat-lbl">Accuracy</span>
+          <span class="qmodal-stat-val text-accent" id="admin-modal-stat-accuracy">0%</span>
+        </div>
+        <div class="qmodal-stat">
+          <span class="qmodal-stat-lbl">Correct / Wrong</span>
+          <span class="qmodal-stat-val text-green" id="admin-modal-stat-correct-wrong">0 / 0</span>
+        </div>
+        <div class="qmodal-stat">
+          <span class="qmodal-stat-lbl">Time Taken</span>
+          <span class="qmodal-stat-val" id="admin-modal-stat-time">0s</span>
+        </div>
+      </div>
+
+      <!-- Question-by-Question List -->
+      <div class="admin-qmodal-body admin-qresults-scroll" id="admin-modal-qresults-list">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <div class="admin-qmodal-footer">
+        <button id="btn-admin-close-qmodal-bottom" class="action-btn btn-secondary btn-block">Close Review</button>
+      </div>
     </div>
   </div>
 

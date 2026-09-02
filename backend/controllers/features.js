@@ -562,10 +562,10 @@ async function syncOfflineAttempts(req, res) {
     let syncedCount = 0;
 
     for (const att of attempts) {
-      const { category, difficulty, score, total_questions, attempted_at, game_mode } = att;
+      const { category, difficulty, score, total_questions, attempted_at, game_mode, started_at, completed_at } = att;
 
       // 1. Insert attempt
-      const { error: insertErr } = await supabaseAdmin
+      let { error: insertErr } = await supabaseAdmin
         .from('quiz_attempts')
         .insert({
           user_id: userId,
@@ -579,8 +579,30 @@ async function syncOfflineAttempts(req, res) {
           time_taken: 0,
           xp_earned: score * 10,
           coins_earned: score * 10,
-          attempted_at: attempted_at || new Date().toISOString()
+          attempted_at: attempted_at || new Date().toISOString(),
+          started_at: started_at || null,
+          completed_at: completed_at || null
         });
+
+      if (insertErr && insertErr.code === '42703') {
+        const { error: retryErr } = await supabaseAdmin
+          .from('quiz_attempts')
+          .insert({
+            user_id: userId,
+            category,
+            difficulty,
+            score,
+            total_questions,
+            accuracy: Math.round((score / total_questions) * 100),
+            correct_answers: score,
+            wrong_answers: total_questions - score,
+            time_taken: 0,
+            xp_earned: score * 10,
+            coins_earned: score * 10,
+            attempted_at: attempted_at || new Date().toISOString()
+          });
+        insertErr = retryErr;
+      }
 
       if (insertErr) continue; // skip duplicates or error attempts
 

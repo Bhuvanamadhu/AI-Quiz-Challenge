@@ -50,7 +50,8 @@ app.post('/api/auth/login', authRateLimit, authController.login);
 app.get('/api/auth/me', authController.verifyToken, authController.getProfile);
 
 // ================= QUIZ ENGINE ENDPOINTS =================
-app.get('/api/quiz/questions', quizController.getQuestions);
+app.get('/api/quiz/questions', authController.verifyToken, quizController.getQuestions);
+app.post('/api/quiz/start-session', authController.verifyToken, quizController.startQuizSession);
 app.post('/api/quiz/submit', authController.verifyToken, quizController.submitQuiz);
 app.get('/api/quiz/daily-challenge', quizController.getDailyChallenge);
 app.get('/api/leaderboard', quizController.getLeaderboard);
@@ -102,6 +103,8 @@ app.get('/api/admin/certificates', authController.verifyAdmin, featuresControlle
 app.get('/api/admin/login-logs', authController.verifyAdmin, featuresController.adminGetLoginLogs);
 
 // ================= ADMIN CONSOLE ENDPOINTS =================
+app.get('/api/admin/dashboard-overview', authController.verifyAdmin, adminController.getDashboardOverview);
+app.get('/api/admin/quiz-activity', authController.verifyAdmin, adminController.getUserQuizActivity);
 app.get('/api/admin/questions/search', authController.verifyAdmin, adminController.searchQuestions);
 app.post('/api/admin/questions', authController.verifyAdmin, adminController.createQuestion);
 app.put('/api/admin/questions/:id', authController.verifyAdmin, adminController.updateQuestion);
@@ -118,9 +121,9 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../index.html'));
 });
 
-// Start listening if not running inside Vercel cloud environment
-if (!process.env.VERCEL) {
-  app.listen(PORT, () => {
+// Start listening if run directly
+if (require.main === module) {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`===================================================`);
     console.log(`🚀 AI Quiz Challenge Backend running on port ${PORT}`);
     console.log(`🔗 Access the web app at: http://localhost:${PORT}`);

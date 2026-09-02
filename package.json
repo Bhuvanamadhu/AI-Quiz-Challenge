@@ -1,11 +1,10 @@
 {
-  "name": "ai-quiz-challenge-backend",
+  "name": "ai-quiz-challenge",
   "version": "1.0.0",
-  "description": "Backend server for AI Quiz Challenge Game",
-  "main": "server.js",
+  "description": "Full Stack AI Quiz Challenge App",
+  "main": "api/index.js",
   "scripts": {
-    "start": "node server.js",
-    "seed": "node scripts/seed.js"
+    "start": "node backend/server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",
@@ -16,7 +15,6 @@
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^9.0.3",
     "sqlite3": "^5.1.7",
-    "ws": "^8.21.1",
-    "pg": "^8.11.3"
+    "ws": "^8.21.1"
   }
 }
