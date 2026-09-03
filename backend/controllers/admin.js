@@ -157,7 +157,11 @@ async function getAllUsers(req, res) {
 
 // Delete a user account
 async function deleteUser(req, res) {
-  const { id } = req.params;
+  const id = String(req.params.id || '').trim();
+
+  if (!id) {
+    return res.status(400).json({ error: 'User ID is required.' });
+  }
 
   try {
     const { data: user, error: userError } = await supabaseAdmin
@@ -166,7 +170,7 @@ async function deleteUser(req, res) {
       .eq('id', id)
       .maybeSingle();
 
-    if (user && user.role === 'admin') {
+    if (user && String(user.role).toLowerCase().trim() === 'admin') {
       return res.status(400).json({ error: 'Cannot delete an Admin account.' });
     }
 
@@ -186,6 +190,10 @@ async function deleteUser(req, res) {
       supabaseAdmin.from('settings').delete().eq('user_id', id),
       supabaseAdmin.from('purchases').delete().eq('user_id', id),
       supabaseAdmin.from('notifications').delete().eq('user_id', id),
+      supabaseAdmin.from('certificates').delete().eq('user_id', id),
+      supabaseAdmin.from('login_history').delete().eq('user_id', id),
+      supabaseAdmin.from('reported_questions').delete().eq('user_id', id),
+      supabaseAdmin.from('quiz_feedback').delete().eq('user_id', id),
       supabaseAdmin.from('profiles').delete().eq('id', id)
     ]);
 

@@ -963,11 +963,13 @@ const MockDatabase = {
       const users = JSON.parse(localStorage.getItem('mock_users') || '[]');
       const idx = users.findIndex(u => String(u.id) === String(uId));
       if (idx !== -1) {
-        if (users[idx].role === 'admin') {
+        if (String(users[idx].role).toLowerCase().trim() === 'admin') {
           return Promise.reject({ message: 'Cannot delete an Admin account.' });
         }
         users.splice(idx, 1);
         localStorage.setItem('mock_users', JSON.stringify(users));
+      } else {
+        return Promise.reject({ message: 'User account not found.' });
       }
 
       // Also clean up all attempts belonging to this user
@@ -975,7 +977,43 @@ const MockDatabase = {
       const filteredAttempts = rawAttempts.filter(a => String(a.user_id) !== String(uId) && String(a.userId) !== String(uId) && String(a.id) !== String(uId));
       localStorage.setItem('mock_attempts', JSON.stringify(filteredAttempts));
 
-      return Promise.resolve({ message: 'User deleted.' });
+      // Clean up progress
+      const progress = JSON.parse(localStorage.getItem('mock_progress') || '{}');
+      if (progress[uId]) delete progress[uId];
+      if (progress[String(uId)]) delete progress[String(uId)];
+      localStorage.setItem('mock_progress', JSON.stringify(progress));
+
+      // Clean up achievements
+      const achievements = JSON.parse(localStorage.getItem('mock_achievements') || '[]');
+      const filteredAchievements = achievements.filter(a => String(a.user_id) !== String(uId));
+      localStorage.setItem('mock_achievements', JSON.stringify(filteredAchievements));
+
+      // Clean up bookmarks
+      const bookmarks = JSON.parse(localStorage.getItem('mock_bookmarks') || '[]');
+      const filteredBookmarks = bookmarks.filter(b => String(b.user_id) !== String(uId));
+      localStorage.setItem('mock_bookmarks', JSON.stringify(filteredBookmarks));
+
+      // Clean up notifications
+      const notifs = JSON.parse(localStorage.getItem('mock_notifications') || '[]');
+      const filteredNotifs = notifs.filter(n => String(n.user_id) !== String(uId));
+      localStorage.setItem('mock_notifications', JSON.stringify(filteredNotifs));
+
+      // Clean up purchases
+      const purchases = JSON.parse(localStorage.getItem('mock_purchases') || '[]');
+      const filteredPurchases = purchases.filter(p => String(p.user_id) !== String(uId));
+      localStorage.setItem('mock_purchases', JSON.stringify(filteredPurchases));
+
+      // Clean up certificates
+      const certificates = JSON.parse(localStorage.getItem('mock_certificates') || '[]');
+      const filteredCertificates = certificates.filter(c => String(c.user_id) !== String(uId));
+      localStorage.setItem('mock_certificates', JSON.stringify(filteredCertificates));
+
+      // Clean up login history
+      const history = JSON.parse(localStorage.getItem('mock_login_history') || '[]');
+      const filteredHistory = history.filter(h => String(h.user_id) !== String(uId));
+      localStorage.setItem('mock_login_history', JSON.stringify(filteredHistory));
+
+      return Promise.resolve({ message: 'User deleted successfully.' });
     }
 
     // Admin Dashboard Overview (Mock)
@@ -3330,39 +3368,74 @@ const ViewRefresher = {
     try {
       const users = await NetworkClient.request('/admin/users');
       const tbody = document.getElementById('admin-users-table-body');
+      if (!tbody) return;
       tbody.innerHTML = '';
 
+      if (!Array.isArray(users) || users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="padding: 24px; color: var(--text-muted);">No player accounts found.</td></tr>';
+        return;
+      }
+
       users.forEach(u => {
+        const isAdmin = String(u.role || '').toLowerCase().trim() === 'admin';
+        const safeId = String(u.id).replace(/'/g, "\\'");
+        const safeUsername = (u.username || '').replace(/'/g, "\\'");
+        const actionHtml = isAdmin
+          ? `<button class="action-btn btn-secondary btn-sm" style="opacity: 0.45; cursor: not-allowed; color: var(--text-muted); border-color: rgba(255,255,255,0.1);" title="Admin accounts cannot be deleted" disabled>Delete</button>`
+          : `<button onclick="ViewRefresher.deleteAdminUser('${safeId}', '${safeUsername}', '${u.role || 'user'}')" class="action-btn btn-secondary btn-sm" style="color: var(--accent-red); border-color: rgba(239,68,68,0.3);" title="Delete Player Account">Delete</button>`;
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${u.id}</td>
           <td>${u.username}</td>
           <td>${u.email}</td>
-          <td><span class="badge ${u.role === 'admin' ? 'badge-role' : 'badge-secondary'}">${u.role.toUpperCase()}</span></td>
+          <td><span class="badge ${isAdmin ? 'badge-role' : 'badge-secondary'}">${(u.role || 'user').toUpperCase()}</span></td>
           <td>${u.total_xp || 0}</td>
           <td>${u.quizzes_completed || 0}</td>
-          <td>
-            <button onclick="ViewRefresher.deleteAdminUser(${u.id})" class="action-btn btn-secondary btn-sm" style="color: var(--accent-red); border-color: rgba(239,68,68,0.3);">Delete</button>
-          </td>
+          <td>${actionHtml}</td>
         `;
         tbody.appendChild(tr);
       });
     } catch (e) {
       console.error('Admin users load failed:', e);
+      const tbody = document.getElementById('admin-users-table-body');
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="color: var(--accent-red); padding: 20px;">Failed to load player accounts: ${e.message || 'Error'}</td></tr>`;
+      }
     }
   },
 
-  async deleteAdminUser(id) {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+  async deleteAdminUser(id, username, role) {
+    if (role === 'admin' || String(role).toLowerCase().trim() === 'admin') {
+      alert('Cannot delete an Admin account.');
+      return;
+    }
+    if (!id || id === 'guest' || id === 'guest_user_id') {
+      alert('Guest records cannot be deleted as a user account.');
+      return;
+    }
+
+    const nameDisplay = username ? `"${username}"` : `(ID: ${id})`;
+    if (!confirm(`Are you sure you want to permanently delete player account ${nameDisplay}?\n\nThis will remove the user account and associated player data.`)) {
+      return;
+    }
+
     try {
-      await NetworkClient.request(`/admin/users/${id}`, 'DELETE');
-      AudioSynth.playClick();
-      this.refreshAdminUsers();
+      const res = await NetworkClient.request(`/admin/users/${encodeURIComponent(id)}`, 'DELETE');
+      if (typeof AudioSynth !== 'undefined' && AudioSynth.playClick) {
+        AudioSynth.playClick();
+      }
+      alert((res && res.message) ? res.message : `Player account ${nameDisplay} deleted successfully.`);
+      await this.refreshAdminUsers();
+      if (typeof AdminDashboardController !== 'undefined' && AdminDashboardController.loadOverview) {
+        AdminDashboardController.loadOverview();
+      }
     } catch (e) {
-      alert('Delete failed: ' + e.message);
+      alert('Delete failed: ' + (e.message || 'Server error'));
     }
   }
 };
+window.ViewRefresher = ViewRefresher;
 
 // 8. ADMIN DASHBOARD CONTROLLER
 // 8. ADMIN DASHBOARD CONTROLLER
