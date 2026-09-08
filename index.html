@@ -117,13 +117,13 @@
             <img src="assets/logo.png" alt="Quiz Game Logo Large" class="hero-logo-img">
           </div>
           <h1 class="hero-title dict-key" data-key="hero-title-text">Smart AI-Powered Education Quiz and <br><span class="gradient-text">Performance Tracking System</span></h1>
-          <p class="hero-subtitle">
+          <p class="hero-subtitle dict-key" data-key="hero-subtitle-text">
             Compete in 10 technical categories, climb the global leaderboard, earn unique badges, and unlock the daily
             challenge.
           </p>
           <div class="hero-actions">
-            <button id="btn-start-arena" class="action-btn btn-gradient btn-lg">Enter the Arena</button>
-            <button id="btn-view-leaderboard-landing" class="action-btn btn-secondary btn-lg">View Leaderboards</button>
+            <button id="btn-start-arena" class="action-btn btn-gradient btn-lg dict-key" data-key="btn-start-arena">Enter the Arena</button>
+            <button id="btn-view-leaderboard-landing" class="action-btn btn-secondary btn-lg dict-key" data-key="btn-view-leaderboard-landing">View Leaderboards</button>
           </div>
         </div>
       </section>
@@ -132,28 +132,28 @@
       <section id="view-auth" class="app-view hidden">
         <div class="card auth-card animate-fade-in">
           <div class="auth-tabs">
-            <button id="tab-login" class="auth-tab active">Login</button>
-            <button id="tab-register" class="auth-tab">Sign Up</button>
+            <button id="tab-login" class="auth-tab active dict-key" data-key="auth-tab-login">Login</button>
+            <button id="tab-register" class="auth-tab dict-key" data-key="auth-tab-register">Sign Up</button>
           </div>
 
           <!-- Login Form -->
           <form id="form-login" class="auth-form">
             <div class="form-group">
-              <label for="login-username">Username or Email</label>
+              <label for="login-username" class="dict-key" data-key="auth-label-username-email">Username or Email</label>
               <input type="text" id="login-username" placeholder="Enter username or email" required>
             </div>
             <div class="form-group">
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <label for="login-password">Password</label>
-                <button type="button" id="btn-auth-forgot" class="btn-link" style="font-size: 11px;">Forgot
+                <label for="login-password" class="dict-key" data-key="auth-label-password">Password</label>
+                <button type="button" id="btn-auth-forgot" class="btn-link dict-key" data-key="auth-link-forgot" style="font-size: 11px;">Forgot
                   Password?</button>
               </div>
               <input type="password" id="login-password" placeholder="Enter password" required>
             </div>
-            <button type="submit" class="action-btn btn-gradient btn-block">Log In</button>
+            <button type="submit" class="action-btn btn-gradient btn-block dict-key" data-key="auth-btn-signin">Log In</button>
 
-            <div style="margin: 15px 0; text-align: center; font-size: 12px; color: var(--text-muted);">or</div>
-            <button type="button" id="btn-google-auth" class="action-btn btn-secondary btn-block"
+            <div style="margin: 15px 0; text-align: center; font-size: 12px; color: var(--text-muted);" class="dict-key" data-key="auth-label-or">or</div>
+            <button type="button" id="btn-google-auth" class="action-btn btn-secondary btn-block dict-key" data-key="auth-btn-google"
               style="display: flex; align-items: center; justify-content: center; gap: 8px;">
               <span>🌐</span> Sign In with Google
             </button>
@@ -162,22 +162,22 @@
           <!-- Registration Form -->
           <form id="form-register" class="auth-form hidden">
             <div class="form-group">
-              <label for="reg-username">Username</label>
+              <label for="reg-username" class="dict-key" data-key="auth-label-new-username">Username</label>
               <input type="text" id="reg-username" placeholder="Choose username" required>
             </div>
             <div class="form-group">
-              <label for="reg-email">Email Address</label>
+              <label for="reg-email" class="dict-key" data-key="auth-label-email">Email Address</label>
               <input type="email" id="reg-email" placeholder="Enter email" required>
             </div>
             <div class="form-group">
-              <label for="reg-password">Password</label>
+              <label for="reg-password" class="dict-key" data-key="auth-label-new-password">Password</label>
               <input type="password" id="reg-password" placeholder="Min. 6 characters" required minlength="6">
             </div>
-            <button type="submit" class="action-btn btn-gradient btn-block">Create Account</button>
+            <button type="submit" class="action-btn btn-gradient btn-block dict-key" data-key="auth-btn-register">Create Account</button>
           </form>
 
           <p class="auth-switch text-center">
-            Or play without account: <button id="btn-guest-play" class="btn-link">Play as Guest</button>
+            <span class="dict-key" data-key="auth-label-guest">Or play without account</span>: <button id="btn-guest-play" class="btn-link dict-key" data-key="auth-btn-guest">Play as Guest</button>
           </p>
         </div>
       </section>
@@ -185,10 +185,10 @@
       <!-- 3. DASHBOARD VIEW -->
       <section id="view-dashboard" class="app-view hidden">
         <div class="dashboard-subnav-row">
-          <div id="tab-dash-arena" class="dash-nav-tab active">🎮 Arena</div>
-          <div id="tab-dash-profile" class="dash-nav-tab">👤 Profile</div>
-          <div id="tab-dash-shop" class="dash-nav-tab">🪙 Shop</div>
-          <div id="tab-dash-predictor" class="dash-nav-tab">📊 Predictor</div>
+          <div id="tab-dash-arena" class="dash-nav-tab active dict-key" data-key="tab-dash-arena">🎮 Arena</div>
+          <div id="tab-dash-profile" class="dash-nav-tab dict-key" data-key="tab-dash-profile">👤 Profile</div>
+          <div id="tab-dash-shop" class="dash-nav-tab dict-key" data-key="tab-dash-shop">🪙 Shop</div>
+          <div id="tab-dash-predictor" class="dash-nav-tab dict-key" data-key="tab-dash-predictor">📊 Predictor</div>
         </div>
 
         <div class="dashboard-grid">
@@ -216,19 +216,19 @@
 
             <div class="stats-overview-grid">
               <div class="stat-box">
-                <span class="stat-label">Total XP</span>
+                <span class="stat-label dict-key" data-key="dash-stat-xp">Total XP</span>
                 <span class="stat-val" id="dash-xp">0 XP</span>
               </div>
               <div class="stat-box">
-                <span class="stat-label">Coins</span>
+                <span class="stat-label dict-key" data-key="dash-stat-coins">Coins</span>
                 <span class="stat-val" id="dash-coins" style="color: var(--accent-amber);">100</span>
               </div>
               <div class="stat-box">
-                <span class="stat-label">Streak</span>
+                <span class="stat-label dict-key" data-key="dash-stat-streak">Streak</span>
                 <span class="stat-val" id="dash-streak">🔥 0</span>
               </div>
               <div class="stat-box">
-                <span class="stat-label">Quizzes</span>
+                <span class="stat-label dict-key" data-key="dash-stat-quizzes">Quizzes</span>
                 <span class="stat-val" id="dash-completed">0</span>
               </div>
             </div>
@@ -236,7 +236,7 @@
             <!-- XP Level Progress Bar -->
             <div class="level-progress-container" style="margin-top: 15px; padding: 0 5px;">
               <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px;">
-                <span>Level <strong id="dash-level">1</strong></span>
+                <span><span class="dict-key" data-key="dash-level-label">Level</span> <strong id="dash-level">1</strong></span>
                 <span id="dash-level-xp-text" style="color: var(--text-muted);">0 / 100 XP</span>
               </div>
               <div class="progress-bar-container"
@@ -250,10 +250,10 @@
             <!-- Quick Actions -->
             <div class="profile-quick-actions" style="margin-top: 25px;">
               <button id="btn-dash-bookmarks" class="action-btn btn-secondary btn-block" style="margin-bottom: 10px;">🔖
-                Practice Bookmarks (<span id="bookmarks-count">0</span>)</button>
-              <button id="btn-dash-leaderboard" class="action-btn btn-secondary btn-block">🏆 Global
+                <span class="dict-key" data-key="btn-dash-bookmarks">Practice Bookmarks</span> (<span id="bookmarks-count">0</span>)</button>
+              <button id="btn-dash-leaderboard" class="action-btn btn-secondary btn-block dict-key" data-key="btn-dash-leaderboard">🏆 Global
                 Leaderboard</button>
-              <button id="btn-dash-admin" class="action-btn btn-danger-outline btn-block hidden">⚙️ Admin
+              <button id="btn-dash-admin" class="action-btn btn-danger-outline btn-block hidden dict-key" data-key="btn-dash-admin">⚙️ Admin
                 Console</button>
             </div>
           </div>
@@ -266,18 +266,18 @@
               <!-- Daily Challenge Portal -->
               <div class="card daily-challenge-card">
                 <div class="card-header-icon">📅</div>
-                <h3>Daily Challenge</h3>
-                <p>A fresh, fixed set of 10 trivia questions updated every 24 hours. Earn 100 bonus XP!</p>
+                <h3 class="dict-key" data-key="daily-challenge-title">Daily Challenge</h3>
+                <p class="dict-key" data-key="daily-challenge-desc">A fresh, fixed set of 10 trivia questions updated every 24 hours. Earn 100 bonus XP!</p>
                 <div class="daily-status" id="daily-challenge-status">Status: Loading...</div>
-                <button id="btn-launch-daily" class="action-btn btn-gradient">Launch Daily Quiz</button>
+                <button id="btn-launch-daily" class="action-btn btn-gradient dict-key" data-key="btn-launch-daily">Launch Daily Quiz</button>
               </div>
 
               <!-- Quiz Arena Configuration Card -->
               <div class="card arena-card">
-                <h3>Configure Quiz Arena</h3>
-                <p>Pick a category, difficulty, and game mode to test your technical skills.</p>
+                <h3 class="dict-key" data-key="arena-card-title">Configure Quiz Arena</h3>
+                <p class="dict-key" data-key="arena-card-desc">Pick a category, difficulty, and game mode to test your technical skills.</p>
                 <div class="form-group">
-                  <label for="arena-category">Topic Category</label>
+                  <label for="arena-category" class="dict-key" data-key="arena-label-category">Topic Category</label>
                   <select id="arena-category">
                     <option value="AI">Artificial Intelligence</option>
                     <option value="HTML">HTML</option>
@@ -300,52 +300,52 @@
                 </div>
 
                 <div class="form-group">
-                  <label>Select Difficulty</label>
+                  <label class="dict-key" data-key="arena-label-difficulty">Select Difficulty</label>
                   <div class="difficulty-picker">
                     <input type="radio" name="difficulty" id="diff-easy" value="easy" checked>
-                    <label for="diff-easy" class="diff-btn">Easy</label>
+                    <label for="diff-easy" class="diff-btn dict-key" data-key="diff-easy-btn">Easy</label>
 
                     <input type="radio" name="difficulty" id="diff-medium" value="medium">
-                    <label for="diff-medium" class="diff-btn">Medium</label>
+                    <label for="diff-medium" class="diff-btn dict-key" data-key="diff-medium-btn">Medium</label>
 
                     <input type="radio" name="difficulty" id="diff-hard" value="hard">
-                    <label for="diff-hard" class="diff-btn">Hard</label>
+                    <label for="diff-hard" class="diff-btn dict-key" data-key="diff-hard-btn">Hard</label>
                   </div>
                 </div>
 
                 <div class="form-group">
-                  <label>Select Game Mode</label>
+                  <label class="dict-key" data-key="arena-label-mode">Select Game Mode</label>
                   <div class="mode-picker">
                     <div class="mode-option">
                       <input type="radio" name="gamemode" id="mode-classic" value="classic" checked>
                       <label for="mode-classic" class="mode-btn">
                         <span class="mode-icon">🎮</span>
-                        <span class="mode-title">Classic</span>
-                        <span class="mode-desc">10 Qs, 3 lives, 30s timer</span>
+                        <span class="mode-title dict-key" data-key="mode-classic-title">Classic</span>
+                        <span class="mode-desc dict-key" data-key="mode-classic-desc">10 Qs, 3 lives, 30s timer</span>
                       </label>
                     </div>
                     <div class="mode-option">
                       <input type="radio" name="gamemode" id="mode-speed" value="speed">
                       <label for="mode-speed" class="mode-btn">
                         <span class="mode-icon">⚡</span>
-                        <span class="mode-title">Speed Run</span>
-                        <span class="mode-desc">15 Qs, 1 life, 8s timer (+30% XP)</span>
+                        <span class="mode-title dict-key" data-key="mode-speed-title">Speed Run</span>
+                        <span class="mode-desc dict-key" data-key="mode-speed-desc">15 Qs, 1 life, 8s timer (+30% XP)</span>
                       </label>
                     </div>
                     <div class="mode-option">
                       <input type="radio" name="gamemode" id="mode-survival" value="survival">
                       <label for="mode-survival" class="mode-btn">
                         <span class="mode-icon">❤️</span>
-                        <span class="mode-title">Survival</span>
-                        <span class="mode-desc">Endless, 3 lives, 12s timer (+50% XP)</span>
+                        <span class="mode-title dict-key" data-key="mode-survival-title">Survival</span>
+                        <span class="mode-desc dict-key" data-key="mode-survival-desc">Endless, 3 lives, 12s timer (+50% XP)</span>
                       </label>
                     </div>
                     <div class="mode-option">
                       <input type="radio" name="gamemode" id="mode-marathon" value="marathon">
                       <label for="mode-marathon" class="mode-btn">
                         <span class="mode-icon">🏃</span>
-                        <span class="mode-title">Marathon</span>
-                        <span class="mode-desc">30 Qs, 5 lives, 20s timer (+20% XP)</span>
+                        <span class="mode-title dict-key" data-key="mode-marathon-title">Marathon</span>
+                        <span class="mode-desc dict-key" data-key="mode-marathon-desc">30 Qs, 5 lives, 20s timer (+20% XP)</span>
                       </label>
                     </div>
                   </div>
@@ -355,7 +355,7 @@
                 <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px;">
                   <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
                     <input type="checkbox" id="arena-practice-mode" style="width:16px; height:16px;">
-                    Enable Practice Mode (No score penalty, unlimited retries)
+                    <span class="dict-key" data-key="arena-label-practice">Enable Practice Mode (No score penalty, unlimited retries)</span>
                   </label>
                 </div>
 
@@ -363,17 +363,17 @@
                   <label
                     style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text-muted);">
                     <input type="checkbox" id="practice-optional-timer" checked style="width:14px; height:14px;">
-                    Enable Question Timer in Practice
+                    <span class="dict-key" data-key="arena-label-practice-timer">Enable Question Timer in Practice</span>
                   </label>
                 </div>
 
-                <button id="btn-launch-quiz" class="action-btn btn-gradient btn-lg btn-block">🚀 Start Quiz</button>
+                <button id="btn-launch-quiz" class="action-btn btn-gradient btn-lg btn-block dict-key" data-key="arena-btn-start">🚀 Start Quiz</button>
               </div>
 
               <!-- Achievements/Badges Gallery Card -->
               <div class="card achievements-card">
-                <h3>Achievements & Badges</h3>
-                <p class="sub-heading">Solve quiz conditions to unlock these digital medals</p>
+                <h3 class="dict-key" data-key="achievements-title">Achievements & Badges</h3>
+                <p class="sub-heading dict-key" data-key="achievements-desc">Solve quiz conditions to unlock these digital medals</p>
                 <div class="badges-grid" id="badges-container">
                   <div class="badge-item locked" data-badge="first_step" title="Complete 1 quiz">
                     <div class="badge-icon">🎖️</div>
@@ -501,25 +501,25 @@
 
               <!-- Bookmarked Questions Card -->
               <div class="card bookmarks-card">
-                <h3>Bookmarked Questions (<span id="bookmark-count">0</span>)</h3>
-                <p class="sub-heading">Study and review your saved technical queries</p>
+                <h3><span class="dict-key" data-key="bookmarks-title">Bookmarked Questions</span> (<span id="bookmark-count">0</span>)</h3>
+                <p class="sub-heading dict-key" data-key="bookmarks-desc">Study and review your saved technical queries</p>
                 <div id="bookmarks-container" class="bookmarks-list-wrapper">
-                  <div class="text-center text-muted" style="padding: 20px 0;">No bookmarked questions yet. Click the
+                  <div class="text-center text-muted dict-key" data-key="bookmarks-empty" style="padding: 20px 0;">No bookmarked questions yet. Click the
                     bookmark icon during gameplay or review to save questions!</div>
                 </div>
               </div>
 
               <!-- User Stats Analytics Graph & History List -->
               <div class="card history-card">
-                <h3>Activity History & Stats</h3>
+                <h3 class="dict-key" data-key="history-title">Activity History & Stats</h3>
                 <div class="history-container">
                   <div class="history-stats">
                     <div class="stat-analytics">
-                      <span class="stat-analytics-label">Estimated Skill Tier:</span>
+                      <span class="stat-analytics-label dict-key" data-key="history-skill-tier">Estimated Skill Tier:</span>
                       <span class="stat-analytics-val" id="analytics-skill-tier">Novice</span>
                     </div>
                     <div class="stat-analytics">
-                      <span class="stat-analytics-label">Correct Answers Ratio:</span>
+                      <span class="stat-analytics-label dict-key" data-key="history-correct-ratio">Correct Answers Ratio:</span>
                       <span class="stat-analytics-val" id="analytics-accuracy">0%</span>
                     </div>
                   </div>
@@ -527,11 +527,11 @@
                     <table class="data-table">
                       <thead>
                         <tr>
-                          <th>Category</th>
-                          <th>Difficulty</th>
-                          <th>Score</th>
-                          <th>Date</th>
-                          <th>Action</th>
+                          <th class="dict-key" data-key="th-category">Category</th>
+                          <th class="dict-key" data-key="th-difficulty">Difficulty</th>
+                          <th class="dict-key" data-key="th-score">Score</th>
+                          <th class="dict-key" data-key="th-date">Date</th>
+                          <th class="dict-key" data-key="th-action">Action</th>
                         </tr>
                       </thead>
                       <tbody id="history-table-body">
@@ -548,7 +548,7 @@
             <!-- B. PROFILE TAB PANEL -->
             <div id="panel-dash-profile" class="dash-tab-content hidden">
               <div class="card">
-                <h3>Profile Customization</h3>
+                <h3 class="dict-key" data-key="profile-card-title">Profile Customization</h3>
                 <form id="form-profile-update"
                   style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
                   <!-- Profile photo upload -->
@@ -556,16 +556,16 @@
                     <div id="profile-pic-container" class="profile-avatar-circle">
                       <span id="profile-pic-text">👤</span>
                       <div class="avatar-frame-overlay" id="profile-frame-overlay"></div>
-                      <span class="uploader-hover-label">Change Photo</span>
+                      <span class="uploader-hover-label dict-key" data-key="profile-label-change-photo">Change Photo</span>
                     </div>
                     <input type="file" id="input-profile-pic" accept="image/*" class="hidden" style="display:none;">
-                    <span style="font-size: 11px; color: var(--text-muted); text-align: center;">Click to upload custom
+                    <span class="dict-key" data-key="profile-label-photo-helper" style="font-size: 11px; color: var(--text-muted); text-align: center;">Click to upload custom
                       photo or select an avatar emoji below:</span>
                   </div>
 
                   <!-- Avatar emoji selection -->
                   <div class="form-group">
-                    <label>Choose Avatar Emoji</label>
+                    <label class="dict-key" data-key="profile-label-avatar-emoji">Choose Avatar Emoji</label>
                     <div class="avatar-selector-grid" id="avatar-selector-grid">
                       <!-- Populated in JS: e.g. 👤, 🤖, 🧠, 🥷, 🧙‍♂️, 🦉 -->
                     </div>
@@ -573,20 +573,20 @@
 
                   <!-- Username field -->
                   <div class="form-group">
-                    <label for="profile-username">Change Username</label>
+                    <label for="profile-username" class="dict-key" data-key="profile-label-username">Change Username</label>
                     <input type="text" id="profile-username" required>
                   </div>
 
                   <!-- Bio field -->
                   <div class="form-group">
-                    <label for="profile-bio">Short Biography (Bio)</label>
+                    <label for="profile-bio" class="dict-key" data-key="profile-label-bio">Short Biography (Bio)</label>
                     <textarea id="profile-bio-input" rows="2"
                       placeholder="Tell other players about your coding journey..."></textarea>
                   </div>
 
                   <!-- Favorite category field -->
                   <div class="form-group">
-                    <label for="profile-fav-cat">Favorite Subject Category</label>
+                    <label for="profile-fav-cat" class="dict-key" data-key="profile-label-fav-cat">Favorite Subject Category</label>
                     <select id="profile-fav-cat">
                       <option value="AI">Artificial Intelligence</option>
                       <option value="HTML">HTML</option>
@@ -619,8 +619,8 @@
                         <option value="theme_forest" disabled>Forest Green (Shop Item)</option>
                         <option value="theme_sunset" disabled>Sunset Orange (Shop Item)</option>
                       </select>
-                      <button type="button" id="btn-theme-restore-default" class="action-btn btn-secondary btn-sm" style="border-radius: var(--radius-sm); font-size: 11px; white-space: nowrap; height: 38px;">Restore Default</button>
-                      <button type="button" id="btn-theme-remove-current" class="action-btn btn-secondary btn-sm" style="border-radius: var(--radius-sm); font-size: 11px; white-space: nowrap; height: 38px; color: var(--accent-red); border-color: rgba(239,68,68,0.2);">Remove Theme</button>
+                      <button type="button" id="btn-theme-restore-default" class="action-btn btn-secondary btn-sm dict-key" data-key="btn-theme-restore-default" style="border-radius: var(--radius-sm); font-size: 11px; white-space: nowrap; height: 38px;">Restore Default</button>
+                      <button type="button" id="btn-theme-remove-current" class="action-btn btn-secondary btn-sm dict-key" data-key="btn-theme-remove-current" style="border-radius: var(--radius-sm); font-size: 11px; white-space: nowrap; height: 38px; color: var(--accent-red); border-color: rgba(239,68,68,0.2);">Remove Theme</button>
                     </div>
                   </div>
 
@@ -636,31 +636,31 @@
                     <label for="profile-tts-enabled" class="dict-key" data-key="settings-label-tts" style="margin: 0; cursor: pointer; font-size: 13px; font-weight: 500;">Enable Text-to-Speech (TTS) for Questions</label>
                   </div>
 
-                  <button type="submit" class="action-btn btn-gradient btn-block">Save Changes</button>
+                  <button type="submit" class="action-btn btn-gradient btn-block dict-key" data-key="profile-btn-save">Save Changes</button>
                 </form>
               </div>
 
               <!-- Claimed Certificates Card -->
               <div class="card">
-                <h3>My Earned Certificates</h3>
-                <p class="sub-heading">Your verified credentials list (quizzes scored >= 80% accuracy)</p>
+                <h3 class="dict-key" data-key="certs-card-title">My Earned Certificates</h3>
+                <p class="sub-heading dict-key" data-key="certs-card-desc">Your verified credentials list (quizzes scored >= 80% accuracy)</p>
                 <div id="certificates-list-container" class="history-list-wrapper" style="margin-top: 15px;">
-                  <div class="text-center text-muted" style="padding: 20px 0;">No certificates claimed yet. Complete any
+                  <div class="text-center text-muted dict-key" data-key="certs-empty" style="padding: 20px 0;">No certificates claimed yet. Complete any
                     quiz with 80% accuracy to earn.</div>
                 </div>
               </div>
 
               <!-- Login History & Session Devices -->
               <div class="card">
-                <h3>Active Device Sessions & Login History</h3>
-                <p class="sub-heading">Security audit records logging user-agent access logs</p>
+                <h3 class="dict-key" data-key="history-sessions-title">Active Device Sessions & Login History</h3>
+                <p class="sub-heading dict-key" data-key="history-sessions-desc">Security audit records logging user-agent access logs</p>
                 <div class="history-list-wrapper" style="margin-top: 15px; max-height: 250px; overflow-y: auto;">
                   <table class="data-table">
                     <thead>
                       <tr>
-                        <th>IP Address</th>
-                        <th>Device / User-Agent</th>
-                        <th>Login Timestamp</th>
+                        <th class="dict-key" data-key="th-ip">IP Address</th>
+                        <th class="dict-key" data-key="th-device">Device / User-Agent</th>
+                        <th class="dict-key" data-key="th-timestamp">Login Timestamp</th>
                       </tr>
                     </thead>
                     <tbody id="login-logs-tbody">
@@ -679,12 +679,12 @@
                 <div
                   style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
                   <div>
-                    <h3>Cosmetic Reward Shop</h3>
-                    <p class="sub-heading">Spend your accumulated XP/Coins on custom themes, avatar icons, and profile
+                    <h3 class="dict-key" data-key="shop-card-title">Cosmetic Reward Shop</h3>
+                    <p class="sub-heading dict-key" data-key="shop-card-desc">Spend your accumulated XP/Coins on custom themes, avatar icons, and profile
                       frames!</p>
                   </div>
                   <div class="coins-display-banner">
-                    <span>🪙</span> <strong id="shop-coins-balance">100</strong> Coins
+                    <span>🪙</span> <strong id="shop-coins-balance">100</strong> <span class="dict-key" data-key="dash-stat-coins">Coins</span>
                   </div>
                 </div>
 
@@ -694,15 +694,15 @@
               </div>
 
               <div class="card">
-                <h3>Shop Purchases Log</h3>
+                <h3 class="dict-key" data-key="shop-inventory-title">Shop Purchases Log</h3>
                 <div class="history-list-wrapper" style="margin-top: 15px;">
                   <table class="data-table">
                     <thead>
                       <tr>
-                        <th>Item Unlocked</th>
-                        <th>Item Type</th>
-                        <th>XP Cost</th>
-                        <th>Purchased Date</th>
+                        <th class="dict-key" data-key="th-item-unlocked">Item Unlocked</th>
+                        <th class="dict-key" data-key="th-item-type">Item Type</th>
+                        <th class="dict-key" data-key="th-xp-cost">XP Cost</th>
+                        <th class="dict-key" data-key="th-purchase-date">Purchased Date</th>
                       </tr>
                     </thead>
                     <tbody id="shop-purchases-tbody">
@@ -718,21 +718,21 @@
             <!-- D. SKILL PREDICTOR PANEL -->
             <div id="panel-dash-predictor" class="dash-tab-content hidden">
               <div class="card">
-                <h3>Future Skill Predictor</h3>
-                <p class="sub-heading">Artificial intelligence analytics mapping career path paths based on your
+                <h3 class="dict-key" data-key="predictor-card-title">Future Skill Predictor</h3>
+                <p class="sub-heading dict-key" data-key="predictor-desc">Artificial intelligence analytics mapping career path paths based on your
                   performance accuracy</p>
 
                 <!-- Skills Breakdown strong/weak -->
                 <div class="predictor-skills-section">
                   <div class="skills-list-container">
-                    <h4 style="color: var(--accent-green);">🔥 Strong Technical Skills</h4>
+                    <h4 style="color: var(--accent-green);" class="dict-key" data-key="predictor-strong-title">🔥 Strong Technical Skills</h4>
                     <div id="predictor-strong-skills">
                       <div class="text-muted" style="font-size: 13px; padding: 10px 0;">Complete more quizzes to
                         generate metrics!</div>
                     </div>
                   </div>
                   <div class="skills-list-container">
-                    <h4 style="color: var(--accent-red);">⚠️ Areas for Improvement</h4>
+                    <h4 style="color: var(--accent-red);" class="dict-key" data-key="predictor-weak-title">⚠️ Areas for Improvement</h4>
                     <div id="predictor-weak-skills">
                       <div class="text-muted" style="font-size: 13px; padding: 10px 0;">Complete more quizzes to
                         generate metrics!</div>
@@ -742,7 +742,7 @@
 
                 <!-- Monthly Progress Graph -->
                 <div class="predictor-chart-box">
-                  <h4 style="margin-bottom: 12px; font-family: var(--font-heading);">📊 Monthly Score Progress Graph
+                  <h4 style="margin-bottom: 12px; font-family: var(--font-heading);" class="dict-key" data-key="predictor-month-title">📊 Monthly Score Progress Graph
                   </h4>
                   <div id="predictor-svg-chart-container"
                     style="width: 100%; height: 180px; display: flex; align-items: center; justify-content: center; position: relative;">
@@ -751,13 +751,13 @@
                 </div>
 
                 <!-- Career Roles Deck -->
-                <h4 style="font-family: var(--font-heading);">🎯 Suggested Professional Career Roles</h4>
+                <h4 style="font-family: var(--font-heading);" class="dict-key" data-key="predictor-career-title">🎯 Suggested Professional Career Roles</h4>
                 <div class="career-roles-deck" id="predictor-career-deck">
                   <!-- Career suggestions -->
                 </div>
 
                 <!-- Learning Path Connector -->
-                <h4 style="font-family: var(--font-heading); margin-top: 25px;">🛤️ Recommended Study Learning Path</h4>
+                <h4 style="font-family: var(--font-heading); margin-top: 25px;" class="dict-key" data-key="predictor-path-title">🛤️ Recommended Study Learning Path</h4>
                 <div class="learning-path-connector" id="predictor-learning-path">
                   <!-- Nodes pathways -->
                 </div>
@@ -839,13 +839,13 @@
           <!-- Lifelines Panel -->
           <div class="quiz-lifelines-row"
             style="display: flex; gap: 10px; margin-bottom: 25px; align-items: center; flex-wrap: wrap;">
-            <span
+            <span class="dict-key" data-key="quiz-label-lifelines"
               style="font-size: 13px; font-weight: 600; color: var(--text-muted); margin-right: 5px;">Lifelines:</span>
-            <button id="btn-lifeline-5050" class="action-btn btn-secondary btn-sm"
+            <button id="btn-lifeline-5050" class="action-btn btn-secondary btn-sm dict-key" data-key="btn-lifeline-5050"
               style="border-radius: var(--radius-sm);">🌓 50:50</button>
-            <button id="btn-lifeline-skip" class="action-btn btn-secondary btn-sm"
+            <button id="btn-lifeline-skip" class="action-btn btn-secondary btn-sm dict-key" data-key="btn-lifeline-skip"
               style="border-radius: var(--radius-sm);">⏭️ Skip</button>
-            <button id="btn-lifeline-time" class="action-btn btn-secondary btn-sm"
+            <button id="btn-lifeline-time" class="action-btn btn-secondary btn-sm dict-key" data-key="btn-lifeline-time"
               style="border-radius: var(--radius-sm);">⏱️ +15s</button>
           </div>
 
@@ -861,10 +861,10 @@
 
           <!-- Arena Footer Controls -->
           <div class="quiz-controls-row">
-            <button id="btn-quiz-hint" class="action-btn btn-secondary">💡 Need a Hint? (3 left)</button>
+            <button id="btn-quiz-hint" class="action-btn btn-secondary dict-key" data-key="btn-quiz-hint">💡 Need a Hint? (3 left)</button>
             <div style="display: flex; gap: 10px; align-items: center;">
-              <button id="btn-quiz-tutor" class="action-btn btn-secondary hidden">💬 Ask AI Tutor</button>
-              <button id="btn-quiz-next" class="action-btn btn-gradient hidden">Next Question ➡️</button>
+              <button id="btn-quiz-tutor" class="action-btn btn-secondary hidden dict-key" data-key="btn-quiz-tutor">💬 Ask AI Tutor</button>
+              <button id="btn-quiz-next" class="action-btn btn-gradient hidden dict-key" data-key="btn-quiz-next">Next Question ➡️</button>
             </div>
           </div>
           <div id="hint-text-box" class="hint-box hidden"></div>
@@ -904,7 +904,7 @@
               <input type="text" id="tutor-chat-input" class="dict-key" data-key="tutor-input-placeholder"
                 placeholder="Ask a follow-up question..." required autocomplete="off"
                 style="flex:1; padding:8px 12px; font-size:13px; border-radius:var(--radius-sm); border:1px solid var(--border-card); background:rgba(0,0,0,0.15); color:white;">
-              <button type="submit" class="action-btn btn-gradient btn-sm" id="btn-tutor-chat-send"
+              <button type="submit" class="action-btn btn-gradient btn-sm dict-key" id="btn-tutor-chat-send" data-key="btn-tutor-chat-send"
                 style="padding: 6px 12px; font-size: 12px;">Send ➡️</button>
             </form>
           </div>
@@ -915,34 +915,34 @@
       <section id="view-summary" class="app-view hidden">
         <div class="summary-container card text-center">
           <div class="summary-trophy">🏆</div>
-          <h1 id="summary-headline">Quiz Completed!</h1>
-          <p id="summary-meta-desc">You tested your brain in AI Quiz Arena</p>
+          <h1 id="summary-headline" class="dict-key" data-key="summary-headline">Quiz Completed!</h1>
+          <p id="summary-meta-desc" class="dict-key" data-key="summary-meta-desc">You tested your brain in AI Quiz Arena</p>
 
           <div class="score-display-box">
             <div class="score-circle">
               <span class="score-num" id="summary-score">0 / 0</span>
-              <span class="score-label">Correct</span>
+              <span class="score-label dict-key" data-key="summary-score-label">Correct</span>
             </div>
             <div class="xp-earned-banner" id="summary-xp-earned">+0 XP Earned</div>
           </div>
 
           <!-- Unlocked badges alerts -->
           <div id="summary-unlocked-badge-alert" class="badge-alert-box hidden">
-            <h4>🏅 New Achievement Unlocked!</h4>
+            <h4 class="dict-key" data-key="summary-unlocked-badge-title">🏅 New Achievement Unlocked!</h4>
             <div id="summary-badge-badges" class="summary-badges-container"></div>
           </div>
 
           <div class="summary-actions">
-            <button id="btn-summary-dashboard" class="action-btn btn-gradient">Return to Dashboard</button>
-            <button id="btn-summary-review" class="action-btn btn-secondary">Review Answers</button>
-            <button id="btn-summary-certificate" class="action-btn btn-secondary hidden"
+            <button id="btn-summary-dashboard" class="action-btn btn-gradient dict-key" data-key="btn-summary-dashboard">Return to Dashboard</button>
+            <button id="btn-summary-review" class="action-btn btn-secondary dict-key" data-key="btn-summary-review">Review Answers</button>
+            <button id="btn-summary-certificate" class="action-btn btn-secondary hidden dict-key" data-key="btn-summary-certificate"
               style="color: var(--accent-green); border-color: rgba(16,185,129,0.3);">🎓 Claim Certificate</button>
           </div>
 
           <!-- Quiz Feedback rating -->
           <div class="feedback-rating-box"
             style="margin: 25px auto; max-width: 450px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;">
-            <h4 style="font-family: var(--font-heading); margin-bottom: 5px;">Rate your experience</h4>
+            <h4 style="font-family: var(--font-heading); margin-bottom: 5px;" class="dict-key" data-key="summary-rating-title">Rate your experience</h4>
             <div class="star-rating-row" id="feedback-star-row"
               style="display: flex; justify-content: center; gap: 8px; font-size: 36px; margin: 10px 0; cursor: pointer; color: var(--accent-amber);">
               <span class="star-btn" data-value="1">☆</span>
@@ -954,7 +954,7 @@
             <textarea id="feedback-comment" rows="2"
               style="width: 100%; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-card); background: rgba(0,0,0,0.15); color: white; margin-top: 8px; font-size: 13px;"
               placeholder="Leave a review comment (optional)..."></textarea>
-            <button id="btn-submit-feedback" class="action-btn btn-secondary btn-sm" style="margin-top: 10px;">Submit
+            <button id="btn-submit-feedback" class="action-btn btn-secondary btn-sm dict-key" data-key="btn-submit-feedback" style="margin-top: 10px;">Submit
               Review</button>
             <div id="feedback-success-msg" class="text-success hidden"
               style="font-size: 13px; margin-top: 8px; color: var(--accent-green);">Thank you for your feedback!</div>
@@ -962,7 +962,7 @@
 
           <!-- Answer Review Panel -->
           <div id="summary-review-panel" class="review-panel hidden text-left">
-            <h3>Question-by-Question Breakdown</h3>
+            <h3 class="dict-key" data-key="summary-review-title">Question-by-Question Breakdown</h3>
             <div class="review-questions-list" id="review-list-container">
               <!-- Dynamically populated review questions -->
             </div>
@@ -974,18 +974,18 @@
       <section id="view-leaderboard" class="app-view hidden">
         <div class="card leaderboard-card">
           <div class="leaderboard-header">
-            <h2>🏆 Global Rankings</h2>
-            <button id="btn-leaderboard-back" class="action-btn btn-secondary btn-sm">🔙 Dashboard</button>
+            <h2 class="dict-key" data-key="lb-title">🏆 Global Rankings</h2>
+            <button id="btn-leaderboard-back" class="action-btn btn-secondary btn-sm dict-key" data-key="btn-leaderboard-back">🔙 Dashboard</button>
           </div>
-          <p>Compete with engineers around the world. Ranked by Total Experience Points (XP).</p>
+          <p class="dict-key" data-key="lb-desc">Compete with engineers around the world. Ranked by Total Experience Points (XP).</p>
 
 
           <div class="leaderboard-periods-tabs" style="display: flex; gap: 8px; margin-top: 15px;">
-            <button id="btn-lb-period-all" class="action-btn btn-secondary btn-sm active"
+            <button id="btn-lb-period-all" class="action-btn btn-secondary btn-sm active dict-key" data-key="lb-period-all"
               data-period="all">All-Time</button>
-            <button id="btn-lb-period-weekly" class="action-btn btn-secondary btn-sm"
+            <button id="btn-lb-period-weekly" class="action-btn btn-secondary btn-sm dict-key" data-key="lb-period-weekly"
               data-period="weekly">Weekly</button>
-            <button id="btn-lb-period-monthly" class="action-btn btn-secondary btn-sm"
+            <button id="btn-lb-period-monthly" class="action-btn btn-secondary btn-sm dict-key" data-key="lb-period-monthly"
               data-period="monthly">Monthly</button>
           </div>
 
@@ -993,14 +993,14 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th style="width: 80px;">Rank</th>
-                  <th>Username</th>
-                  <th id="leaderboard-header-score">Total XP</th>
-                  <th>Quizzes Completed</th>
-                  <th>Perfect Score</th>
-                  <th>Streak</th>
-                  <th>Game Started At</th>
-                  <th>Game Completed At</th>
+                  <th style="width: 80px;" class="dict-key" data-key="lb-th-rank">Rank</th>
+                  <th class="dict-key" data-key="lb-th-username">Username</th>
+                  <th id="leaderboard-header-score" class="dict-key" data-key="lb-th-xp">Total XP</th>
+                  <th class="dict-key" data-key="lb-th-quizzes">Quizzes Completed</th>
+                  <th class="dict-key" data-key="lb-th-perfect">Perfect Score</th>
+                  <th class="dict-key" data-key="lb-th-streak">Streak</th>
+                  <th class="dict-key" data-key="lb-th-started">Game Started At</th>
+                  <th class="dict-key" data-key="lb-th-completed">Game Completed At</th>
                   <th class="dict-key" data-key="lb-th-actions">Actions</th>
                 </tr>
               </thead>
@@ -1020,26 +1020,26 @@
           <div class="admin-header">
             <div class="admin-title-area">
               <div class="admin-title-row">
-                <h2>🛡️ Admin Command Center</h2>
+                <h2 class="dict-key" data-key="admin-title">🛡️ Admin Command Center</h2>
                 <span class="badge badge-role admin-live-pill"><span class="live-dot"></span> System Live</span>
               </div>
-              <p class="admin-subtitle">Live player activity monitor, dynamic quiz scoring analytics & administration console</p>
+              <p class="admin-subtitle dict-key" data-key="admin-subtitle">Live player activity monitor, dynamic quiz scoring analytics & administration console</p>
             </div>
             <div class="admin-header-actions">
-              <button id="btn-admin-refresh" class="action-btn btn-secondary btn-sm" title="Refresh all data">🔄 Refresh Data</button>
-              <button id="btn-admin-switch-player" class="action-btn btn-primary btn-sm" title="Switch to Player View">🎮 Player Mode</button>
-              <button id="btn-admin-logout" class="action-btn btn-secondary btn-sm btn-danger-subtle" title="Sign out">🚪 Logout</button>
+              <button id="btn-admin-refresh" class="action-btn btn-secondary btn-sm dict-key" data-key="btn-admin-refresh" title="Refresh all data">🔄 Refresh Data</button>
+              <button id="btn-admin-switch-player" class="action-btn btn-primary btn-sm dict-key" data-key="btn-admin-switch-player" title="Switch to Player View">🎮 Player Mode</button>
+              <button id="btn-admin-logout" class="action-btn btn-secondary btn-sm btn-danger-subtle dict-key" data-key="btn-admin-logout" title="Sign out">🚪 Logout</button>
             </div>
           </div>
 
           <div class="admin-tabs">
-            <button id="admin-tab-activity" class="admin-tab active">📊 Quiz Activity</button>
-            <button id="admin-tab-questions" class="admin-tab">❓ Question Bank</button>
-            <button id="admin-tab-users" class="admin-tab">👥 Player Accounts</button>
-            <button id="admin-tab-feedback" class="admin-tab">⭐ Feedback</button>
-            <button id="admin-tab-reports" class="admin-tab">🚩 Reports</button>
-            <button id="admin-tab-notifs" class="admin-tab">📢 Broadcasts</button>
-            <button id="admin-tab-logins" class="admin-tab">🔒 Login Audits</button>
+            <button id="admin-tab-activity" class="admin-tab active dict-key" data-key="admin-tab-activity">📊 Quiz Activity</button>
+            <button id="admin-tab-questions" class="admin-tab dict-key" data-key="admin-tab-questions">❓ Question Bank</button>
+            <button id="admin-tab-users" class="admin-tab dict-key" data-key="admin-tab-users">👥 Player Accounts</button>
+            <button id="admin-tab-feedback" class="admin-tab dict-key" data-key="admin-tab-feedback">⭐ Feedback</button>
+            <button id="admin-tab-reports" class="admin-tab dict-key" data-key="admin-tab-reports">🚩 Reports</button>
+            <button id="admin-tab-notifs" class="admin-tab dict-key" data-key="admin-tab-notifs">📢 Broadcasts</button>
+            <button id="admin-tab-logins" class="admin-tab dict-key" data-key="admin-tab-logins">🔒 Login Audits</button>
           </div>
 
           <!-- Primary Panel: Live Activity & Overview -->
@@ -1049,7 +1049,7 @@
               <div class="admin-metric-card">
                 <div class="metric-icon-wrap metric-users">👥</div>
                 <div class="metric-info">
-                  <div class="metric-lbl">Total Users</div>
+                  <div class="metric-lbl dict-key" data-key="admin-lbl-total-users">Total Users</div>
                   <div class="metric-val" id="admin-stat-total-users">0</div>
                   <div class="metric-sub">Registered accounts</div>
                 </div>
@@ -1057,7 +1057,7 @@
               <div class="admin-metric-card">
                 <div class="metric-icon-wrap metric-attempts">🎯</div>
                 <div class="metric-info">
-                  <div class="metric-lbl">Total Quiz Attempts</div>
+                  <div class="metric-lbl dict-key" data-key="admin-lbl-total-attempts">Total Quiz Attempts</div>
                   <div class="metric-val" id="admin-stat-total-attempts">0</div>
                   <div class="metric-sub">All-time plays logged</div>
                 </div>
@@ -1065,7 +1065,7 @@
               <div class="admin-metric-card">
                 <div class="metric-icon-wrap metric-completed">✅</div>
                 <div class="metric-info">
-                  <div class="metric-lbl">Completed Quizzes</div>
+                  <div class="metric-lbl dict-key" data-key="admin-lbl-completed">Completed Quizzes</div>
                   <div class="metric-val" id="admin-stat-completed-quizzes">0</div>
                   <div class="metric-sub">Successfully submitted</div>
                 </div>
@@ -1073,7 +1073,7 @@
               <div class="admin-metric-card">
                 <div class="metric-icon-wrap metric-progress">⏳</div>
                 <div class="metric-info">
-                  <div class="metric-lbl">In-progress Quizzes</div>
+                  <div class="metric-lbl dict-key" data-key="admin-lbl-inprogress">In-progress Quizzes</div>
                   <div class="metric-val" id="admin-stat-inprogress-quizzes">0</div>
                   <div class="metric-sub">Active live sessions</div>
                 </div>
@@ -1083,20 +1083,20 @@
             <!-- 2. Search & Filter Bar -->
             <div class="admin-filter-container">
               <div class="filter-header">
-                <h3>🔍 Filter & Search User Activity</h3>
-                <button id="btn-admin-reset-filters" class="btn-text-action">Reset Filters</button>
+                <h3 class="dict-key" data-key="admin-filter-title">🔍 Filter & Search User Activity</h3>
+                <button id="btn-admin-reset-filters" class="btn-text-action dict-key" data-key="btn-admin-reset-filters">Reset Filters</button>
               </div>
               <div class="admin-filter-grid">
                 <div class="filter-input-group">
-                  <label for="admin-search-userid">User ID</label>
+                  <label for="admin-search-userid" class="dict-key" data-key="admin-lbl-filter-userid">User ID</label>
                   <input type="text" id="admin-search-userid" placeholder="Search by User ID (UUID)...">
                 </div>
                 <div class="filter-input-group">
-                  <label for="admin-search-username">Username</label>
+                  <label for="admin-search-username" class="dict-key" data-key="admin-lbl-filter-username">Username</label>
                   <input type="text" id="admin-search-username" placeholder="Search by player username...">
                 </div>
                 <div class="filter-input-group">
-                  <label for="admin-filter-quiz">Quiz Name</label>
+                  <label for="admin-filter-quiz" class="dict-key" data-key="admin-lbl-filter-quiz">Quiz Name</label>
                   <select id="admin-filter-quiz">
                     <option value="all">All Quizzes</option>
                     <option value="AI">AI</option>
@@ -1120,7 +1120,7 @@
                   </select>
                 </div>
                 <div class="filter-input-group">
-                  <label for="admin-filter-status">Completion Status</label>
+                  <label for="admin-filter-status" class="dict-key" data-key="admin-lbl-filter-status">Completion Status</label>
                   <select id="admin-filter-status">
                     <option value="all">All Statuses</option>
                     <option value="Completed">Completed</option>
@@ -1134,7 +1134,7 @@
             <!-- 3. User Quiz Activity Table -->
             <div class="admin-activity-section">
               <div class="admin-section-header-row">
-                <h3>📋 User Quiz Activity Log</h3>
+                <h3 class="dict-key" data-key="admin-activity-title">📋 User Quiz Activity Log</h3>
                 <span id="admin-activity-count-badge" class="badge badge-secondary">0 Attempts</span>
               </div>
               <div class="admin-table-container admin-activity-scroll">
@@ -1175,11 +1175,11 @@
             <div class="admin-panel-split">
               <!-- Form to create/edit question -->
               <div class="admin-form-container">
-                <h3 id="admin-question-form-title">Add New Quiz Question</h3>
+                <h3 id="admin-question-form-title" class="dict-key" data-key="admin-q-form-title">Add New Quiz Question</h3>
                 <form id="form-admin-question">
                   <input type="hidden" id="admin-q-id" value="">
                   <div class="form-group">
-                    <label for="admin-q-category">Category</label>
+                    <label for="admin-q-category" class="dict-key" data-key="admin-q-label-cat">Category</label>
                     <select id="admin-q-category" required>
                       <option value="AI">AI</option>
                       <option value="HTML">HTML</option>
@@ -1201,7 +1201,7 @@
                     </select>
                   </div>
                   <div class="form-group">
-                    <label for="admin-q-difficulty">Difficulty</label>
+                    <label for="admin-q-difficulty" class="dict-key" data-key="admin-q-label-diff">Difficulty</label>
                     <select id="admin-q-difficulty" required>
                       <option value="easy">Easy</option>
                       <option value="medium">Medium</option>
@@ -1209,31 +1209,31 @@
                     </select>
                   </div>
                   <div class="form-group">
-                    <label for="admin-q-text">Question Prompt</label>
+                    <label for="admin-q-text" class="dict-key" data-key="admin-q-label-prompt">Question Prompt</label>
                     <textarea id="admin-q-text" placeholder="Write question prompt..." required rows="2"></textarea>
                   </div>
                   <div class="form-row">
                     <div class="form-group">
-                      <label for="admin-q-optA">Option A</label>
+                      <label for="admin-q-optA" class="dict-key" data-key="admin-q-label-a">Option A</label>
                       <input type="text" id="admin-q-optA" placeholder="Answer choice A" required>
                     </div>
                     <div class="form-group">
-                      <label for="admin-q-optB">Option B</label>
+                      <label for="admin-q-optB" class="dict-key" data-key="admin-q-label-b">Option B</label>
                       <input type="text" id="admin-q-optB" placeholder="Answer choice B" required>
                     </div>
                   </div>
                   <div class="form-row">
                     <div class="form-group">
-                      <label for="admin-q-optC">Option C</label>
+                      <label for="admin-q-optC" class="dict-key" data-key="admin-q-label-c">Option C</label>
                       <input type="text" id="admin-q-optC" placeholder="Answer choice C" required>
                     </div>
                     <div class="form-group">
-                      <label for="admin-q-optD">Option D</label>
+                      <label for="admin-q-optD" class="dict-key" data-key="admin-q-label-d">Option D</label>
                       <input type="text" id="admin-q-optD" placeholder="Answer choice D" required>
                     </div>
                   </div>
                   <div class="form-group">
-                    <label for="admin-q-correct">Correct Option</label>
+                    <label for="admin-q-correct" class="dict-key" data-key="admin-q-label-correct">Correct Option</label>
                     <select id="admin-q-correct" required>
                       <option value="A">Option A</option>
                       <option value="B">Option B</option>
@@ -1242,16 +1242,16 @@
                     </select>
                   </div>
                   <div class="form-group">
-                    <label for="admin-q-explanation">Explanation (Displayed during review)</label>
+                    <label for="admin-q-explanation" class="dict-key" data-key="admin-q-label-explain">Explanation (Displayed during review)</label>
                     <textarea id="admin-q-explanation" placeholder="Provide background theory..." rows="2"></textarea>
                   </div>
                   <div class="form-group">
-                    <label for="admin-q-hint">Hint</label>
+                    <label for="admin-q-hint" class="dict-key" data-key="admin-q-label-hint">Hint</label>
                     <input type="text" id="admin-q-hint" placeholder="Short helper hint">
                   </div>
                   <div class="form-actions-row">
-                    <button type="submit" id="btn-admin-q-submit" class="action-btn btn-gradient">Add Question</button>
-                    <button type="button" id="btn-admin-q-cancel" class="action-btn btn-secondary hidden">Cancel
+                    <button type="submit" id="btn-admin-q-submit" class="action-btn btn-gradient dict-key" data-key="btn-admin-q-submit">Add Question</button>
+                    <button type="button" id="btn-admin-q-cancel" class="action-btn btn-secondary hidden dict-key" data-key="btn-admin-q-cancel">Cancel
                       Edit</button>
                   </div>
                 </form>
@@ -1259,10 +1259,10 @@
 
               <!-- Search/List questions -->
               <div class="admin-list-container">
-                <h3>Question Repository</h3>
+                <h3 class="dict-key" data-key="admin-q-repo-title">Question Repository</h3>
                 <div class="search-bar-row">
                   <input type="text" id="admin-search-query" placeholder="Search questions keyword...">
-                  <button id="btn-admin-search" class="action-btn btn-gradient">Search</button>
+                  <button id="btn-admin-search" class="action-btn btn-gradient dict-key" data-key="btn-admin-search">Search</button>
                 </div>
                 <div class="admin-questions-scroll">
                   <table class="data-table">
@@ -1286,7 +1286,7 @@
 
           <!-- Panel 2: Users Manager -->
           <div id="admin-panel-users" class="admin-panel-content hidden">
-            <h3>Registered Players Manager</h3>
+            <h3 class="dict-key" data-key="admin-users-title">Registered Players Manager</h3>
             <div class="admin-users-scroll">
               <table class="data-table">
                 <thead>
@@ -1311,7 +1311,7 @@
 
           <!-- Panel 3: Feedback Manager -->
           <div id="admin-panel-feedback" class="admin-panel-content hidden">
-            <h3>Player Rating Reviews</h3>
+            <h3 class="dict-key" data-key="admin-feedback-title">Player Rating Reviews</h3>
             <div class="admin-users-scroll">
               <table class="data-table">
                 <thead>
@@ -1333,7 +1333,7 @@
 
           <!-- Panel 4: Question Reports Manager -->
           <div id="admin-panel-reports" class="admin-panel-content hidden">
-            <h3>Flagged Question Reports</h3>
+            <h3 class="dict-key" data-key="admin-reports-title">Flagged Question Reports</h3>
             <div class="admin-users-scroll">
               <table class="data-table">
                 <thead>
@@ -1356,25 +1356,25 @@
 
           <!-- Panel 5: Notification Broadcast Manager -->
           <div id="admin-panel-notifs" class="admin-panel-content hidden">
-            <h3>System Broadcaster</h3>
+            <h3 class="dict-key" data-key="admin-broadcast-title">System Broadcaster</h3>
             <div class="admin-panel-split" style="gap:25px;">
               <div class="admin-form-container">
-                <h3>Broadcast Announcement</h3>
+                <h3 class="dict-key" data-key="admin-broadcast-label">Broadcast Announcement</h3>
                 <form id="form-admin-broadcast" style="display:flex; flex-direction:column; gap:12px; margin-top:10px;">
                   <div class="form-group">
-                    <label for="admin-notif-title">Notification Title</label>
+                    <label for="admin-notif-title" class="dict-key" data-key="admin-notif-title-label">Notification Title</label>
                     <input type="text" id="admin-notif-title" required placeholder="e.g. New Java Quiz Pack!">
                   </div>
                   <div class="form-group">
-                    <label for="admin-notif-msg">Broadcast Message</label>
+                    <label for="admin-notif-msg" class="dict-key" data-key="admin-notif-msg-label">Broadcast Message</label>
                     <textarea id="admin-notif-msg" required rows="2"
                       placeholder="Write system notification alert..."></textarea>
                   </div>
-                  <button type="submit" class="action-btn btn-gradient btn-block">Send Broadcast Alert</button>
+                  <button type="submit" class="action-btn btn-gradient btn-block dict-key" data-key="btn-admin-broadcast-submit">Send Broadcast Alert</button>
                 </form>
               </div>
               <div class="admin-list-container">
-                <h3>Broadcast History</h3>
+                <h3 class="dict-key" data-key="admin-broadcast-history-title">Broadcast History</h3>
                 <div class="admin-questions-scroll">
                   <table class="data-table">
                     <thead>
@@ -1397,7 +1397,7 @@
 
           <!-- Panel 6: Security Login Logs -->
           <div id="admin-panel-logins" class="admin-panel-content hidden">
-            <h3>Access Audit Security Logins</h3>
+            <h3 class="dict-key" data-key="admin-logs-title">Access Audit Security Logins</h3>
             <div class="admin-users-scroll">
               <table class="data-table">
                 <thead>
@@ -1433,24 +1433,24 @@
   <div id="modal-quiz-celebration" class="celebration-modal-overlay hidden">
     <div class="celebration-card">
       <div class="celebration-trophy">🏆</div>
-      <h1 id="cel-headline" class="gradient-text">Quiz Completed!</h1>
-      <p id="cel-meta-desc">You successfully completed the AI Quiz Arena challenge!</p>
+      <h1 id="cel-headline" class="gradient-text dict-key" data-key="cel-headline">Quiz Completed!</h1>
+      <p id="cel-meta-desc" class="dict-key" data-key="cel-meta-desc">You successfully completed the AI Quiz Arena challenge!</p>
 
       <div class="earned-stats-row">
         <div class="earned-stat-box">
-          <div class="earned-stat-lbl">Final Score</div>
+          <div class="earned-stat-lbl dict-key" data-key="cel-lbl-score">Final Score</div>
           <div class="earned-stat-val" id="cel-score">0 / 10</div>
         </div>
         <div class="earned-stat-box">
-          <div class="earned-stat-lbl">XP Earned</div>
+          <div class="earned-stat-lbl dict-key" data-key="cel-lbl-xp">XP Earned</div>
           <div class="earned-stat-val xp" id="cel-xp">+0 XP</div>
         </div>
         <div class="earned-stat-box">
-          <div class="earned-stat-lbl">Coins Earned</div>
+          <div class="earned-stat-lbl dict-key" data-key="cel-lbl-coins">Coins Earned</div>
           <div class="earned-stat-val coins" id="cel-coins">+0 Coins</div>
         </div>
         <div class="earned-stat-box">
-          <div class="earned-stat-lbl">Achievements</div>
+          <div class="earned-stat-lbl dict-key" data-key="cel-lbl-badges">Achievements</div>
           <div class="earned-stat-val" id="cel-badges-count">0</div>
         </div>
       </div>
@@ -1459,10 +1459,10 @@
         style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;"></div>
 
       <div style="display: flex; flex-direction: column; gap: 10px;">
-        <button id="btn-cel-claim" class="action-btn btn-gradient">Claim Certificate 🎓</button>
-        <button id="btn-cel-share" class="action-btn btn-secondary">Share Result 🔗</button>
-        <button id="btn-cel-continue" class="action-btn btn-secondary">Continue Learning 📚</button>
-        <button id="btn-cel-home" class="action-btn btn-secondary">Back to Home 🏠</button>
+        <button id="btn-cel-claim" class="action-btn btn-gradient dict-key" data-key="btn-cel-claim">Claim Certificate 🎓</button>
+        <button id="btn-cel-share" class="action-btn btn-secondary dict-key" data-key="btn-cel-share">Share Result 🔗</button>
+        <button id="btn-cel-continue" class="action-btn btn-secondary dict-key" data-key="btn-cel-continue">Continue Learning 📚</button>
+        <button id="btn-cel-home" class="action-btn btn-secondary dict-key" data-key="btn-cel-home">Back to Home 🏠</button>
       </div>
     </div>
   </div>
@@ -1475,11 +1475,11 @@
       <div id="certificate-capture-node" class="certificate-layout-frame">
         <div class="certificate-inner-border">
           <div class="certificate-badge-logo">🏅</div>
-          <div class="cert-congrats-text">Congratulations!</div>
-          <h2 class="cert-title">Certificate of Achievement</h2>
-          <p class="cert-name-label">This is proudly presented to</p>
+          <div class="cert-congrats-text dict-key" data-key="cert-congrats">Congratulations!</div>
+          <h2 class="cert-title dict-key" data-key="cert-title-cert">Certificate of Achievement</h2>
+          <p class="cert-name-label dict-key" data-key="cert-name-lbl">This is proudly presented to</p>
           <h1 class="cert-user-name" id="cert-user-name">Guest Player</h1>
-          <p class="cert-body-desc">
+          <p class="cert-body-desc dict-key" data-key="cert-desc-lbl">
             For successfully completing the AI Quiz Challenge and demonstrating excellent knowledge and performance in
             the technical subject category.
           </p>
@@ -1515,13 +1515,13 @@
 
       <!-- Action Buttons -->
       <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap;">
-        <button id="btn-cert-download-pdf" class="action-btn btn-gradient" style="flex: 1; min-width: 120px;">Download
+        <button id="btn-cert-download-pdf" class="action-btn btn-gradient dict-key" data-key="btn-cert-download-pdf" style="flex: 1; min-width: 120px;">Download
           PDF</button>
-        <button id="btn-cert-download-png" class="action-btn btn-gradient" style="flex: 1; min-width: 120px;">Download
+        <button id="btn-cert-download-png" class="action-btn btn-gradient dict-key" data-key="btn-cert-download-png" style="flex: 1; min-width: 120px;">Download
           PNG</button>
-        <button id="btn-cert-share" class="action-btn btn-secondary" style="flex: 1; min-width: 120px;">Share
+        <button id="btn-cert-share" class="action-btn btn-secondary dict-key" data-key="btn-cert-share" style="flex: 1; min-width: 120px;">Share
           Certificate</button>
-        <button id="btn-cert-close" class="action-btn btn-secondary" style="flex: 1; min-width: 120px;">Back to
+        <button id="btn-cert-close" class="action-btn btn-secondary dict-key" data-key="btn-cert-close" style="flex: 1; min-width: 120px;">Back to
           Home</button>
       </div>
     </div>
@@ -1554,37 +1554,37 @@
   <!-- PASSWORD RECOVERY MODAL -->
   <div id="modal-password-reset" class="secure-auth-overlay hidden">
     <div class="secure-auth-card animate-scale-up">
-      <h3 id="reset-modal-title" style="margin-bottom: 15px;">Password Recovery</h3>
+      <h3 id="reset-modal-title" style="margin-bottom: 15px;" class="dict-key" data-key="reset-title">Password Recovery</h3>
 
       <!-- Step 1: Send OTP -->
       <form id="form-reset-send-otp">
-        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Enter your email address to receive a
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;" class="dict-key" data-key="reset-email-desc">Enter your email address to receive a
           secure password recovery code.</p>
         <div class="form-group">
-          <label for="reset-email">Email Address</label>
+          <label for="reset-email" class="dict-key" data-key="reset-email-label">Email Address</label>
           <input type="email" id="reset-email" placeholder="Enter your email" required>
         </div>
-        <button type="submit" class="action-btn btn-gradient btn-block" style="margin-top: 20px;">Send Recovery
+        <button type="submit" class="action-btn btn-gradient btn-block dict-key" data-key="reset-btn-send" style="margin-top: 20px;">Send Recovery
           Code</button>
-        <button type="button" class="action-btn btn-secondary btn-block btn-close-reset"
+        <button type="button" class="action-btn btn-secondary btn-block btn-close-reset dict-key" data-key="reset-btn-cancel"
           style="margin-top: 10px;">Cancel</button>
       </form>
 
       <!-- Step 2: Verify OTP & Reset Password -->
       <form id="form-reset-password" class="hidden">
-        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Enter the code and choose a new
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;" class="dict-key" data-key="reset-code-desc">Enter the code and choose a new
           password.</p>
         <div class="form-group">
-          <label for="reset-code">Verification Code</label>
+          <label for="reset-code" class="dict-key" data-key="reset-code-label">Verification Code</label>
           <input type="text" id="reset-code" placeholder="Enter 6-digit code" required maxlength="6">
         </div>
         <div class="form-group" style="margin-top: 15px;">
-          <label for="reset-new-password">New Password</label>
+          <label for="reset-new-password" class="dict-key" data-key="reset-pass-label">New Password</label>
           <input type="password" id="reset-new-password" placeholder="Min. 6 characters" required minlength="6">
         </div>
-        <button type="submit" class="action-btn btn-gradient btn-block" style="margin-top: 20px;">Reset
+        <button type="submit" class="action-btn btn-gradient btn-block dict-key" data-key="reset-btn-submit" style="margin-top: 20px;">Reset
           Password</button>
-        <button type="button" class="action-btn btn-secondary btn-block btn-close-reset"
+        <button type="button" class="action-btn btn-secondary btn-block btn-close-reset dict-key" data-key="reset-btn-cancel"
           style="margin-top: 10px;">Cancel</button>
       </form>
     </div>
@@ -1639,27 +1639,27 @@
   <!-- REPORT QUESTION MODAL -->
   <div id="modal-report-question" class="secure-auth-overlay hidden">
     <div class="secure-auth-card animate-scale-up">
-      <h3 style="margin-bottom: 15px;">Report Question</h3>
+      <h3 style="margin-bottom: 15px;" class="dict-key" data-key="report-title">Report Question</h3>
       <form id="form-report-question">
         <input type="hidden" id="report-q-id" value="">
         <div class="form-group">
-          <label>Select Reason</label>
+          <label class="dict-key" data-key="report-label-reason">Select Reason</label>
           <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px;">
-            <label><input type="radio" name="report-reason" value="Wrong Answer" checked> Wrong Answer</label>
-            <label><input type="radio" name="report-reason" value="Incorrect Question"> Incorrect Question</label>
-            <label><input type="radio" name="report-reason" value="Typo"> Typo</label>
-            <label><input type="radio" name="report-reason" value="Duplicate"> Duplicate</label>
-            <label><input type="radio" name="report-reason" value="Other"> Other</label>
+            <label><input type="radio" name="report-reason" value="Wrong Answer" checked> <span class="dict-key" data-key="report-reason-wrong">Wrong Answer</span></label>
+            <label><input type="radio" name="report-reason" value="Incorrect Question"> <span class="dict-key" data-key="report-reason-incorrect">Incorrect Question</span></label>
+            <label><input type="radio" name="report-reason" value="Typo"> <span class="dict-key" data-key="report-reason-typo">Typo</span></label>
+            <label><input type="radio" name="report-reason" value="Duplicate"> <span class="dict-key" data-key="report-reason-dup">Duplicate</span></label>
+            <label><input type="radio" name="report-reason" value="Other"> <span class="dict-key" data-key="report-reason-other">Other</span></label>
           </div>
         </div>
         <div class="form-group" style="margin-top: 15px;">
-          <label for="report-comments">Additional Comments</label>
+          <label for="report-comments" class="dict-key" data-key="report-comments-label">Additional Comments</label>
           <textarea id="report-comments" rows="3"
             placeholder="Describe why this question should be corrected..."></textarea>
         </div>
         <div class="form-actions-row" style="margin-top: 20px; display: flex; gap: 10px;">
-          <button type="submit" class="action-btn btn-gradient" style="flex: 1;">Submit Report</button>
-          <button type="button" id="btn-close-report-modal" class="action-btn btn-secondary"
+          <button type="submit" class="action-btn btn-gradient dict-key" data-key="report-btn-submit" style="flex: 1;">Submit Report</button>
+          <button type="button" id="btn-close-report-modal" class="action-btn btn-secondary dict-key" data-key="report-btn-cancel"
             style="flex: 1;">Cancel</button>
         </div>
       </form>
@@ -1672,7 +1672,7 @@
       <div id="popcard-icon" style="font-size: 48px; margin-bottom: 12px; filter: drop-shadow(0 0 8px rgba(255,255,255,0.1));">❌</div>
       <h3 id="popcard-title" style="margin-bottom: 10px; font-size: 20px; font-weight: 700; color: var(--accent-red, #ff4d4d);">Error Occurred</h3>
       <p id="popcard-message" style="font-size: 14px; color: var(--text-muted); margin-bottom: 25px; line-height: 1.5; word-break: break-word; padding: 0 10px;">An unexpected error occurred.</p>
-      <button id="btn-popcard-ok" class="action-btn btn-gradient btn-block" style="border-radius: var(--radius-sm); font-weight: 700; cursor: none;">OK</button>
+      <button id="btn-popcard-ok" class="action-btn btn-gradient btn-block dict-key" data-key="btn-popcard-ok" style="border-radius: var(--radius-sm); font-weight: 700; cursor: none;">OK</button>
     </div>
   </div>
 

@@ -302,7 +302,8 @@ async function addUserNotification(req, res) {
         user_id: userId,
         title,
         message,
-        is_read: false
+        type: req.body.type || 'alert',
+        is_read: 0
       })
       .select()
       .single();

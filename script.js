@@ -1315,7 +1315,30 @@ const MockDatabase = {
     // 7. Get Notifications
     if (endpoint === '/notifications' && method === 'GET') {
       const list = JSON.parse(localStorage.getItem('mock_notifications') || '[]');
-      return Promise.resolve(list);
+      const user = this.getMockUser();
+      const currentUserId = user && user.id ? user.id : 0;
+      const userNotifs = list.filter(n => !n.user_id || n.user_id === 0 || n.user_id === currentUserId);
+      userNotifs.sort((a, b) => new Date(b.created_at || b.id) - new Date(a.created_at || a.id));
+      return Promise.resolve(userNotifs);
+    }
+
+    // 7a. Add Notification
+    if (endpoint === '/notifications' && method === 'POST') {
+      const user = this.getMockUser();
+      const currentUserId = user && user.id ? user.id : 0;
+      const list = JSON.parse(localStorage.getItem('mock_notifications') || '[]');
+      const newNotif = {
+        id: Date.now(),
+        user_id: currentUserId,
+        title: body.title,
+        message: body.message,
+        type: body.type || 'alert',
+        is_read: 0,
+        created_at: new Date().toISOString()
+      };
+      list.unshift(newNotif);
+      localStorage.setItem('mock_notifications', JSON.stringify(list));
+      return Promise.resolve(newNotif);
     }
 
     // 8. Mark Notifications Read
@@ -1570,6 +1593,9 @@ const ViewController = {
       }
     });
     AppState.activeView = viewName;
+    if (typeof translateUI === 'function') {
+      translateUI(window.currentLang || localStorage.getItem('app_language') || 'en');
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
     console.log(`Routed to view: ${viewName}`);
   }
@@ -2383,7 +2409,8 @@ const QuizArena = {
     }
 
     AudioSynth.playClick();
-    const q = AppState.quiz.questions[AppState.quiz.currentIndex];
+    const q = AppState.quiz.questions ? AppState.quiz.questions[AppState.quiz.currentIndex] : null;
+    if (!q) return;
     const hintEl = document.getElementById('hint-text-box');
     hintEl.innerText = `Hint: ${q.hint || 'No specific hint available. Try eliminating 2 options.'}`;
     hintEl.classList.remove('hidden');
@@ -2788,7 +2815,8 @@ const QuizArena = {
     // Handle Certificate Button visibility
     const btnCert = document.getElementById('btn-summary-certificate');
     if (btnCert) {
-      if (score >= totalQuestions * 0.8 && !isGameOver) {
+      const isGameOverState = AppState.quiz && AppState.quiz.isGameOver;
+      if (score >= totalQuestions * 0.8 && !isGameOverState) {
         btnCert.classList.remove('hidden');
         btnCert.onclick = () => {
           this.downloadCertificate();
@@ -2801,6 +2829,10 @@ const QuizArena = {
 
   downloadCertificate() {
     AudioSynth.playClick();
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      alert('Certificate generator library is loading, please try again in a moment.');
+      return;
+    }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({
       orientation: 'landscape',
@@ -2966,19 +2998,29 @@ const ViewRefresher = {
       let guestAchievements = JSON.parse(localStorage.getItem('guest_achievements')) || [];
       let guestHistory = JSON.parse(localStorage.getItem('guest_history')) || [];
 
-      document.getElementById('dash-username').innerText = 'Guest Player';
-      document.getElementById('dash-user-role').innerText = 'Guest';
-      document.getElementById('dash-user-role').className = 'badge badge-secondary';
-      document.getElementById('dash-xp').innerText = `${guestProgress.total_xp} XP`;
+      const uNameEl = document.getElementById('dash-username');
+      if (uNameEl) uNameEl.innerText = (window.currentLang === 'ta' ? 'விருந்தினர் பயனர்' : window.currentLang === 'hi' ? 'अतिथि खिलाड़ी' : 'Guest Player');
+      const uRoleEl = document.getElementById('dash-user-role');
+      if (uRoleEl) {
+        uRoleEl.innerText = (window.currentLang === 'ta' ? 'விருந்தினர்' : window.currentLang === 'hi' ? 'अतिथि' : 'Guest');
+        uRoleEl.className = 'badge badge-secondary';
+      }
+      const xpEl = document.getElementById('dash-xp');
+      if (xpEl) xpEl.innerText = `${guestProgress.total_xp} XP`;
       this.updateCoinsDisplay(guestProgress.total_coins);
-      document.getElementById('dash-completed').innerText = guestProgress.quizzes_completed;
+      const compEl = document.getElementById('dash-completed');
+      if (compEl) compEl.innerText = guestProgress.quizzes_completed;
       const perfectEl = document.getElementById('dash-perfect');
       if (perfectEl) perfectEl.innerText = guestProgress.perfect_quizzes;
-      document.getElementById('dash-streak').innerText = `🔥 ${guestProgress.daily_streak}`;
+      const streakEl = document.getElementById('dash-streak');
+      if (streakEl) streakEl.innerText = `🔥 ${guestProgress.daily_streak}`;
 
-      document.getElementById('btn-nav-login').classList.remove('hidden');
-      document.getElementById('user-profile-summary').classList.add('hidden');
-      document.getElementById('btn-dash-admin').classList.add('hidden');
+      const navLoginBtn = document.getElementById('btn-nav-login');
+      if (navLoginBtn) navLoginBtn.classList.remove('hidden');
+      const profileSumm = document.getElementById('user-profile-summary');
+      if (profileSumm) profileSumm.classList.add('hidden');
+      const dashAdminBtn = document.getElementById('btn-dash-admin');
+      if (dashAdminBtn) dashAdminBtn.classList.add('hidden');
 
       // Level calculations for Guest
       const level = Math.floor(Math.sqrt(guestProgress.total_xp / 100)) + 1;
@@ -3010,34 +3052,44 @@ const ViewRefresher = {
 
       // Populate history logs for Guest
       const tbody = document.getElementById('history-table-body');
-      tbody.innerHTML = '';
-      if (guestHistory.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center">No guest activity yet. Play a quiz!</td></tr>`;
-      } else {
-        guestHistory.forEach(h => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td>${h.category}</td>
-            <td>${h.difficulty.toUpperCase()}</td>
-            <td><strong>${h.score} / ${h.total_questions}</strong></td>
-            <td>${h.attempted_at.split('T')[0]}</td>
-          `;
-          tbody.appendChild(row);
-        });
+      if (tbody) {
+        tbody.innerHTML = '';
+        if (guestHistory.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4" class="text-center">No guest activity yet. Play a quiz!</td></tr>`;
+        } else {
+          guestHistory.forEach(h => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${h.category}</td>
+              <td>${h.difficulty.toUpperCase()}</td>
+              <td><strong>${h.score} / ${h.total_questions}</strong></td>
+              <td>${h.attempted_at.split('T')[0]}</td>
+            `;
+            tbody.appendChild(row);
+          });
+        }
       }
 
       // Guest Accuracy calculation
       const totalAnswers = guestHistory.reduce((acc, h) => acc + h.total_questions, 0);
       const correctAnswers = guestHistory.reduce((acc, h) => acc + h.score, 0);
       const ratio = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0;
-      document.getElementById('analytics-accuracy').innerText = `${ratio}%`;
-      document.getElementById('analytics-skill-tier').innerText = level > 15 ? 'Elite Master' : level > 8 ? 'Senior Scholar' : 'Novice Learner';
+      const accEl = document.getElementById('analytics-accuracy');
+      if (accEl) accEl.innerText = `${ratio}%`;
+      const tierEl = document.getElementById('analytics-skill-tier');
+      if (tierEl) tierEl.innerText = level > 15 ? 'Elite Master' : level > 8 ? 'Senior Scholar' : 'Novice Learner';
 
       // Clear Bookmarks count and container
-      document.getElementById('bookmark-count').innerText = '0';
-      document.getElementById('bookmarks-container').innerHTML = `
-        <div class="text-center text-muted" style="padding: 20px 0;">Guest mode: sign in to save bookmarks.</div>
-      `;
+      const countEl1 = document.getElementById('bookmark-count');
+      if (countEl1) countEl1.innerText = '0';
+      const countEl2 = document.getElementById('bookmarks-count');
+      if (countEl2) countEl2.innerText = '0';
+      const bmContainer = document.getElementById('bookmarks-container');
+      if (bmContainer) {
+        bmContainer.innerHTML = `
+          <div class="text-center text-muted" style="padding: 20px 0;">Guest mode: sign in to save bookmarks.</div>
+        `;
+      }
       return;
     }
 
@@ -3047,14 +3099,21 @@ const ViewRefresher = {
       AppState.user = profile.user;
 
       // Update UI texts
-      document.getElementById('dash-username').innerText = profile.user.username;
-      document.getElementById('dash-user-role').innerText = profile.user.role.toUpperCase();
-      document.getElementById('dash-user-role').className = `badge ${profile.user.role === 'admin' ? 'badge-role' : ''}`;
+      const uNameEl = document.getElementById('dash-username');
+      if (uNameEl) uNameEl.innerText = profile.user.username;
+      const uRoleEl = document.getElementById('dash-user-role');
+      if (uRoleEl) {
+        uRoleEl.innerText = profile.user.role.toUpperCase();
+        uRoleEl.className = `badge ${profile.user.role === 'admin' ? 'badge-role' : ''}`;
+      }
 
-      document.getElementById('dash-xp').innerText = `${profile.progress.total_xp} XP`;
+      const xpEl = document.getElementById('dash-xp');
+      if (xpEl) xpEl.innerText = `${profile.progress.total_xp} XP`;
       this.updateCoinsDisplay(profile.progress.total_coins || 0);
-      document.getElementById('dash-streak').innerText = `🔥 ${profile.progress.daily_streak}`;
-      document.getElementById('dash-completed').innerText = profile.progress.quizzes_completed;
+      const streakEl = document.getElementById('dash-streak');
+      if (streakEl) streakEl.innerText = `🔥 ${profile.progress.daily_streak}`;
+      const compEl = document.getElementById('dash-completed');
+      if (compEl) compEl.innerText = profile.progress.quizzes_completed;
 
       // Update bio, favorite category, avatar, and frames
       const bioEl = document.getElementById('dash-bio');
@@ -3094,9 +3153,12 @@ const ViewRefresher = {
       }
 
       // Navigation user widget
-      document.getElementById('btn-nav-login').classList.add('hidden');
-      document.getElementById('user-profile-summary').classList.remove('hidden');
-      document.getElementById('user-display-name').innerText = profile.user.username;
+      const navLoginBtn = document.getElementById('btn-nav-login');
+      if (navLoginBtn) navLoginBtn.classList.add('hidden');
+      const profileSumm = document.getElementById('user-profile-summary');
+      if (profileSumm) profileSumm.classList.remove('hidden');
+      const userDisp = document.getElementById('user-display-name');
+      if (userDisp) userDisp.innerText = profile.user.username;
 
       // Header avatar visual update
       const headerEmojiEl = document.getElementById('header-avatar-emoji');
@@ -3118,10 +3180,13 @@ const ViewRefresher = {
 
       // Toggle Admin quick actions
       const userRole = String((profile.user && profile.user.role) || '').toLowerCase().trim();
-      if (userRole === 'admin') {
-        document.getElementById('btn-dash-admin').classList.remove('hidden');
-      } else {
-        document.getElementById('btn-dash-admin').classList.add('hidden');
+      const dashAdminBtn = document.getElementById('btn-dash-admin');
+      if (dashAdminBtn) {
+        if (userRole === 'admin') {
+          dashAdminBtn.classList.remove('hidden');
+        } else {
+          dashAdminBtn.classList.add('hidden');
+        }
       }
 
       // Check achievements
@@ -3140,35 +3205,37 @@ const ViewRefresher = {
 
       // Populate history logs
       const tbody = document.getElementById('history-table-body');
-      tbody.innerHTML = '';
-
-      if (!profile.history || profile.history.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center">No recent activity.</td></tr>`;
-      } else {
-        profile.history.forEach(h => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td>${h.category}</td>
-            <td>${h.difficulty.toUpperCase()}</td>
-            <td><strong>${h.score} / ${h.total_questions}</strong></td>
-            <td>${h.attempted_at.split('T')[0]}</td>
-          `;
-          tbody.appendChild(row);
-        });
+      if (tbody) {
+        tbody.innerHTML = '';
+        if (!profile.history || profile.history.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4" class="text-center">No recent activity.</td></tr>`;
+        } else {
+          profile.history.forEach(h => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${h.category}</td>
+              <td>${h.difficulty.toUpperCase()}</td>
+              <td><strong>${h.score} / ${h.total_questions}</strong></td>
+              <td>${h.attempted_at.split('T')[0]}</td>
+            `;
+            tbody.appendChild(row);
+          });
+        }
       }
 
       // Performance analytics calculations
       const totalAnswers = profile.history.reduce((acc, h) => acc + h.total_questions, 0);
       const correctAnswers = profile.history.reduce((acc, h) => acc + h.score, 0);
       const ratio = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0;
-      document.getElementById('analytics-accuracy').innerText = `${ratio}%`;
+      const accEl = document.getElementById('analytics-accuracy');
+      if (accEl) accEl.innerText = `${ratio}%`;
 
       // Level and tier calculations
       const xp = profile.progress.total_xp || 0;
       const level = Math.floor(Math.sqrt(xp / 100)) + 1;
       const tier = level > 15 ? 'Elite Master' : level > 8 ? 'Senior Scholar' : 'Novice Learner';
-
-      document.getElementById('analytics-skill-tier').innerText = tier;
+      const tierEl = document.getElementById('analytics-skill-tier');
+      if (tierEl) tierEl.innerText = tier;
 
       // Level calculations
       const currentLevelXp = Math.round(100 * Math.pow(level - 1, 2));
@@ -3198,9 +3265,13 @@ const ViewRefresher = {
 
     try {
       const bookmarks = await NetworkClient.request('/bookmarks');
-      document.getElementById('bookmark-count').innerText = bookmarks.length;
+      const countEl1 = document.getElementById('bookmark-count');
+      if (countEl1) countEl1.innerText = bookmarks.length;
+      const countEl2 = document.getElementById('bookmarks-count');
+      if (countEl2) countEl2.innerText = bookmarks.length;
 
       const container = document.getElementById('bookmarks-container');
+      if (!container) return;
       container.innerHTML = '';
 
       if (bookmarks.length === 0) {
@@ -4057,20 +4128,56 @@ const NotificationController = {
           timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
+        const notifTransMap = {
+          ta: {
+            "Welcome to AI Quiz Challenge!": "AI வினாடி வினா சவாலுக்கு வரவேற்கிறோம்!",
+            "Earn XP, climb the leaderboard, and unlock premium skins!": "எக்ஸ்பி பெற்று, தரவரிசையில் ஏறி, பிரீமியம் தோல்களைத் திறக்கவும்!",
+            "Tamil & Hindi languages added!": "தமிழ் மற்றும் இந்தி மொழிகள் சேர்க்கப்பட்டன!",
+            "Switch instantly in the header without page refresh.": "பக்கத்தை புதுப்பிக்காமல் தலைப்பில் உடனடியாக மொழியை மாற்றலாம்.",
+            "Daily Quiz Reminder 📅": "தினசரி வினாடி வினா நினைவூட்டல் 📅",
+            "Keep your streak going! Play today's daily challenge to earn bonus XP and Coins.": "உங்கள் தொடரைத் தொடருங்கள்! போனஸ் எக்ஸ்பி மற்றும் நாணயங்களைப் பெற இன்றைய தினசரி சவாலை விளையாடுங்கள்.",
+            "Quiz Completed! 🏆": "வினாடி வினா முடிந்தது! 🏆",
+            "Level-up! 🌟": "புதிய நிலை திறக்கப்பட்டது! 🌟",
+            "Achievement Unlocked! 🏆": "சாதனை திறக்கப்பட்டது! 🏆",
+            "Purchase Successful! 🛒": "வாங்குதல் வெற்றிகரமாக முடிந்தது! 🛒",
+            "Certificate Generated! 🎓": "சான்றிதழ் உருவாக்கப்பட்டது! 🎓"
+          },
+          hi: {
+            "Welcome to AI Quiz Challenge!": "AI प्रश्नोत्तरी चुनौती में आपका स्वागत है!",
+            "Earn XP, climb the leaderboard, and unlock premium skins!": "XP अर्जित करें, लीडरबोर्ड पर चढ़ें और प्रीमियम स्किन अनलॉक करें!",
+            "Tamil & Hindi languages added!": "तमिल और हिंदी भाषाएं जोड़ी गईं!",
+            "Switch instantly in the header without page refresh.": "पेज रीफ्रेश किए बिना हेडर में तुरंत स्विच करें।",
+            "Daily Quiz Reminder 📅": "दैनिक प्रश्नोत्तरी अनुस्मारक 📅",
+            "Keep your streak going! Play today's daily challenge to earn bonus XP and Coins.": "अपनी स्ट्रीक जारी रखें! बोनस XP और सिक्के कमाने के लिए आज की दैनिक चुनौती खेलें।",
+            "Quiz Completed! 🏆": "प्रश्नोत्तरी पूरी हुई! 🏆",
+            "Level-up! 🌟": "स्तर अपग्रेड! 🌟",
+            "Achievement Unlocked! 🏆": "उपलब्धि अनलॉक! 🏆",
+            "Purchase Successful! 🛒": "खरीद सफल! 🛒",
+            "Certificate Generated! 🎓": "प्रमाणपत्र जारी किया गया! 🎓"
+          }
+        };
+
+        const activeLang = window.currentLang || localStorage.getItem('app_language') || 'en';
+        const displayTitle = (notifTransMap[activeLang] && notifTransMap[activeLang][n.title]) || n.title;
+        const displayMessage = (notifTransMap[activeLang] && notifTransMap[activeLang][n.message]) || n.message;
+
         item.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
-            <div class="notification-title" style="font-weight: 600; color: var(--text-main); font-size: 13px; margin-bottom: 3px;">${n.title}</div>
+            <div class="notification-title" style="font-weight: 600; color: var(--text-main); font-size: 13px; margin-bottom: 3px;">${displayTitle}</div>
             <button class="delete-notif-btn" data-id="${n.id}" style="background: none; border: none; color: var(--status-wrong, #ef4444); cursor: pointer; font-size: 12px; font-weight: bold; padding: 2px 4px; border-radius: var(--radius-sm); transition: opacity 0.2s; opacity: 0.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6;" title="Delete Notification">✕</button>
           </div>
-          <div class="notification-message" style="font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-bottom: 5px;">${n.message}</div>
+          <div class="notification-message" style="font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-bottom: 5px;">${displayMessage}</div>
           <div class="notification-date" style="font-size: 10px; color: var(--text-dark-muted); text-align: right;">${timeStr}</div>
         `;
 
-        item.querySelector('.delete-notif-btn').addEventListener('click', (e) => {
-          e.stopPropagation();
-          AudioSynth.playClick();
-          this.promptDelete(n.id);
-        });
+        const delBtn = item.querySelector('.delete-notif-btn');
+        if (delBtn) {
+          delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            AudioSynth.playClick();
+            this.promptDelete(n.id);
+          });
+        }
 
         listContainer.appendChild(item);
       });
@@ -4298,6 +4405,1231 @@ const VoiceQuizController = {
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🏁 Application Booted.');
 
+  // 1. MULTILINGUAL DICTIONARIES & TRANSLATIONS SWITCHER
+  // 1. MULTILINGUAL DICTIONARIES & TRANSLATIONS SWITCHER
+  const Translations = {
+  en: {
+    "tab-dash-arena": "🎮 Arena",
+    "tab-dash-profile": "👤 Profile Hub",
+    "tab-dash-shop": "🪙 Reward Shop",
+    "tab-dash-predictor": "📊 Skill Predictor",
+    "btn-voice-speak": "🔊 Speak Question",
+    "btn-voice-pause": "⏸️ Pause",
+    "btn-voice-stop": "⏹️ Stop",
+    "btn-quiz-report": "🚩 Report",
+    "btn-quiz-tutor": "💬 Ask AI Tutor",
+    "btn-quiz-next": "Next Question ➡️",
+    "btn-quiz-hint": "💡 Need a Hint? (3 left)",
+    "btn-submit-feedback": "Submit Review",
+    "btn-summary-dashboard": "Return to Dashboard",
+    "btn-summary-review": "Review Answers",
+    "btn-summary-certificate": "🎓 Claim Certificate",
+    "btn-cel-claim": "Claim Certificate 🎓",
+    "btn-cel-share": "Share Result 🔗",
+    "btn-cel-continue": "Continue Learning 📚",
+    "btn-cel-home": "Back to Home 🏠",
+    "btn-nav-login": "Sign In",
+    "btn-play-guest-landing": "Play as Guest 👤",
+    "app-title": "AI Quiz Challenge",
+    "tooltip-coins-title": "Coins Balance",
+    "tooltip-coins-desc": "You earn 1 Coin for every 1 XP gained by answering questions correctly. Coins can be spent in the Reward Shop to unlock custom themes, frames, and avatars!",
+    "hero-title-text": "Smart AI-Powered Education Quiz and <br><span class=\"gradient-text\">Performance Tracking System</span>",
+    "hero-subtitle-text": "Compete in 10 technical categories, climb the global leaderboard, earn digital certificates, and unlock profile rewards!",
+    "btn-start-arena": "Enter Quiz Arena 🎮",
+    "btn-view-leaderboard-landing": "Leaderboard Rankings 🏆",
+    "auth-tab-login": "Sign In",
+    "auth-tab-register": "Create Account",
+    "auth-label-username-email": "Username or Email Address",
+    "auth-label-password": "Secure Password",
+    "auth-link-forgot": "Forgot Password?",
+    "auth-btn-signin": "Sign In Securely",
+    "auth-label-or": "or",
+    "auth-btn-google": "Sign In with Google",
+    "auth-label-email": "Email Address",
+    "auth-label-new-username": "Choose unique username",
+    "auth-label-new-password": "Password (min. 6 characters)",
+    "auth-btn-register": "Create Free Account",
+    "auth-label-guest": "Or play without an account",
+    "auth-btn-guest": "Play as Guest 👤",
+    "dash-stat-xp": "Total XP",
+    "dash-stat-coins": "Coins",
+    "dash-stat-streak": "Streak",
+    "dash-stat-quizzes": "Quizzes",
+    "dash-level-label": "Level",
+    "btn-dash-bookmarks": "🔖 Saved Questions",
+    "btn-dash-leaderboard": "🏆 Leaderboard",
+    "btn-dash-admin": "⚙️ Admin Panel",
+    "arena-card-title": "Configure Quiz Arena",
+    "arena-label-category": "Topic Category",
+    "arena-label-difficulty": "Select Difficulty",
+    "arena-label-mode": "Select Game Mode",
+    "arena-desc-mode-classic": "Classic Mode: Standard 10 questions timer limits.",
+    "arena-label-practice": "Enable Practice Mode (No score penalty, unlimited retries)",
+    "arena-label-practice-timer": "Enable Question Timer in Practice",
+    "arena-btn-start": "Start Quiz Arena 🚀",
+    "daily-challenge-title": "Daily Challenge",
+    "daily-challenge-desc": "A fresh, fixed set of 10 trivia questions refreshed every 24 hours. Play to earn special achievements!",
+    "daily-challenge-status": "Daily Challenge Status:",
+    "achievements-title": "Achievements & Badges",
+    "achievements-desc": "Solve quiz conditions to unlock these digital medals",
+    "bookmarks-title": "Bookmarked Questions",
+    "bookmarks-desc": "Study and review your saved technical queries",
+    "bookmarks-empty": "No bookmarked questions yet. Click the bookmark icon during gameplay or review to save questions!",
+    "history-title": "Activity History & Stats",
+    "history-skill-tier": "Estimated Skill Tier:",
+    "history-correct-ratio": "Correct Answers Ratio:",
+    "profile-card-title": "Profile Customization",
+    "profile-label-avatar-emoji": "Choose Avatar Emoji",
+    "profile-label-username": "Change Username",
+    "profile-label-bio": "Short Biography (Bio)",
+    "profile-label-fav-cat": "Favorite Subject Category",
+    "profile-label-theme": "Select Active Theme (Themes must be purchased from Shop)",
+    "profile-btn-save": "Save Changes",
+    "certs-card-title": "My Earned Certificates",
+    "certs-card-desc": "Your verified credentials list (quizzes scored >= 80% accuracy)",
+    "certs-empty": "No certificates claimed yet. Complete any quiz with 80% accuracy to earn.",
+    "history-sessions-title": "Active Device Sessions & Login History",
+    "history-sessions-desc": "Security audit records logging user-agent access logs",
+    "shop-card-title": "Cosmetics Reward Shop",
+    "shop-card-desc": "Unlock cosmetic profile elements, themes, and gameplay advantages using earned Coins",
+    "shop-balance": "Coins Balance:",
+    "shop-inventory-title": "Your Purchased Items",
+    "predictor-card-title": "Future Skill & Career Predictor",
+    "predictor-desc": "Analyzes your quiz history to predict subject mastery and suggest optimal career paths",
+    "predictor-skills-title": "Subject Skills Breakdown",
+    "predictor-checkpoints-title": "Career Pathway Milestones",
+    "predictor-month-title": "Performance Trend Index",
+    "quiz-label-timer": "Timer:",
+    "quiz-label-lifelines": "Lifelines:",
+    "tutor-header-title": "AI Tutor Dialogue",
+    "tutor-status-online": "Online (Hint First Mode)",
+    "chip-hint": "💡 Give me a hint",
+    "chip-concept": "📖 Explain the concept",
+    "chip-answer": "🔑 Explain answer",
+    "tutor-input-placeholder": "Ask a follow-up question...",
+    "btn-tutor-chat-send": "Send ➡️",
+    "lb-title": "🏆 Global Rankings",
+    "lb-desc": "Compete with engineers around the world. Ranked by Total Experience Points (XP).",
+    "lb-period-all": "All-Time",
+    "lb-period-weekly": "Weekly",
+    "lb-period-monthly": "Monthly",
+    "lb-th-rank": "Rank",
+    "lb-th-username": "Username",
+    "lb-th-xp": "Total XP",
+    "lb-th-quizzes": "Quizzes Completed",
+    "lb-th-perfect": "Perfect Score",
+    "lb-th-streak": "Streak",
+    "lb-th-actions": "Actions",
+    "summary-headline": "Quiz Completed!",
+    "summary-meta-desc": "You tested your brain in AI Quiz Arena",
+    "summary-score-label": "Correct",
+    "summary-rating-title": "Rate your experience:",
+    "summary-review-title": "Question-by-Question Breakdown",
+    "reset-title": "Password Recovery",
+    "reset-email-desc": "Enter your email address to receive a secure password recovery code.",
+    "reset-email-label": "Email Address",
+    "reset-btn-send": "Send Recovery Code",
+    "reset-btn-cancel": "Cancel",
+    "reset-code-desc": "Enter the code and choose a new password.",
+    "reset-code-label": "Verification Code",
+    "reset-pass-label": "New Password",
+    "reset-btn-submit": "Reset Password",
+    "report-title": "Report Question",
+    "report-label-reason": "Select Reason",
+    "report-reason-wrong": "Wrong Answer",
+    "report-reason-incorrect": "Incorrect Question",
+    "report-reason-typo": "Typo",
+    "report-reason-dup": "Duplicate",
+    "report-reason-other": "Other",
+    "report-comments-label": "Additional Comments",
+    "report-btn-submit": "Submit Report",
+    "report-btn-cancel": "Cancel",
+    "cert-congrats": "Congratulations!",
+    "cert-title-cert": "Certificate of Achievement",
+    "cert-name-lbl": "This is proudly presented to",
+    "cert-desc-lbl": "For successfully completing the AI Quiz Challenge and demonstrating excellent knowledge and performance in the technical subject category.",
+    "btn-cert-download-pdf": "Download PDF",
+    "btn-cert-download-png": "Download PNG",
+    "btn-cert-share": "Share Certificate",
+    "btn-cert-close": "Back to Home",
+    "admin-title": "Admin Control Console",
+    "admin-tab-q": "Questions",
+    "admin-tab-u": "Users",
+    "admin-tab-f": "Feedback",
+    "admin-tab-r": "Reports",
+    "admin-tab-b": "Broadcasts",
+    "admin-tab-l": "Login Logs",
+    "admin-q-form-title": "Add New Quiz Question",
+    "admin-q-label-cat": "Category",
+    "admin-q-label-diff": "Difficulty",
+    "admin-q-label-prompt": "Question Prompt",
+    "admin-q-label-a": "Option A",
+    "admin-q-label-b": "Option B",
+    "admin-q-label-c": "Option C",
+    "admin-q-label-d": "Option D",
+    "admin-q-label-correct": "Correct Option",
+    "admin-q-label-explain": "Explanation",
+    "admin-q-label-hint": "Hint",
+    "btn-admin-q-submit": "Add Question",
+    "btn-admin-q-cancel": "Cancel Edit",
+    "admin-q-repo-title": "Question Repository",
+    "admin-q-search-placeholder": "Search questions by text...",
+    "btn-admin-search": "Search",
+    "admin-users-title": "Registered Players Manager",
+    "admin-feedback-title": "Player Rating Reviews",
+    "admin-reports-title": "Flagged Question Reports",
+    "admin-broadcast-title": "System Broadcaster",
+    "admin-broadcast-label": "Broadcast Announcement",
+    "btn-admin-broadcast-submit": "Send Broadcast",
+    "admin-broadcast-history-title": "Broadcast History",
+    "admin-logs-title": "Access Audit Security Logins",
+    "btn-quiz-quit": "🚪 Quit",
+    "quit-modal-title": "Quit Quiz?",
+    "quit-modal-body": "Are you sure you want to quit the quiz? Your current progress in this quiz will be lost.",
+    "btn-quit-confirm": "Quit Quiz",
+    "btn-quit-cancel": "Continue Quiz",
+    "predictor-mentor-title": "🧙‍♂️ AI Career Mentor Chat",
+    "predictor-mentor-desc": "Ask follow-up questions to your career advisor or get dynamic study plans.",
+    "chip-career": "💼 Suggest Career Paths",
+    "chip-skills": "📈 Recommend Skills",
+    "chip-certs": "🎓 Suggest Certifications",
+    "btn-predictor-send": "Send",
+    "settings-label-notifications": "Enable In-App Notifications",
+    "btn-theme-restore-default": "Restore Default",
+    "btn-theme-remove-current": "Remove Theme",
+    "notif-disabled": "Notifications are disabled in Settings.",
+    "no-notif": "No new notifications",
+    "notifications-drawer-title": "🔔 Notifications",
+    "btn-clear-notifications": "Mark all as read",
+    "btn-delete-all-notifications": "Delete All",
+    "btn-launch-daily": "Play Today's Challenge ⚡",
+    "arena-card-desc": "Customize your quiz session parameters",
+    "diff-easy-btn": "Easy",
+    "diff-medium-btn": "Medium",
+    "diff-hard-btn": "Hard",
+    "mode-classic-title": "Classic",
+    "mode-classic-desc": "10 Questions with standard timers",
+    "mode-speed-title": "Speed Run",
+    "mode-speed-desc": "Fast-paced 15-second timer per question",
+    "mode-survival-title": "Survival",
+    "mode-survival-desc": "1 Life — 1 mistake ends the quiz!",
+    "mode-marathon-title": "Marathon",
+    "mode-marathon-desc": "25 Questions test of endurance",
+    "th-category": "Category",
+    "th-difficulty": "Difficulty",
+    "th-score": "Score",
+    "th-date": "Date",
+    "th-action": "Action",
+    "profile-label-change-photo": "Profile Picture (Custom Image)",
+    "profile-label-photo-helper": "Upload JPG or PNG photo (Max 2MB)",
+    "settings-label-tts": "Enable Text-to-Speech (TTS) Voice Reader",
+    "th-ip": "IP Address",
+    "th-device": "Device Agent",
+    "th-timestamp": "Logged In At",
+    "th-item-unlocked": "Item Unlocked",
+    "th-item-type": "Type",
+    "th-xp-cost": "Coins Cost",
+    "th-purchase-date": "Purchased At",
+    "predictor-strong-title": "🌟 Strongest Technical Domains",
+    "predictor-weak-title": "⚠️ Areas for Improvement",
+    "predictor-career-title": "💼 Recommended Career Roles",
+    "predictor-path-title": "🚀 Recommended Study Pathway",
+    "btn-lifeline-5050": "✂️ 50:50",
+    "btn-lifeline-skip": "⏭️ Skip",
+    "btn-lifeline-time": "⏳ +15s Time",
+    "summary-unlocked-badge-title": "New Achievement Unlocked!",
+    "btn-leaderboard-back": "⬅️ Back to Dashboard",
+    "lb-th-started": "Started",
+    "lb-th-completed": "Completed",
+    "admin-subtitle": "Command Center — User Activity, Questions & System Control",
+    "btn-admin-refresh": "🔄 Refresh Data",
+    "btn-admin-switch-player": "👤 Switch to Player View",
+    "btn-admin-logout": "🔒 Admin Sign Out",
+    "admin-tab-activity": "📊 User Activity Tracker",
+    "admin-tab-questions": "📝 Question Editor",
+    "admin-tab-users": "👥 Registered Users",
+    "admin-tab-feedback": "⭐ Feedback Reviews",
+    "admin-tab-reports": "🚩 Question Reports",
+    "admin-tab-notifs": "📢 Notification Broadcasts",
+    "admin-tab-logins": "🛡️ Security & Login Logs",
+    "admin-lbl-total-users": "Total Users",
+    "admin-lbl-total-attempts": "Total Attempts",
+    "admin-lbl-completed": "Completed",
+    "admin-lbl-inprogress": "In-Progress",
+    "admin-filter-title": "🔍 Filter & Search Activity",
+    "btn-admin-reset-filters": "Reset Filters",
+    "admin-lbl-filter-userid": "Filter by User ID",
+    "admin-lbl-filter-username": "Filter by Username",
+    "admin-lbl-filter-quiz": "Filter by Quiz Category",
+    "admin-lbl-filter-status": "Filter by Status",
+    "admin-activity-title": "User Quiz Activity & Detailed Logs",
+    "admin-notif-title-label": "Announcement Title",
+    "admin-notif-msg-label": "Announcement Message",
+    "cel-headline": "Awesome Victory! 🎉",
+    "cel-meta-desc": "You completed the quiz with flying colors!",
+    "cel-lbl-score": "Score",
+    "cel-lbl-xp": "XP Earned",
+    "cel-lbl-coins": "Coins Won",
+    "cel-lbl-badges": "Badges",
+    "notif-delete-title": "Confirm Deletion",
+    "notif-delete-body": "Are you sure you want to delete this notification?",
+    "btn-notif-delete-confirm": "Delete",
+    "btn-notif-delete-cancel": "Cancel",
+    "btn-popcard-ok": "Awesome! 🚀"
+},
+  ta: {
+    "tab-dash-arena": "🎮 விளையாடு",
+    "tab-dash-profile": "👤 சுயவிவரம்",
+    "tab-dash-shop": "🪙 கடை",
+    "tab-dash-predictor": "📊 கணிப்பான்",
+    "btn-voice-speak": "🔊 கேள்வியைப் பேசு",
+    "btn-voice-pause": "⏸️ இடைநிறுத்து",
+    "btn-voice-stop": "⏹️ நிறுத்து",
+    "btn-quiz-report": "🚩 புகாரளி",
+    "btn-quiz-tutor": "💬 AI வழிகாட்டி",
+    "btn-quiz-next": "அடுத்த கேள்வி ➡️",
+    "btn-quiz-hint": "💡 குறிப்பு தேவை? (3 மீதம்)",
+    "btn-submit-feedback": "கருத்து சமர்ப்பி",
+    "btn-summary-dashboard": "முகப்புக்குத் திரும்பு",
+    "btn-summary-review": "விடைகளை மதிப்பாய்வு செய்",
+    "btn-summary-certificate": "🎓 சான்றிதழ் பெறு",
+    "btn-cel-claim": "சான்றிதழ் பெறு 🎓",
+    "btn-cel-share": "பகிர் 🔗",
+    "btn-cel-continue": "தொடர்ந்து படி 📚",
+    "btn-cel-home": "முகப்புக்கு 🏠",
+    "btn-nav-login": "உள்நுழைக",
+    "btn-play-guest-landing": "விருந்தினராக விளையாடு 👤",
+    "app-title": "AI வினாடி வினா சவால்",
+    "tooltip-coins-title": "நாணயங்கள் இருப்பு",
+    "tooltip-coins-desc": "கேள்விகளுக்குச் சரியாகப் பதிலளிப்பதன் மூலம் நீங்கள் பெறும் ஒவ்வொரு 1 எக்ஸ்பிக்கும் 1 நாணயம் கிடைக்கும். கடைப் பகுதியில் வினாக்கள், தீம்கள், பிரேம்கள் வாங்கப் பயன்படுத்தலாம்!",
+    "hero-title-text": "Smart AI-Powered Education Quiz and <br><span class=\"gradient-text\">Performance Tracking System</span>",
+    "hero-subtitle-text": "10த் தொழில்நுட்பப் பிரிவுகளில் போட்டியிடுங்கள், உலகளாவிய தரவரிசையில் ஏறி, டிஜிட்டல் சான்றிதழ்களைப் பெறுங்கள்!",
+    "btn-start-arena": "வினாடி வினா அரங்கில் நுழைக 🎮",
+    "btn-view-leaderboard-landing": "தரவரிசை பட்டியல் 🏆",
+    "auth-tab-login": "உள்நுழைவு",
+    "auth-tab-register": "கணக்கை உருவாக்கு",
+    "auth-label-username-email": "பயனர் பெயர் அல்லது மின்னஞ்சல் முகவரி",
+    "auth-label-password": "பாதுகாப்பான கடவுச்சொல்",
+    "auth-link-forgot": "கடவுச்சொல்லை மறந்துவிட்டீர்களா?",
+    "auth-btn-signin": "பாதுகாப்பாக உள்நுழைக",
+    "auth-label-or": "அல்லது",
+    "auth-btn-google": "கூகிள் மூலம் உள்நுழைக",
+    "auth-label-email": "மின்னஞ்சல் முகவரி",
+    "auth-label-new-username": "தனித்துவமான பயனர் பெயர்",
+    "auth-label-new-password": "கடவுச்சொல் (குறைந்தது 6 எழுத்துக்கள்)",
+    "auth-btn-register": "இலவச கணக்கை உருவாக்கு",
+    "auth-label-guest": "அல்லது கணக்கு இல்லாமல் விளையாடுங்கள்",
+    "auth-btn-guest": "விருந்தினராக விளையாடு 👤",
+    "dash-stat-xp": "மொத்த எக்ஸ்பி",
+    "dash-stat-coins": "நாணயங்கள்",
+    "dash-stat-streak": "தொடர் நாட்கள்",
+    "dash-stat-quizzes": "வினாடி வினாக்கள்",
+    "dash-level-label": "நிலை",
+    "btn-dash-bookmarks": "🔖 சேமித்த கேள்விகள்",
+    "btn-dash-leaderboard": "🏆 தரவரிசை",
+    "btn-dash-admin": "⚙️ நிர்வாக குழு",
+    "arena-card-title": "வினாடி வினா கட்டமைக்க",
+    "arena-label-category": "தலைப்பு பிரிவு",
+    "arena-label-difficulty": "கடினத்தன்மை தேர்வு செய்க",
+    "arena-label-mode": "விளையாட்டு முறை",
+    "arena-desc-mode-classic": "கிளாசிக் முறை: நிலையான 10 கேள்விகள் நேர வரம்புகள்.",
+    "arena-label-practice": "பயிற்சி முறை (மதிப்பெண் இழப்பு இல்லை, வரம்பற்ற முயற்சிகள்)",
+    "arena-label-practice-timer": "பயிற்சியில் நேர வரம்பை இயக்கு",
+    "arena-btn-start": "வினாடி வினாவைத் தொடங்கு 🚀",
+    "daily-challenge-title": "தினசரி சவால்",
+    "daily-challenge-desc": "ஒவ்வொரு 24 மணி நேரத்திற்கும் புதுப்பிக்கப்படும் 10 புதிய வினாக்கள். சிறப்பு சாதனைகளைப் பெற விளையாடுங்கள்!",
+    "daily-challenge-status": "தினசரி சவால் நிலை:",
+    "achievements-title": "சாதனைகள் மற்றும் பேட்ஜ்கள்",
+    "achievements-desc": "பேட்ஜ்களைத் திறக்க வினாடி வினாக்களை முடிக்கவும்",
+    "bookmarks-title": "சேமிக்கப்பட்ட கேள்விகள்",
+    "bookmarks-desc": "உங்கள் சேமித்த தொழில்நுட்ப கேள்விகளைப் படியுங்கள்",
+    "bookmarks-empty": "இன்னும் கேள்விகள் சேமிக்கப்படவில்லை! விளையாடும்போது சேமிக்க புக்மார்க் ஐகானை அழுத்தவும்.",
+    "history-title": "செயல்பாட்டு வரலாறு & புள்ளிவிவரங்கள்",
+    "history-skill-tier": "மதிப்பிடப்பட்ட திறன் நிலை:",
+    "history-correct-ratio": "சரியான பதில்களின் விகிதம்:",
+    "profile-card-title": "சுயவிவர தனிப்பயனாக்கம்",
+    "profile-label-avatar-emoji": "அவதார் ஈமோஜி",
+    "profile-label-username": "பயனர் பெயரை மாற்றுக",
+    "profile-label-bio": "சுயசரிதை (பயோ)",
+    "profile-label-fav-cat": "விருப்பமான தொழில்நுட்ப பிரிவு",
+    "profile-label-theme": "தீம் தேர்ந்தெடுக்கவும் (கடையில் இருந்து வாங்க வேண்டும்)",
+    "profile-btn-save": "மாற்றங்களைச் சேமி",
+    "certs-card-title": "நான் பெற்ற சான்றிதழ்கள்",
+    "certs-card-desc": "உங்களின் சரிபார்க்கப்பட்ட சான்றிதழ்கள் பட்டியல் (80% துல்லியம்)",
+    "certs-empty": "இன்னும் சான்றிதழ்கள் பெறப்படவில்லை. 80% மதிப்பெண்ணுடன் வினாடி வினாவை முடிக்கவும்.",
+    "history-sessions-title": "செயலில் உள்ள அமர்வுகள் & உள்நுழைவு வரலாறு",
+    "history-sessions-desc": "பாதுகாப்பு தணிக்கை சாதன அணுகல் பதிவுகள்",
+    "shop-card-title": "அலங்கார வெகுமதி கடை",
+    "shop-card-desc": "நாணயங்களைப் பயன்படுத்தி அவதார் பிரேம்கள், தீம்கள் மற்றும் விளையாட்டு சலுகைகளைத் திறக்கவும்",
+    "shop-balance": "நாணயங்கள் இருப்பு:",
+    "shop-inventory-title": "நீங்கள் வாங்கிய பொருட்கள்",
+    "predictor-card-title": "எதிர்கால திறன் மற்றும் தொழில் கணிப்பான்",
+    "predictor-desc": "உங்கள் வினாடி வினா வரலாற்றை பகுப்பாய்வு செய்து சிறந்த தொழில் வழிகளை பரிந்துரைக்கிறது",
+    "predictor-skills-title": "பாடத் திறன் முறிவு",
+    "predictor-checkpoints-title": "தொழில் பாதை மைல்கற்கள்",
+    "predictor-month-title": "செயல்திறன் போக்கு குறியீடு",
+    "quiz-label-timer": "நேரம்:",
+    "quiz-label-lifelines": "உதவிகள்:",
+    "tutor-header-title": "AI வழிகாட்டி உரையாடல்",
+    "tutor-status-online": "செயலில் உள்ளது (குறிப்பு முதல் முறை)",
+    "chip-hint": "💡 குறிப்பு கொடுங்கள்",
+    "chip-concept": "📖 கருத்தை விளக்குங்கள்",
+    "chip-answer": "🔑 விடையை விளக்குங்கள்",
+    "tutor-input-placeholder": "தொடர் கேள்வியைக் கேளுங்கள்...",
+    "btn-tutor-chat-send": "அனுப்பு ➡️",
+    "lb-title": "🏆 உலகளாவிய தரவரிசை",
+    "lb-desc": "உலகெங்கிலும் உள்ள பொறியாளர்களுடன் போட்டியிடுங்கள். மொத்த எக்ஸ்பி (XP) அடிப்படையில்.",
+    "lb-period-all": "எல்லா காலமும்",
+    "lb-period-weekly": "வாரம்",
+    "lb-period-monthly": "மாதம்",
+    "lb-th-rank": "தரவரிசை",
+    "lb-th-username": "பயனர் பெயர்",
+    "lb-th-xp": "மொத்த எக்ஸ்பி",
+    "lb-th-quizzes": "வினாடி வினாக்கள்",
+    "lb-th-perfect": "சரியான ஸ்கோர்",
+    "lb-th-streak": "தொடர் நாட்கள்",
+    "lb-th-actions": "செயல்கள்",
+    "summary-headline": "வினாடி வினா முடிந்தது!",
+    "summary-meta-desc": "நீங்கள் சவாலை வெற்றிகரமாக முடித்துள்ளீர்கள்",
+    "summary-score-label": "சரியானது",
+    "summary-rating-title": "உங்கள் அனுபவத்தை மதிப்பிடுங்கள்:",
+    "summary-review-title": "கேள்வி வாரியான முறிவு",
+    "reset-title": "கடவுச்சொல் மீட்பு",
+    "reset-email-desc": "மீட்புக் குறியீட்டைப் பெற உங்கள் மின்னஞ்சலை உள்ளிடவும்.",
+    "reset-email-label": "மின்னஞ்சல் முகவரி",
+    "reset-btn-send": "மீட்புக் குறியீட்டை அனுப்பு",
+    "reset-btn-cancel": "ரத்துசெய்",
+    "reset-code-desc": "குறியீட்டை உள்ளிட்டு புதிய கடவுச்சொல்லைத் தேர்ந்தெடுக்கவும்.",
+    "reset-code-label": "சரிபார்ப்புக் குறியீடு",
+    "reset-pass-label": "புதிய கடவுச்சொல்",
+    "reset-btn-submit": "கடவுச்சொல்லை மீட்டமை",
+    "report-title": "கேள்வியைப் புகாரளி",
+    "report-label-reason": "காரணத்தைத் தேர்ந்தெடுக்கவும்",
+    "report-reason-wrong": "தவறான விடை",
+    "report-reason-incorrect": "தவறான கேள்வி",
+    "report-reason-typo": "எழுத்துப்பிழை",
+    "report-reason-dup": "நகல் கேள்வி",
+    "report-reason-other": "இதர",
+    "report-comments-label": "கூடுதல் கருத்துகள்",
+    "report-btn-submit": "புகாரைச் சமர்ப்பி",
+    "report-btn-cancel": "ரத்துசெய்",
+    "cert-congrats": "வாழ்த்துகள்!",
+    "cert-title-cert": "சாதனைச் சான்றிதழ்",
+    "cert-name-lbl": "இது பெருமையுடன் வழங்கப்படுகிறது",
+    "cert-desc-lbl": "AI வினாடி வினா சவாலை வெற்றிகரமாக முடித்து, தொழில்நுட்ப பாடப் பிரிவில் சிறந்த அறிவையும் செயல்திறனையும் வெளிப்படுத்தியமைக்காக.",
+    "btn-cert-download-pdf": "PDF பதிவிறக்கு",
+    "btn-cert-download-png": "PNG பதிவிறக்கு",
+    "btn-cert-share": "சான்றிதழைப் பகிர்",
+    "btn-cert-close": "முகப்புக்குச் செல்",
+    "admin-title": "நிர்வாக கட்டுப்பாட்டு கன்சோல்",
+    "admin-tab-q": "கேள்விகள்",
+    "admin-tab-u": "பயனர்கள்",
+    "admin-tab-f": "கருத்துகள்",
+    "admin-tab-r": "புகார்கள்",
+    "admin-tab-b": "அறிவிப்புகள்",
+    "admin-tab-l": "உள்நுழைவு பதிவுகள்",
+    "admin-q-form-title": "புதிய வினாடி வினா கேள்வி சேர்க்க",
+    "admin-q-label-cat": "பிரிவு",
+    "admin-q-label-diff": "கடினத்தன்மை",
+    "admin-q-label-prompt": "கேள்வி உரை",
+    "admin-q-label-a": "விருப்பம் A",
+    "admin-q-label-b": "விருப்பம் B",
+    "admin-q-label-c": "விருப்பம் C",
+    "admin-q-label-d": "விருப்பம் D",
+    "admin-q-label-correct": "சரியான விருப்பம்",
+    "admin-q-label-explain": "விளக்கம்",
+    "admin-q-label-hint": "குறிப்பு",
+    "btn-admin-q-submit": "கேள்வி சேர்",
+    "btn-admin-q-cancel": "தொகுத்தலை ரத்துசெய்",
+    "admin-q-repo-title": "கேள்வி களஞ்சியம்",
+    "admin-q-search-placeholder": "தேடல் கேள்விகள்...",
+    "btn-admin-search": "தேடு",
+    "admin-users-title": "பதிவுசெய்த பயனர்கள் மேலாளர்",
+    "admin-feedback-title": "மதிப்பீட்டு விமர்சனங்கள்",
+    "admin-reports-title": "கொடியிடப்பட்ட கேள்வி புகார்கள்",
+    "admin-broadcast-title": "அமைப்பு அறிவிப்பாளர்",
+    "admin-broadcast-label": "அறிவிப்பு உரை",
+    "btn-admin-broadcast-submit": "அறிவிப்பை அனுப்பு",
+    "admin-broadcast-history-title": "அறிவிப்பு வரலாறு",
+    "admin-logs-title": "அணுகல் தணிக்கை பாதுகாப்பு உள்நுழைவுகள்",
+    "btn-quiz-quit": "🚪 விலகு",
+    "quit-modal-title": "வினாடி வினாவிலிருந்து விலகவா?",
+    "quit-modal-body": "வினாடி வினாவிலிருந்து விலக வேண்டுமா? இந்த வினாடி வினாவில் உங்கள் தற்போதைய முன்னேற்றம் இழக்கப்படும்.",
+    "btn-quit-confirm": "விலகு",
+    "btn-quit-cancel": "தொடரவும்",
+    "predictor-mentor-title": "🧙‍♂️ AI தொழில் வழிகாட்டி அரட்டை",
+    "predictor-mentor-desc": "உங்கள் தொழில் ஆலோசகரிடம் தொடர் கேள்விகளைக் கேளுங்கள் அல்லது மாறும் ஆய்வுத் திட்டங்களைப் பெறுங்கள்.",
+    "chip-career": "💼 தொழில் பாதைகளை பரிந்துரைக்கவும்",
+    "chip-skills": "📈 மேம்படுத்த வேண்டிய திறன்கள்",
+    "chip-certs": "🎓 சான்றிதழ்களை பரிந்துரைக்கவும்",
+    "btn-predictor-send": "அனுப்பு",
+    "settings-label-notifications": "செயலி அறிவிப்புகளை இயக்கவும்",
+    "btn-theme-restore-default": "இயல்புநிலையை மீட்டமை",
+    "btn-theme-remove-current": "தீம் நீக்கவும்",
+    "notif-disabled": "அறிவிப்புகள் அமைப்புகளில் முடக்கப்பட்டுள்ளன.",
+    "no-notif": "புதிய அறிவிப்புகள் இல்லை",
+    "notifications-drawer-title": "🔔 அறிவிப்புகள்",
+    "btn-clear-notifications": "அனைத்தையும் படித்ததாகக் குறி",
+    "btn-delete-all-notifications": "அனைத்தையும் நீக்கு",
+    "btn-launch-daily": "இன்றைய சவாலை விளையாடு ⚡",
+    "arena-card-desc": "உங்கள் வினாடி வினா அமைப்புகளைத் தனிப்பயனாக்குங்கள்",
+    "diff-easy-btn": "எளிது",
+    "diff-medium-btn": "நடுத்தரம்",
+    "diff-hard-btn": "கடினம்",
+    "mode-classic-title": "கிளாசிக்",
+    "mode-classic-desc": "நிலையான நேர வரம்புடன் 10 கேள்விகள்",
+    "mode-speed-title": "வேக ஓட்டம்",
+    "mode-speed-desc": "கேள்விக்கு 15 வினாடிகள் மட்டுமே",
+    "mode-survival-title": "சர்வைவல்",
+    "mode-survival-desc": "1 உயிர் — 1 தவறு செய்தால் விளையாட்டு முடியும்!",
+    "mode-marathon-title": "மராத்தான்",
+    "mode-marathon-desc": "25 கேள்விகள் கொண்ட நீண்ட சவால்",
+    "th-category": "பிரிவு",
+    "th-difficulty": "கடினத்தன்மை",
+    "th-score": "மதிப்பெண்",
+    "th-date": "தேதி",
+    "th-action": "செயல்",
+    "profile-label-change-photo": "சுயவிவரப் படம் (புகைப்படம்)",
+    "profile-label-photo-helper": "JPG அல்லது PNG புகைப்படத்தைப் பதிவேற்றவும் (அதிகபட்சம் 2MB)",
+    "settings-label-tts": "குரல் வாசிப்பை இயக்கு (TTS)",
+    "th-ip": "ஐபி முகவரி",
+    "th-device": "சாதனம்",
+    "th-timestamp": "உள்நுழைந்த நேரம்",
+    "th-item-unlocked": "பொருள் பெயர்",
+    "th-item-type": "வகை",
+    "th-xp-cost": "நாணயங்கள்",
+    "th-purchase-date": "வாங்கிய தேதி",
+    "predictor-strong-title": "🌟 வலுவான தொழில்நுட்பப் பிரிவுகள்",
+    "predictor-weak-title": "⚠️ முன்னேற வேண்டிய பகுதிகள்",
+    "predictor-career-title": "💼 பரிந்துரைக்கப்படும் தொழில் பாத்திரங்கள்",
+    "predictor-path-title": "🚀 பரிந்துரைக்கப்படும் படிப்பு பாதை",
+    "btn-lifeline-5050": "✂️ 50:50",
+    "btn-lifeline-skip": "⏭️ தவிர்",
+    "btn-lifeline-time": "⏳ +15வி நேரம்",
+    "summary-unlocked-badge-title": "புதிய சாதனை பதக்கம் திறக்கப்பட்டது!",
+    "btn-leaderboard-back": "⬅️ முதன்மைப் பக்கத்திற்குத் திரும்பு",
+    "lb-th-started": "தொடங்கியது",
+    "lb-th-completed": "முடிந்தது",
+    "admin-subtitle": "கட்டளை மையம் — பயனர் செயல்பாடு, கேள்விகள் & கணினி கட்டுப்பாடு",
+    "btn-admin-refresh": "🔄 புதுப்பி",
+    "btn-admin-switch-player": "👤 பயனர் பார்வைக்கு மாறுக",
+    "btn-admin-logout": "🔒 நிர்வாகி வெளியேறு",
+    "admin-tab-activity": "📊 பயனர் செயல்பாடு",
+    "admin-tab-questions": "📝 கேள்வி திருத்தி",
+    "admin-tab-users": "👥 பயனர்கள் மேலாளர்",
+    "admin-tab-feedback": "⭐ பயனர் கருத்துக்கள்",
+    "admin-tab-reports": "🚩 கேள்வி புகார்கள்",
+    "admin-tab-notifs": "📢 பொது அறிவிப்புகள்",
+    "admin-tab-logins": "🛡️ உள்நுழைவு பதிவுகள்",
+    "admin-lbl-total-users": "மொத்த பயனர்கள்",
+    "admin-lbl-total-attempts": "மொத்த முயற்சிகள்",
+    "admin-lbl-completed": "முடிந்தது",
+    "admin-lbl-inprogress": "செயலில் உள்ளது",
+    "admin-filter-title": "🔍 வடிகட்டி & தேடுக",
+    "btn-admin-reset-filters": "வடிகட்டிகளை மீட்டமை",
+    "admin-lbl-filter-userid": "பயனர் ஐடி மூலம் வடிகட்டு",
+    "admin-lbl-filter-username": "பயனர் பெயர் மூலம் வடிகட்டு",
+    "admin-lbl-filter-quiz": "வினாடி வினா பிரிவு மூலம் வடிகட்டு",
+    "admin-lbl-filter-status": "நிலை மூலம் வடிகட்டு",
+    "admin-activity-title": "பயனர் வினாடி வினா செயல்பாடு & பதிவுகள்",
+    "admin-notif-title-label": "அறிவிப்பு தலைப்பு",
+    "admin-notif-msg-label": "அறிவிப்பு செய்தி",
+    "cel-headline": "அற்புதமான வெற்றி! 🎉",
+    "cel-meta-desc": "நீங்கள் வினாடி வினாவைச் சிறப்பாக முடித்துள்ளீர்கள்!",
+    "cel-lbl-score": "மதிப்பெண்",
+    "cel-lbl-xp": "பெற்ற எக்ஸ்பி",
+    "cel-lbl-coins": "வென்ற நாணயங்கள்",
+    "cel-lbl-badges": "பதக்கங்கள்",
+    "notif-delete-title": "நீக்குதலை உறுதிப்படுத்துக",
+    "notif-delete-body": "இந்த அறிவிப்பை நீக்க வேண்டுமா?",
+    "btn-notif-delete-confirm": "நீக்கு",
+    "btn-notif-delete-cancel": "ரத்து",
+    "btn-popcard-ok": "அற்புதம்! 🚀"
+},
+  hi: {
+    "tab-dash-arena": "🎮 अखाड़ा",
+    "tab-dash-profile": "👤 प्रोफाइल",
+    "tab-dash-shop": "🪙 दुकान",
+    "tab-dash-predictor": "📊 संकेतक",
+    "btn-voice-speak": "🔊 प्रश्न बोलें",
+    "btn-voice-pause": "⏸️ विराम दें",
+    "btn-voice-stop": "⏹️ रोकें",
+    "btn-quiz-report": "🚩 रिपोर्ट करें",
+    "btn-quiz-tutor": "💬 AI शिक्षक",
+    "btn-quiz-next": "अगला प्रश्न ➡️",
+    "btn-quiz-hint": "💡 संकेत चाहिए? (3 शेष)",
+    "btn-submit-feedback": "समीक्षा भेजें",
+    "btn-summary-dashboard": "डैशबोर्ड पर जाएँ",
+    "btn-summary-review": "उत्तर जांचें",
+    "btn-summary-certificate": "🎓 प्रमाणपत्र प्राप्त करें",
+    "btn-cel-claim": "प्रमाणपत्र प्राप्त करें 🎓",
+    "btn-cel-share": "साझा करें 🔗",
+    "btn-cel-continue": "पढ़ना जारी रखें 📚",
+    "btn-cel-home": "मुख्य पृष्ठ 🏠",
+    "btn-nav-login": "लॉग इन करें",
+    "btn-play-guest-landing": "अतिथि के रूप में खेलें 👤",
+    "app-title": "एआई क्विज चैलेंज",
+    "tooltip-coins-title": "सिक्कों का संतुलन",
+    "tooltip-coins-desc": "प्रश्नों के सही उत्तर देने पर आपको प्रत्येक 1 एक्सपी के लिए 1 सिक्का प्राप्त होता है। दुकान में अवतार फ्रेम, थीम आदि खरीदने के लिए इनका उपयोग करें!",
+    "hero-title-text": "Smart AI-Powered Education Quiz and <br><span class=\"gradient-text\">Performance Tracking System</span>",
+    "hero-subtitle-text": "10 तकनीकी श्रेणियों में प्रतिस्पर्धा करें, वैश्विक लीडरबोर्ड पर चढ़ें, डिजिटल प्रमाणपत्र अर्जित करें!",
+    "btn-start-arena": "प्रश्नोत्तरी क्षेत्र में प्रवेश करें 🎮",
+    "btn-view-leaderboard-landing": "लीडरबोर्ड रैंकिंग 🏆",
+    "auth-tab-login": "साइन इन करें",
+    "auth-tab-register": "खाता बनाएं",
+    "auth-label-username-email": "उपयोगकर्ता नाम या ईमेल पता",
+    "auth-label-password": "सुरक्षित पासवर्ड",
+    "auth-link-forgot": "पासवर्ड भूल गए?",
+    "auth-btn-signin": "सुरक्षित रूप से साइन इन करें",
+    "auth-label-or": "अथवा",
+    "auth-btn-google": "गूगल के साथ साइन इन करें",
+    "auth-label-email": "ईमेल पता",
+    "auth-label-new-username": "अद्वितीय उपयोगकर्ता नाम",
+    "auth-label-new-password": "पासवर्ड (कम से कम 6 अक्षर)",
+    "auth-btn-register": "निःशुल्क खाता बनाएं",
+    "auth-label-guest": "या बिना खाते के खेलें",
+    "auth-btn-guest": "अतिथि के रूप में खेलें 👤",
+    "dash-stat-xp": "कुल एक्सपी",
+    "dash-stat-coins": "सिक्के",
+    "dash-stat-streak": "लगातार दिन",
+    "dash-stat-quizzes": "प्रश्नोत्तरी",
+    "dash-level-label": "स्तर",
+    "btn-dash-bookmarks": "🔖 सहेजे गए प्रश्न",
+    "btn-dash-leaderboard": "🏆 लीडरबोर्ड",
+    "btn-dash-admin": "⚙️ व्यवस्थापक पैनल",
+    "arena-card-title": "प्रश्नोत्तरी कॉन्फ़िगर करें",
+    "arena-label-category": "विषय श्रेणी",
+    "arena-label-difficulty": "कठिनाई का चयन करें",
+    "arena-label-mode": "खेल मोड",
+    "arena-desc-mode-classic": "क्लासिक मोड: मानक 10 प्रश्न समय सीमा।",
+    "arena-label-practice": "अभ्यास मोड (कोई अंक दंड नहीं, असीमित प्रयास)",
+    "arena-label-practice-timer": "अभ्यास में टाइमर सक्षम करें",
+    "arena-btn-start": "क्विज़ प्रारंभ करें 🚀",
+    "daily-challenge-title": "दैनिक चुनौती",
+    "daily-challenge-desc": "हर 24 घंटे में ताज़ा किए जाने वाले 10 नए प्रश्न। विशेष उपलब्धियों के लिए खेलें!",
+    "daily-challenge-status": "दैनिक चुनौती स्थिति:",
+    "achievements-title": "उपलब्धियां और बैज",
+    "achievements-desc": "बैज अनलॉक करने के लिए प्रश्नोत्तरी पूरी करें",
+    "bookmarks-title": "सहेजे गए प्रश्न",
+    "bookmarks-desc": "अपने सहेजे गए तकनीकी प्रश्नों का अध्ययन करें",
+    "bookmarks-empty": "अभी तक कोई प्रश्न सहेजा नहीं गया है! खेलते समय बचाने के लिए बुकमार्क आइकन दबाएं।",
+    "history-title": "गतिविधि इतिहास और आँकड़े",
+    "history-skill-tier": "अनुमानित कौशल स्तर:",
+    "history-correct-ratio": "सही उत्तरों का अनुपात:",
+    "profile-card-title": "प्रोफ़ाइल अनुकूलन",
+    "profile-label-avatar-emoji": "अवतार इमोजी",
+    "profile-label-username": "उपयोगकर्ता नाम बदलें",
+    "profile-label-bio": "लघु जीवनी (बायो)",
+    "profile-label-fav-cat": "पसंदीदा तकनीकी श्रेणी",
+    "profile-label-theme": "सक्रिय थीम चुनें (दुकान से खरीदनी होगी)",
+    "profile-btn-save": "परिवर्तन सहेजें",
+    "certs-card-title": "मेरे अर्जित प्रमाणपत्र",
+    "certs-card-desc": "आपके सत्यापित प्रमाणपत्रों की सूची (80% सटीकता)",
+    "certs-empty": "अभी तक कोई प्रमाणपत्र अर्जित नहीं किया गया है। 80% सटीकता के साथ प्रश्नोत्तरी पूरी करें।",
+    "history-sessions-title": "सक्रिय सत्र और लॉगिन इतिहास",
+    "history-sessions-desc": "सुरक्षा ऑडिट डिवाइस एक्सेस लॉग",
+    "shop-card-title": "सौंदर्य प्रसाधन पुरस्कार की दुकान",
+    "shop-card-desc": "सिक्कों का उपयोग करके अवतार फ्रेम, थीम और गेमप्ले लाभ अनलॉक करें",
+    "shop-balance": "सिक्कों का संतुलन:",
+    "shop-inventory-title": "आपके द्वारा खरीदी गई वस्तुएं",
+    "predictor-card-title": "भविष्य के कौशल और कैरियर भविष्यवक्ता",
+    "predictor-desc": "सर्वोत्तम कैरियर पथों की अनुशंसा करने के लिए आपके प्रश्नोत्तरी इतिहास का विश्लेषण करता है",
+    "predictor-skills-title": "विषय कौशल विभाजन",
+    "predictor-checkpoints-title": "कैरियर पथ मील के पत्थर",
+    "predictor-month-title": "प्रदर्शन रुझान सूचकांक",
+    "quiz-label-timer": "समय:",
+    "quiz-label-lifelines": "लाइफलाइन:",
+    "tutor-header-title": "एआई ट्यूटर बातचीत",
+    "tutor-status-online": "सक्रिय है (संकेत प्रथम मोड)",
+    "chip-hint": "💡 मुझे एक संकेत दें",
+    "chip-concept": "📖 अवधारणा समझाएं",
+    "chip-answer": "🔑 उत्तर समझाएं",
+    "tutor-input-placeholder": "अगला प्रश्न पूछें...",
+    "btn-tutor-chat-send": "भेजें ➡️",
+    "lb-title": "🏆 वैश्विक रैंकिंग",
+    "lb-desc": "दुनिया भर के इंजीनियरों के साथ प्रतिस्पर्धा करें। कुल एक्सपी (XP) के आधार पर।",
+    "lb-period-all": "सर्वकालिक",
+    "lb-period-weekly": "साप्ताहिक",
+    "lb-period-monthly": "मासिक",
+    "lb-th-rank": "रैंक",
+    "lb-th-username": "उपयोगकर्ता नाम",
+    "lb-th-xp": "कुल एक्सपी",
+    "lb-th-quizzes": "प्रश्नोत्तरी पूर्ण",
+    "lb-th-perfect": "उत्कृष्ट स्कोर",
+    "lb-th-streak": "सिलसिला दिन",
+    "lb-th-actions": "कार्रवाई",
+    "summary-headline": "प्रश्नोत्तरी पूरी हुई!",
+    "summary-meta-desc": "आपने सफलतापूर्वक चुनौती पूरी कर ली है",
+    "summary-score-label": "सही उत्तर",
+    "summary-rating-title": "अपने अनुभव को रेट करें:",
+    "summary-review-title": "प्रश्न-दर-प्रश्न विश्लेषण",
+    "reset-title": "पासवर्ड रिकवरी",
+    "reset-email-desc": "रिकवरी कोड प्राप्त करने के लिए अपना ईमेल दर्ज करें।",
+    "reset-email-label": "ईमेल पता",
+    "reset-btn-send": "रिकवरी कोड भेजें",
+    "reset-btn-cancel": "रद्द करें",
+    "reset-code-desc": "कोड दर्ज करें और एक नया पासवर्ड चुनें।",
+    "reset-code-label": "सत्यापन कोड",
+    "reset-pass-label": "नया पासवर्ड",
+    "reset-btn-submit": "पासवर्ड रीसेट करें",
+    "report-title": "प्रश्न की रिपोर्ट करें",
+    "report-label-reason": "कारण चुनें",
+    "report-reason-wrong": "गलत उत्तर",
+    "report-reason-incorrect": "गलत प्रश्न",
+    "report-reason-typo": "वर्तनी की गलती",
+    "report-reason-dup": "डुप्लिकेट प्रश्न",
+    "report-reason-other": "अन्य",
+    "report-comments-label": "अतिरिक्त टिप्पणियाँ",
+    "report-btn-submit": "रिपोर्ट सबमिट करें",
+    "report-btn-cancel": "रद्द करें",
+    "cert-congrats": "बधाई हो!",
+    "cert-title-cert": "उपलब्धि प्रमाण पत्र",
+    "cert-name-lbl": "यह गर्व के साथ प्रस्तुत किया जाता है",
+    "cert-desc-lbl": "एआई क्विज चुनौती को सफलतापूर्वक पूरा करने और तकनीकी विषय श्रेणी में उत्कृष्ट ज्ञान प्रदर्शित करने के लिए।",
+    "btn-cert-download-pdf": "पीडीएफ डाउनलोड",
+    "btn-cert-download-png": "पीएनजी डाउनलोड",
+    "btn-cert-share": "प्रमाणपत्र साझा करें",
+    "btn-cert-close": "मुख्य पृष्ठ पर जाएं",
+    "admin-title": "व्यवस्थापक नियंत्रण कंसोल",
+    "admin-tab-q": "प्रश्न",
+    "admin-tab-u": "उपयोगकर्ता",
+    "admin-tab-f": "प्रतिक्रियाएं",
+    "admin-tab-r": "रिपोर्ट",
+    "admin-tab-b": "प्रसारण",
+    "admin-tab-l": "लॉगिन रिकॉर्ड",
+    "admin-q-form-title": "नया क्विज़ प्रश्न जोड़ें",
+    "admin-q-label-cat": "श्रेणी",
+    "admin-q-label-diff": "कठिनाई",
+    "admin-q-label-prompt": "प्रश्न पाठ",
+    "admin-q-label-a": "विकल्प A",
+    "admin-q-label-b": "विकल्प B",
+    "admin-q-label-c": "विकल्प C",
+    "admin-q-label-d": "विकल्प D",
+    "admin-q-label-correct": "सही विकल्प",
+    "admin-q-label-explain": "स्पष्टीकरण",
+    "admin-q-label-hint": "संकेत",
+    "btn-admin-q-submit": "प्रश्न जोड़ें",
+    "btn-admin-q-cancel": "संपादन रद्द करें",
+    "admin-q-repo-title": "प्रश्न भंडार",
+    "admin-q-search-placeholder": "प्रश्न खोजें...",
+    "btn-admin-search": "खोजें",
+    "admin-users-title": "पंजीकृत उपयोगकर्ता प्रबंधक",
+    "admin-feedback-title": "मूल्यांकन समीक्षाएँ",
+    "admin-reports-title": "चिह्नित प्रश्न रिपोर्ट",
+    "admin-broadcast-title": "सिस्टम उद्घोषक",
+    "admin-broadcast-label": "उद्घोषणा पाठ",
+    "btn-admin-broadcast-submit": "उद्घोषणा भेजें",
+    "admin-broadcast-history-title": "उद्घोषणा इतिहास",
+    "admin-logs-title": "पहुंच ऑडिट सुरक्षा लॉगिन",
+    "btn-quiz-quit": "🚪 छोड़ें",
+    "quit-modal-title": "प्रश्नोत्तरी छोड़ें?",
+    "quit-modal-body": "क्या आप वास्तव में प्रश्नोत्तरी छोड़ना चाहते हैं? इस प्रश्नोत्तरी में आपकी वर्तमान प्रगति खो जाएगी।",
+    "btn-quit-confirm": "छोड़ें",
+    "btn-quit-cancel": "जारी रखें",
+    "predictor-mentor-title": "🧙‍♂️ एआई कैरियर मेंटर चैट",
+    "predictor-mentor-desc": "अपने कैरियर सलाहकार से अनुवर्ती प्रश्न पूछें या गतिशील अध्ययन योजनाएँ प्राप्त करें।",
+    "chip-career": "💼 कैरियर पथों का सुझाव दें",
+    "chip-skills": "📈 कौशल की सिफारिश करें",
+    "chip-certs": "🎓 प्रमाणपत्रों का सुझाव दें",
+    "btn-predictor-send": "भेजें",
+    "settings-label-notifications": "इन-ऐप सूचनाएं सक्षम करें",
+    "btn-theme-restore-default": "डिफ़ॉल्ट पुनर्स्थापित करें",
+    "btn-theme-remove-current": "थीम हटाएं",
+    "notif-disabled": "सूचनाएं सेटिंग्स में अक्षम हैं।",
+    "no-notif": "कोई नई सूचना नहीं",
+    "notifications-drawer-title": "🔔 सूचनाएं",
+    "btn-clear-notifications": "सभी को पढ़ा हुआ चिह्नित करें",
+    "btn-delete-all-notifications": "सभी हटाएं",
+    "btn-launch-daily": "आज की चुनौती खेलें ⚡",
+    "arena-card-desc": "अपने प्रश्नोत्तरी सत्र पैरामीटर अनुकूलित करें",
+    "diff-easy-btn": "सरल",
+    "diff-medium-btn": "मध्यम",
+    "diff-hard-btn": "कठिन",
+    "mode-classic-title": "क्लासिक",
+    "mode-classic-desc": "मानक टाइमर के साथ 10 प्रश्न",
+    "mode-speed-title": "स्पीड रन",
+    "mode-speed-desc": "प्रति प्रश्न केवल 15 सेकंड",
+    "mode-survival-title": "सर्वाइवल",
+    "mode-survival-desc": "1 जीवन — 1 गलत उत्तर पर खेल समाप्त!",
+    "mode-marathon-title": "मैराथन",
+    "mode-marathon-desc": "25 प्रश्नों की लंबी परीक्षा",
+    "th-category": "श्रेणी",
+    "th-difficulty": "कठिनाई",
+    "th-score": "स्कोर",
+    "th-date": "दिनांक",
+    "th-action": "कार्रवाई",
+    "profile-label-change-photo": "प्रोफ़ाइल फ़ोटो (कस्टम छवि)",
+    "profile-label-photo-helper": "JPG या PNG फ़ोटो अपलोड करें (अधिकतम 2MB)",
+    "settings-label-tts": "वॉइस रीडर (TTS) सक्षम करें",
+    "th-ip": "आईपी पता",
+    "th-device": "डिवाइस",
+    "th-timestamp": "लॉग इन समय",
+    "th-item-unlocked": "अनलॉक किया गया आइटम",
+    "th-item-type": "प्रकार",
+    "th-xp-cost": "सिक्के",
+    "th-purchase-date": "खरीदने की तारीख",
+    "predictor-strong-title": "🌟 सबसे मजबूत तकनीकी क्षेत्र",
+    "predictor-weak-title": "⚠️ सुधार के क्षेत्र",
+    "predictor-career-title": "💼 अनुशंसित कैरियर भूमिकाएं",
+    "predictor-path-title": "🚀 अनुशंसित अध्ययन मार्ग",
+    "btn-lifeline-5050": "✂️ 50:50",
+    "btn-lifeline-skip": "⏭️ छोड़ें",
+    "btn-lifeline-time": "⏳ +15सेकंड समय",
+    "summary-unlocked-badge-title": "नई उपलब्धि पदक अनलॉक हुआ!",
+    "btn-leaderboard-back": "⬅️ डैशबोर्ड पर वापस जाएं",
+    "lb-th-started": "शुरू किया",
+    "lb-th-completed": "पूरा किया",
+    "admin-subtitle": "कमांड सेंटर — उपयोगकर्ता गतिविधि, प्रश्न और सिस्टम नियंत्रण",
+    "btn-admin-refresh": "🔄 डेटा रीफ्रेश करें",
+    "btn-admin-switch-player": "👤 खिलाड़ी दृश्य पर स्विच करें",
+    "btn-admin-logout": "🔒 व्यवस्थापक साइन आउट",
+    "admin-tab-activity": "📊 उपयोगकर्ता गतिविधि",
+    "admin-tab-questions": "📝 प्रश्न संपादक",
+    "admin-tab-users": "👥 पंजीकृत उपयोगकर्ता",
+    "admin-tab-feedback": "⭐ समीक्षाएं",
+    "admin-tab-reports": "🚩 प्रश्न रिपोर्ट",
+    "admin-tab-notifs": "📢 प्रसारण सूचनाएं",
+    "admin-tab-logins": "🛡️ सुरक्षा व लॉगिन लॉग",
+    "admin-lbl-total-users": "कुल उपयोगकर्ता",
+    "admin-lbl-total-attempts": "कुल प्रयास",
+    "admin-lbl-completed": "पूर्ण",
+    "admin-lbl-inprogress": "प्रगति में",
+    "admin-filter-title": "🔍 फ़िल्टर और खोजें",
+    "btn-admin-reset-filters": "फ़िल्टर रीसेट करें",
+    "admin-lbl-filter-userid": "यूज़र आईडी द्वारा फ़िल्टर करें",
+    "admin-lbl-filter-username": "उपयोगकर्ता नाम द्वारा फ़िल्टर करें",
+    "admin-lbl-filter-quiz": "प्रश्नोत्तरी श्रेणी द्वारा फ़िल्टर करें",
+    "admin-lbl-filter-status": "स्थिति द्वारा फ़िल्टर करें",
+    "admin-activity-title": "उपयोगकर्ता गतिविधि और विस्तृत लॉग",
+    "admin-notif-title-label": "उद्घोषणा शीर्षक",
+    "admin-notif-msg-label": "उद्घोषणा संदेश",
+    "cel-headline": "शानदार जीत! 🎉",
+    "cel-meta-desc": "आपने शानदार प्रदर्शन के साथ प्रश्नोत्तरी पूरी की!",
+    "cel-lbl-score": "स्कोर",
+    "cel-lbl-xp": "अर्जित XP",
+    "cel-lbl-coins": "जीते गए सिक्के",
+    "cel-lbl-badges": "पदक",
+    "notif-delete-title": "हटाने की पुष्टि करें",
+    "notif-delete-body": "क्या आप इस अधिसूचना को हटाना चाहते हैं?",
+    "btn-notif-delete-confirm": "हटाएं",
+    "btn-notif-delete-cancel": "रद्द करें",
+    "btn-popcard-ok": "शानदार! 🚀"
+}
+};
+
+  window.currentLang = localStorage.getItem('app_language') || 'en';
+  function translateUI(lang) {
+    if (!lang) lang = localStorage.getItem('app_language') || 'en';
+    window.currentLang = lang;
+    localStorage.setItem('app_language', lang);
+    const dict = Translations[lang] || Translations.en;
+
+    // 1. Translate by class dict-key and [data-key]
+    document.querySelectorAll('.dict-key, [data-key]').forEach(el => {
+      const key = el.dataset.key || el.getAttribute('data-key');
+      if (key && dict[key]) {
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+          el.placeholder = dict[key];
+        } else if (el.children.length === 0) {
+          if (dict[key].includes('<')) {
+            el.innerHTML = dict[key];
+          } else {
+            el.innerText = dict[key];
+          }
+        } else {
+          // If element has child tags (e.g. badges or icons), only update if it does NOT destroy child nodes with IDs
+          const childWithId = el.querySelector('[id]');
+          if (!childWithId) {
+            if (dict[key].includes('<')) {
+              el.innerHTML = dict[key];
+            } else {
+              el.innerText = dict[key];
+            }
+          }
+        }
+      }
+    });
+
+    // 3. Translate page placeholders & selectors options
+    const langSel = document.getElementById('select-language-toggle');
+    if (langSel) langSel.value = lang;
+
+    // 3a. Translate Category and Difficulty Select Dropdown Options
+    const categorySelects = ['arena-category', 'profile-fav-cat', 'admin-q-category', 'admin-filter-quiz', 'select-admin-q-cat', 'select-admin-filter-quiz'];
+    categorySelects.forEach(selId => {
+      const sel = document.getElementById(selId);
+      if (sel) {
+        Array.from(sel.options).forEach(opt => {
+          if (opt.value && opt.value !== 'all' && opt.value !== '') {
+            opt.text = getTranslatedCategory(opt.value, lang);
+          } else if (opt.value === 'all' || opt.value === '') {
+            opt.text = (lang === 'ta' ? 'அனைத்து பிரிவுகளும்' : lang === 'hi' ? 'सभी श्रेणियां' : 'All Categories');
+          }
+        });
+      }
+    });
+
+    const statusFilter = document.getElementById('admin-filter-status') || document.getElementById('select-admin-filter-status');
+    if (statusFilter) {
+      Array.from(statusFilter.options).forEach(opt => {
+        if (opt.value === 'all') opt.text = (lang === 'ta' ? 'அனைத்து நிலைகளும்' : lang === 'hi' ? 'सभी स्थितियाँ' : 'All Statuses');
+        else if (opt.value === 'Completed') opt.text = (lang === 'ta' ? 'முடிந்தது' : lang === 'hi' ? 'पूर्ण' : 'Completed');
+        else if (opt.value === 'In-Progress') opt.text = (lang === 'ta' ? 'செயலில் உள்ளது' : lang === 'hi' ? 'प्रगति में' : 'In-Progress');
+      });
+    }
+
+    // 4. If in gameplay, redraw active question instantly!
+    if (AppState.activeView === 'quiz' && AppState.quiz && AppState.quiz.questions && AppState.quiz.questions.length > 0) {
+      // Redraw question texts instantly in active lang without resetting countdown timers
+      const qRaw = AppState.quiz.questions[AppState.quiz.currentIndex];
+      const q = translateQuestion(qRaw, lang);
+
+      document.getElementById('quiz-badge-category').innerText = AppState.quiz.isDailyChallenge ? (lang === 'ta' ? 'தினசரி சவால்' : lang === 'hi' ? 'दैनिक चुनौती' : 'Daily Challenge') : (q.category || AppState.quiz.category || 'Quiz');
+      document.getElementById('quiz-badge-difficulty').innerText = (q.difficulty || AppState.quiz.difficulty || 'easy').toUpperCase();
+      document.getElementById('quiz-question-text').innerText = q.question_text;
+
+      // Re-draw option buttons text but keep their buttons reference
+      const buttons = document.querySelectorAll('.option-btn');
+      if (buttons.length === 4 && AppState.quiz.currentOptions) {
+        buttons.forEach((btn) => {
+          const indexSpan = btn.querySelector('.option-index');
+          if (indexSpan) {
+            const key = indexSpan.innerText;
+            const opt = AppState.quiz.currentOptions.find(o => o.displayKey === key);
+            if (opt) {
+              const optTextTrans = translateQuestionOption(opt.text, lang);
+              btn.innerHTML = `<span class="option-index">${key}</span> <span class="option-text">${optTextTrans}</span>`;
+            }
+          }
+        });
+      }
+
+      // Refresh explanations or hint boxes text
+      const hintBox = document.getElementById('hint-text-box');
+      if (hintBox && !hintBox.classList.contains('hidden')) {
+        if (hintBox.innerHTML.includes('Explanation:')) {
+          hintBox.innerHTML = `<strong>Explanation:</strong> ${q.explanation}`;
+        } else {
+          hintBox.innerHTML = `Hint: ${q.hint}`;
+        }
+      }
+    }
+
+    // Translate achievements/badges names and descriptions
+    document.querySelectorAll('.badge-item').forEach(bEl => {
+      const id = bEl.getAttribute('data-badge');
+      const badgeTrans = badgeTranslations[lang]?.[id] || badgeTranslations.en?.[id];
+      if (badgeTrans) {
+        const nameEl = bEl.querySelector('.badge-name');
+        const descEl = bEl.querySelector('.badge-desc');
+        if (nameEl) nameEl.innerText = badgeTrans.name;
+        if (descEl) descEl.innerText = badgeTrans.desc;
+        bEl.setAttribute('title', badgeTrans.desc);
+      }
+    });
+
+    // 5. If dashboard or leaderboard is active, trigger refreshes
+    if (AppState.activeView === 'dashboard') {
+      ViewRefresher.refreshDashboard();
+    } else if (AppState.activeView === 'leaderboard') {
+      ViewRefresher.refreshLeaderboard();
+    }
+  }
+  window.translateUI = translateUI;
+
+  function translateQuestionOption(text, lang) {
+    if (!lang || lang === 'en') return text;
+
+    const translations = {
+      ta: {
+        "Algorithms that enable computers to learn from and make predictions based on data.": "கணினிகள் தரவுகளிலிருந்து கற்றுக்கொள்ளவும் கணிப்புகளைச் செய்யவும் உதவும் வழிமுறைகள்.",
+        "Natural Language Processing": "இயற்கை மொழி செயலாக்கம்",
+        "Systems that understand, interpret, and process human text and spoken language.": "மனித உரை மற்றும் பேச்சு மொழியைப் புரிந்துகொள்ளும், விளக்கும் மற்றும் செயலாக்கும் அமைப்புகள்.",
+        "Technology designed to extract information and understand digital images and videos.": "டிஜிட்டல் படங்கள் மற்றும் வீடியோக்களிலிருந்து தகவல்களைப் பிரித்தெடுக்கவும் புரிந்து கொள்ளவும் வடிவமைக்கப்பட்ட தொழில்நுட்பம்.",
+        "Neural networks with multiple hidden layers that extract complex features from raw inputs.": "மூல உள்ளீடுகளிலிருந்து சிக்கலான அம்சங்களைப் பிரித்தெடுக்கும் பல மறைக்கப்பட்ட அடுக்குகளைக் கொண்ட நரம்பியல் நெட்வொர்க்குகள்.",
+        "AI models trained to create new text, images, or synthetic data matching training distributions.": "பயிற்சி விநியோகங்களுடன் பொருந்தக்கூடிய புதிய உரை, படங்கள் அல்லது செயற்கை தரவை உருவாக்க பயிற்சி பெற்ற AI மாதிரிகள்.",
+        "An agent learning optimal sequences of actions in an environment to maximize cumulative rewards.": "திரண்ட வெகுமதிகளை அதிகரிக்க ஒரு சூழலில் உகந்த செயல்களின் வரிசைகளைக் கற்கும் ஒரு முகவர்.",
+        "Training machine learning algorithms using labeled datasets with explicit inputs and targets.": "வெளிப்படையான உள்ளீடுகள் மற்றும் இலக்குகளுடன் லேபிளிடப்பட்ட தரவுத்தொகுப்புகளைப் பயன்படுத்தி இயந்திர கற்றல் வழிமுறைகளைப் பயிற்றுவித்தல்.",
+        "Discovering hidden structures, groupings, or dimensions in unlabeled datasets.": "லேபிளிடப்படாத தரவுத்தொகுப்புகளில் மறைக்கப்பட்ட கட்டமைப்புகள், குழுக்கள் அல்லது பரிமாணங்களைக் கண்டறிதல்.",
+        "Interconnected layers of processing nodes mimicking biological brain structures to process parameters.": "அளபுருக்களை செயலாக்க உயிரியல் மூளை அமைப்புகளைப் பிரதிபलिக்கும் செயலாக்க முனைகளின் ஒன்றோடொன்று இணைக்கப்பட்ட அடுக்குகள்.",
+        "Logical decision engines emulating human logical expertise using a static set of rules.": "நிலையான விதிகளைப் பயன்படுத்தி மனித தர்க்கரீதியான நிபுணத்துவத்தைப் பிரதிபலிக்கும் தர்க்கரீதியான முடிவு இயந்திரங்கள்.",
+        "Sets the foreground text color of page elements.": "பக்க உறுப்புகளின் முன் உரை நிறத்தை அமைக்கிறது.",
+        "Configures the background color of an element's box model area.": "ஒரு உறுப்பின் பெட்டி மாதிரி பகுதியின் பின்னணி நிறத்தை உள்ளமைக்கிறது.",
+        "Controls the sizing scale of typography fonts.": "அச்சுக்கலை எழுத்துருக்களின் அளவு அளவைக் கட்டுப்படுத்துகிறது.",
+        "Defines outer spacing boundaries around elements, outside of borders.": "எல்லைகளுக்கு வெளியே, உறுப்புகளைச் சுற்றி வெளிப்புற இடைவெளி எல்லைகளை வரையறுக்கிறது.",
+        "Defines inner spacing margins between elements content and their borders.": "உறுப்புகளின் உள்ளடக்கம் மற்றும் அவற்றின் எல்லைகளுக்கு இடையே உள்ள உள் இடைவெளி வரம்புகளை வரையறுக்கிறது.",
+        "Sets borders thickness, line styles, and color boundaries around boxes.": "பெட்டிகளைச் சுற்றி எல்லைகளின் தடிமன், வரி பாணிகள் மற்றும் வண்ண எல்லைகளை அமைக்கிறது.",
+        "Sets the horizontal layout dimension size of elements.": "உறுப்புகளின் கிடைமட்ட தளவமைப்பு பரிமாண அளவை அமைக்கிறது.",
+        "Sets the vertical layout dimension size of elements.": "உறுப்புகளின் செங்குத்து தளவமைப்பு பரிமாண அளவை அமைக்கிறது.",
+        "Configures horizontal alignment (left, right, center, justify) of inline text contents.": "உள் உரை உள்ளடக்கங்களின் கிடைமட்ட சீரமைப்பை (இடது, வலது, மையம், சீரமை) உள்ளமைக்கிறது.",
+        "Sets the layout display type (block, inline, flex, grid, none) of boxes.": "பெட்டிகளின் தளவமைப்பு காட்சி வகையை (block, inline, flex, grid, none) அமைக்கிறது.",
+        "Alternative mechanism for AI development.": "AI மேம்பாட்டிற்கான மாற்று வழிமுறை.",
+        "Standard configuration module in AI application.": "AI பயன்பாட்டில் நிலையான உள்ளமைவு தொகுதி.",
+        "Process optimization handler in AI framework.": "AI கட்டமைப்பில் செயல்முறை தேர்வுமுறை ஹேண்ட்லர்."
+      },
+      hi: {
+        "Algorithms that enable computers to learn from and make predictions based on data.": "एल्गोरिदम जो कंप्यूटर को डेटा से सीखने और भविष्यवाणी करने में सक्षम बनाते हैं।",
+        "Natural Language Processing": "प्राकृतिक भाषा प्रसंस्करण",
+        "Systems that understand, interpret, and process human text and spoken language.": "सिस्टम जो मानव पाठ और बोली जाने वाली भाषा को समझते, व्याख्या करते और संसाधित करते हैं।",
+        "Technology designed to extract information and understand digital images and videos.": "डिजिटल छवियों और वीडियो से जानकारी निकालने और समझने के लिए डिज़ाइन की गई तकनीक।",
+        "Neural networks with multiple hidden layers that extract complex features from raw inputs.": "कच्चे इनपुट से जटिल विशेषताओं को निकालने वाले कई छिपे हुए परतों वाले न्यूरल नेटवर्क।",
+        "AI models trained to create new text, images, or synthetic data matching training distributions.": "प्रशिक्षण वितरण से मेल खाने वाले नए पाठ, चित्र या सिंथेटिक डेटा बनाने के लिए प्रशिक्षित एआई मॉडल।",
+        "An agent learning optimal sequences of actions in an environment to maximize cumulative rewards.": "संचयी पुरस्कारों को अधिकतम करने के लिए वातावरण में कार्रवाई के इष्टतम अनुक्रम सीखने वाला एजेंट।",
+        "Training machine learning algorithms using labeled datasets with explicit inputs and targets.": "स्पष्ट इनपुट और लक्ष्यों के साथ लेबल किए गए डेटासेट का उपयोग करके मशीन लर्निंग एल्गोरिदम को प्रशिक्षित करना।",
+        "Discovering hidden structures, groupings, or dimensions in unlabeled datasets.": "लेबल रहित डेटासेट में छिपी हुई संरचनाओं, समूहों या आयामों की खोज करना।",
+        "Interconnected layers of processing nodes mimicking biological brain structures to process parameters.": "मापदंडों को संसाधित करने के लिए जैविक मस्तिष्क संरचनाओं की नकल करने वाले प्रसंस्करण नोड्स की इंटरकनेक्टेड परतें।",
+        "Logical decision engines emulating human logical expertise using a static set of rules.": "नियमों के एक स्थिर सेट का उपयोग करके मानव तार्किक विशेषज्ञता का अनुकरण करने वाले तार्किक निर्णय इंजन।",
+        "Sets the foreground text color of page elements.": "पेज तत्वों के अग्रभूमि पाठ का रंग सेट करता है।",
+        "Configures the background color of an element's box model area.": "किसी तत्व के बॉक्स मॉडल क्षेत्र के पृष्ठभूमि रंग को कॉन्फ़िगर करता है।",
+        "Controls the sizing scale of typography fonts.": "टाइपोोग्राफी फ़ॉन्ट के आकार के पैमाने को नियंत्रित करता है।",
+        "Defines outer spacing boundaries around elements, outside of borders.": "तत्वों के चारों ओर बाहरी रिक्ति सीमाओं को परिभाषित करता है, सीमाओं के बाहर।",
+        "Defines inner spacing margins between elements content and their borders.": "तत्वों की सामग्री और उनकी सीमाओं के बीच आंतरिक रिक्ति मार्जिन को परिभाषित करता है।",
+        "Sets borders thickness, line styles, and color boundaries around boxes.": "बक्से के चारों ओर सीमाओं की मोटाई, रेखा शैलियों और रंग सीमाओं को सेट करता है।",
+        "Sets the horizontal layout dimension size of elements.": "तत्वों के क्षैतिज लेआउट आयाम आकार को सेट करता है।",
+        "Sets the vertical layout dimension size of elements.": "तत्वों के लंबवत लेआउट आयाम आकार को सेट करता है।",
+        "Configures horizontal alignment (left, right, center, justify) of inline text contents.": "इनलाइन पाठ सामग्री के क्षैतिज संरेखण (बाएं, दाएं, केंद्र, न्यायसंगत) को कॉन्फ़िगर करता है।",
+        "Sets the layout display type (block, inline, flex, grid, none) of boxes.": "बक्से के लेआउट डिस्प्ले प्रकार (ब्लॉक, इनलाइन, फ्लेक्स, ग्रिड, कोई नहीं) को सेट करता है।",
+        "Alternative mechanism for AI development.": "एआई विकास के लिए वैकल्पिक तंत्र।",
+        "Standard configuration module in AI application.": "एआई अनुप्रयोग में मानक कॉन्फ़िगरेशन मॉड्यूल।",
+        "Process optimization handler in AI framework.": "एआई ढांचे में प्रक्रिया अनुकूलन हैंडलर।"
+      }
+    };
+
+    return translations[lang]?.[text] || text;
+  }
+
+  const categoryTranslations = {
+    ta: { "AI": "செயற்கை நுண்ணறிவு", "HTML": "HTML", "CSS": "CSS", "JavaScript": "JavaScript", "Java": "Java", "Python": "Python", "C": "C Programming", "C++": "C++", "DBMS": "DBMS", "SQL": "SQL", "MongoDB": "MongoDB", "NodeJS": "Node.js", "React": "React", "DSA": "Data Structures", "OS": "Operating Systems", "CN": "Computer Networks", "SE": "Software Engineering" },
+    hi: { "AI": "कृत्रिम बुद्धिमत्ता", "HTML": "HTML", "CSS": "CSS", "JavaScript": "जावास्क्रिप्ट", "Java": "जावा", "Python": "पायथन", "C": "सी प्रोग्रामिंग", "C++": "सी++", "DBMS": "डीबीएमएस", "SQL": "एसक्यूएल", "MongoDB": "मोंगोडीबी", "NodeJS": "नोड जेएस", "React": "रिएक्ट", "DSA": "डेटा संरचनाएं", "OS": "ऑपरेटिंग सिस्टम", "CN": "कंप्यूटर नेटवर्क", "SE": "सॉफ्टवेयर इंजीनियरिंग" }
+  };
+
+  const difficultyTranslations = {
+    ta: { "easy": "எளிதானது", "medium": "நடுத்தரமானது", "hard": "கடினமானது", "EASY": "எளிதானது", "MEDIUM": "நடுத்தரமானது", "HARD": "கடினமானது" },
+    hi: { "easy": "आसान", "medium": "मध्यम", "hard": "कठिन", "EASY": "आसान", "MEDIUM": "मध्यम", "HARD": "कठिन" }
+  };
+
+  const badgeTranslations = {
+    en: {
+      "first_step": { name: "First Step", desc: "Complete 1 quiz" },
+      "quiz_streak_5": { name: "5 Quiz Streak", desc: "5-day streak" },
+      "perfect_10": { name: "10 Perfect Quizzes", desc: "10 perfect scores" },
+      "completed_25": { name: "25 Quizzes Completed", desc: "25 quizzes done" },
+      "xp_1000": { name: "Earn 1000 XP", desc: "Earn 1000 XP" },
+      "perfectionist": { name: "Perfectionist", desc: "Perfect score" },
+      "quiz_master": { name: "Quiz Master", desc: "10 quizzes done" },
+      "legendary_brain": { name: "Legendary Brain", desc: "Perfect on Hard" },
+      "dedicated_scholar": { name: "Scholar", desc: "3+ Day streak" },
+      "ai_guru": { name: "AI Guru", desc: "Perfect in AI" },
+      "speed_demon": { name: "Speed Demon", desc: "Speed run complete" },
+      "survivor": { name: "Survivor", desc: "20+ in Survival" },
+      "marathon_runner": { name: "Marathoner", desc: "Marathon complete" },
+      "half_century": { name: "Half Century", desc: "50 quizzes done" },
+      "century_club": { name: "Century Club", desc: "100 quizzes done" },
+      "streak_king": { name: "Streak King", desc: "7+ Day streak" },
+      "unstoppable": { name: "Unstoppable", desc: "14+ Day streak" },
+      "perfectionist_elite": { name: "Elite Perfect", desc: "5 perfect quizzes" },
+      "no_lifeline": { name: "No Lifeline", desc: "Perfect on Hard with no aid" },
+      "night_owl": { name: "Night Owl", desc: "Active 12AM-5AM" },
+      "early_bird": { name: "Early Bird", desc: "Active 5AM-7AM" },
+      "jack_of_all_trades": { name: "Jack of Trades", desc: "Try all 10 topics" },
+      "category_master": { name: "Cat Master", desc: "Perfect in 5 topics" }
+    },
+    ta: {
+      "first_step": { name: "முதல் படி", desc: "1 வினாடி வினாவை முடிக்கவும்" },
+      "quiz_streak_5": { name: "5 வினாடி வினா தொடர்", desc: "5 நாட்கள் தொடர்" },
+      "perfect_10": { name: "10 சரியான வினாடி வினாக்கள்", desc: "10 சரியான மதிப்பெண்கள்" },
+      "completed_25": { name: "25 வினாடி வினாக்கள் முடிந்தது", desc: "25 வினாடி வினாக்கள் முடிந்தது" },
+      "xp_1000": { name: "1000 எக்ஸ்பி பெறுங்கள்", desc: "1000 எக்ஸ்பி பெறுங்கள்" },
+      "perfectionist": { name: "துல்லியமானவர்", desc: "முழு மதிப்பெண்" },
+      "quiz_master": { name: "வினாடி வினா மாஸ்டர்", desc: "10 வினாடி வினாக்கள் முடிந்தது" },
+      "legendary_brain": { name: "புகழ்பெற்ற மூளை", desc: "கடினமான நிலையில் முழு மதிப்பெண்" },
+      "dedicated_scholar": { name: "அறிஞர்", desc: "3+ நாட்கள் தொடர்" },
+      "ai_guru": { name: "AI குரு", desc: "AI பிரிவில் முழு மதிப்பெண்" },
+      "speed_demon": { name: "வேக அரக்கன்", desc: "வேக ஓட்டம் முடிந்தது" },
+      "survivor": { name: "உயிர் பிழைத்தவர்", desc: "சர்வைவலில் 20+ மதிப்பெண்" },
+      "marathon_runner": { name: "மராத்தான் வீரர்", desc: "மராத்தான் முடிந்தது" },
+      "half_century": { name: "அரை சதம்", desc: "50 வினாடி வினாக்கள் முடிந்தது" },
+      "century_club": { name: "சதக் கிளப்", desc: "100 வினாடி வினாக்கள் முடிந்தது" },
+      "streak_king": { name: "தொடர் மன்னன்", desc: "7+ நாட்கள் தொடர்" },
+      "unstoppable": { name: "தடுக்க முடியாதவர்", desc: "14+ நாட்கள் தொடர்" },
+      "perfectionist_elite": { name: "எலைட் பெர்பெக்ட்", desc: "5 சரியான வினாடி வினாக்கள்" },
+      "no_lifeline": { name: "லைஃப்லைன் இல்லை", desc: "உதவி இல்லாமல் கடினமான நிலையில் முழு மதிப்பெண்" },
+      "night_owl": { name: "இரவு ஆந்தை", desc: "இரவு 12 - அதிகாலை 5 மணி வரை" },
+      "early_bird": { name: "அதிகாலை பறவை", desc: "அதிகாலை 5 - 7 மணி வரை" },
+      "jack_of_all_trades": { name: "பல்முக திறமையாளர்", desc: "10 பிரிவுகளையும் முயற்சிக்கவும்" },
+      "category_master": { name: "பிரிவு மாஸ்டர்", desc: "5 பிரிவுகளில் முழு மதிப்பெண்" }
+    },
+    hi: {
+      "first_step": { name: "पहला कदम", desc: "1 प्रश्नोत्तरी पूरी करें" },
+      "quiz_streak_5": { name: "5 प्रश्नोत्तरी सिलसिला", desc: "5-दिवसीय सिलसिला" },
+      "perfect_10": { name: "10 उत्तम प्रश्नोत्तरी", desc: "10 पूर्ण स्कोर" },
+      "completed_25": { name: "25 प्रश्नोत्तरी पूरी", desc: "25 प्रश्नोत्तरी पूर्ण" },
+      "xp_1000": { name: "1000 एक्सपी कमाएं", desc: "1000 एक्सपी प्राप्त करें" },
+      "perfectionist": { name: "उत्कृष्टतावादी", desc: "पूर्ण स्कोर" },
+      "quiz_master": { name: "क्विज मास्टर", desc: "10 प्रश्नोत्तरी पूर्ण" },
+      "legendary_brain": { name: "महान मस्तिष्क", desc: "कठिन स्तर पर पूर्ण स्कोर" },
+      "dedicated_scholar": { name: "विद्वान", desc: "3+ दिन का सिलसिला" },
+      "ai_guru": { name: "एआई गुरु", desc: "एआई में पूर्ण स्कोर" },
+      "speed_demon": { name: "गति का सौदागर", desc: "स्पीड रन पूरा हुआ" },
+      "survivor": { name: "सर्वाइवर", desc: "सर्वाइवल में 20+ स्कोर" },
+      "marathon_runner": { name: "मैराथन धावक", desc: "मैराथन पूर्ण" },
+      "half_century": { name: "अर्धशतक", desc: "50 प्रश्नोत्तरी पूरी" },
+      "century_club": { name: "शतक क्लब", desc: "100 प्रश्नोत्तरी पूरी" },
+      "streak_king": { name: "सिलसिला राजा", desc: "7+ दिन का सिलसिला" },
+      "unstoppable": { name: "अजेय", desc: "14+ दिन का सिलसिला" },
+      "perfectionist_elite": { name: "अभिजात वर्ग उत्तम", desc: "5 पूर्ण प्रश्नोत्तरी" },
+      "no_lifeline": { name: "कोई लाइफलाइन नहीं", desc: "बिना सहायता के कठिन स्तर पर पूर्ण स्कोर" },
+      "night_owl": { name: "रात का उल्लू", desc: "रात 12 - सुबह 5 बजे के बीच" },
+      "early_bird": { name: "प्रातःकाल पक्षी", desc: "सुबह 5 - 7 बजे के बीच" },
+      "jack_of_all_trades": { name: "हरफनमौला", desc: "सभी 10 विषयों को आजमाएं" },
+      "category_master": { name: "श्रेणी मास्टर", desc: "5 श्रेणियों में पूर्ण स्कोर" }
+    }
+  };
+
+  function getTranslatedCategory(cat, lang) {
+    return categoryTranslations[lang]?.[cat] || cat;
+  }
+
+  function getTranslatedDifficulty(diff, lang) {
+    return difficultyTranslations[lang]?.[(diff || 'easy').toLowerCase()] || diff || 'Easy';
+  }
+
+  function translateQuestion(rawQ, lang) {
+    if (!rawQ) return rawQ;
+    const q = {
+      ...rawQ,
+      question_text: rawQ.question_text || rawQ.question || '',
+      option_a: rawQ.option_a !== undefined ? rawQ.option_a : (Array.isArray(rawQ.options) ? rawQ.options[0] : '') || '',
+      option_b: rawQ.option_b !== undefined ? rawQ.option_b : (Array.isArray(rawQ.options) ? rawQ.options[1] : '') || '',
+      option_c: rawQ.option_c !== undefined ? rawQ.option_c : (Array.isArray(rawQ.options) ? rawQ.options[2] : '') || '',
+      option_d: rawQ.option_d !== undefined ? rawQ.option_d : (Array.isArray(rawQ.options) ? rawQ.options[3] : '') || '',
+      correct_option: (rawQ.correct_option || (rawQ.correct && Array.isArray(rawQ.options) ? ['A', 'B', 'C', 'D'][rawQ.options.indexOf(rawQ.correct)] : '') || 'A').toUpperCase(),
+      difficulty: rawQ.difficulty || 'easy',
+      category: rawQ.category || 'AI'
+    };
+
+    if (!lang || lang === 'en') return q;
+
+    const catName = getTranslatedCategory(q.category, lang);
+    const diffName = getTranslatedDifficulty(q.difficulty, lang);
+
+    // Extract concept in quotes
+    const conceptMatch = (q.question_text || '').match(/\"([^\"]+)\"/);
+    const concept = conceptMatch ? conceptMatch[1] : '';
+
+    // Look up concept name translation
+    const conceptNames = {
+      ta: {
+        "Machine Learning": "இயந்திர கற்றல் (Machine Learning)",
+        "Natural Language Processing": "இயற்கை மொழி செயலாக்கம் (NLP)",
+        "Computer Vision": "கணினி பார்வை (Computer Vision)",
+        "Deep Learning": "ஆழ்ந்த கற்றல் (Deep Learning)",
+        "Generative AI": "உருவாக்கும் ஏஐ (Generative AI)",
+        "Supervised Learning": "கண்காணிக்கப்படும் கற்றல் (Supervised Learning)",
+        "Unsupervised Learning": "கண்காணிக்கப்படாத கற்றல் (Unsupervised Learning)",
+        "Neural Networks": "நரம்பியல் நெட்வொர்க்குகள் (Neural Networks)",
+        "Expert Systems": "நிபுணர் அமைப்புகள் (Expert Systems)",
+        "K-Means Clustering": "K-Means கிளஸ்டரிங்",
+        "Support Vector Machines (SVM)": "சப்போர்ட் வெக்டர் மெஷின்கள் (SVM)",
+        "Decision Trees": "முடிவு மரங்கள் (Decision Trees)",
+        "Random Forest": "ரேண்டம் ஃபாரஸ்ட் (Random Forest)",
+        "Convolutional Neural Networks (CNN)": "சிஎன்என் (CNN)",
+        "Recurrent Neural Networks (RNN)": "ஆர்என்என் (RNN)",
+        "Q-Learning": "க்யூ-கற்றல் (Q-Learning)",
+        "Gradient Boosting": "கிரேடியண்ட் பூஸ்டிங்",
+        "Principal Component Analysis (PCA)": "பிசிஏ (PCA)",
+        "Naive Bayes": "நேவ் பேய்ஸ் (Naive Bayes)"
+      },
+      hi: {
+        "Machine Learning": "मशीन लर्निंग (Machine Learning)",
+        "Natural Language Processing": "प्राकृतिक भाषा प्रसंस्करण (NLP)",
+        "Computer Vision": "कंप्यूटर विज़न (Computer Vision)",
+        "Deep Learning": "डीप लर्निंग (Deep Learning)",
+        "Generative AI": "जेनरेटिव एआई (Generative AI)",
+        "Supervised Learning": "सुपरवाइज्ड लर्निंग",
+        "Unsupervised Learning": "अनसुपरवाइज्ड लर्निंग",
+        "Neural Networks": "न्यूरल नेटवर्क (Neural Networks)",
+        "Expert Systems": "विशेषज्ञ प्रणालियाँ (Expert Systems)",
+        "K-Means Clustering": "के-मीन्स क्लस्टरिंग",
+        "Support Vector Machines (SVM)": "सपोर्ट वेक्टर मशीनें (SVM)",
+        "Decision Trees": "निर्णय पेड़ (Decision Trees)",
+        "Random Forest": "रैंडम फ़ॉरेस्ट",
+        "Convolutional Neural Networks (CNN)": "सीएनएन (CNN)",
+        "Recurrent Neural Networks (RNN)": "आरएनएन (RNN)",
+        "Q-Learning": "क्यू-लर्निंग (Q-Learning)",
+        "Gradient Boosting": "ग्रेडिएंट बूस्टिंग",
+        "Principal Component Analysis (PCA)": "पीसीए (PCA)",
+        "Naive Bayes": "नाइव बेयस (Naive Bayes)"
+      }
+    };
+
+    const conceptTrans = conceptNames[lang]?.[concept] || concept;
+    let qText = q.question_text;
+    if (q.question_text.includes('primary role or definition')) {
+      qText = lang === 'ta'
+        ? `${catName} மேம்பாட்டில், "${conceptTrans}" இன் முதன்மை பங்கு அல்லது வரையறை என்ன?`
+        : `${catName} विकास में, "${conceptTrans}" की प्राथमिक भूमिका या परिभाषा क्या है?`;
+    } else if (q.question_text.includes('best describes the functionality')) {
+      qText = lang === 'ta'
+        ? `பின்வருவனவற்றில் எது ${catName} இல் "${conceptTrans}" இன் செயல்பாடு அல்லது வரையறையைச் சிறந்த முறையில் விளக்குகிறது?`
+        : `निम्नलिखित में से कौन सा ${catName} में "${conceptTrans}" की कार्यक्षमता या परिभाषा का सबसे अच्छा वर्णन करता है?`;
+    } else if (q.question_text.includes('typically defined or utilized')) {
+      qText = lang === 'ta'
+        ? `${catName} இன் சூழலில் "${conceptTrans}" என்ற கருத்து பொதுவாக எவ்வாறு வரையறுக்கப்படுகிறது அல்லது பயன்படுத்தப்படுகிறது?`
+        : `${catName} के संदर्भ में अवधारणा "${conceptTrans}" को आमतौर पर कैसे परिभाषित या उपयोग किया जाता है?`;
+    } else if (q.question_text.includes('statement accurately represents')) {
+      qText = lang === 'ta'
+        ? `${catName} தொழில்நுட்பத்தின் வரம்பிற்குள், எந்தக் கூற்று "${conceptTrans}" ஐத் துல்லியமாகக் குறிக்கிறது?`
+        : `${catName} प्रौद्योगिकी के दायरे में, कौन सा कथन "${conceptTrans}" का सटीक प्रतिनिधित्व करता है?`;
+    } else if (q.question_text.includes('core purpose or behavioral mechanism')) {
+      qText = lang === 'ta'
+        ? `${catName} இல் "${conceptTrans}" இன் முக்கிய நோக்கம் அல்லது செயல்பாட்டு வழிமுறை என்ன?`
+        : `${catName} के भीतर "${conceptTrans}" का मूल उद्देश्य या व्यावहारिक तंत्र क्या है?`;
+    }
+
+    const qIdMatch = q.question_text.match(/\(Q-ID: [^\)]+\)/) || q.question_text.match(/\(Dynamic Q-ID: [^\)]+\)/);
+    if (qIdMatch) {
+      qText += ' ' + qIdMatch[0];
+    }
+
+    const optA = translateQuestionOption(q.option_a, lang);
+    const optB = translateQuestionOption(q.option_b, lang);
+    const optC = translateQuestionOption(q.option_c, lang);
+    const optD = translateQuestionOption(q.option_d, lang);
+
+    const explanationText = lang === 'ta'
+      ? `"${conceptTrans}" என்பது ${catName} இல் குறியீட்டை உருவாக்க, நினைவகத்தை நிர்வகிக்க அல்லது செயல்பாடுகளை இயக்கப் பயன்படுத்தப்படும் ஒரு முக்கிய அங்கமாகும்.`
+      : `"${conceptTrans}" ${catName} में कोड को संरचित करने, मेमोरी को प्रबंधित करने या संचालन को निष्पादित करने के लिए उपयोग किया जाने वाला एक आवश्यक घटक या तरीका है।`;
+
+    const hintText = lang === 'ta'
+      ? `அடிப்படை ${catName} பண்புகள் மற்றும் தரநிலைகளை அடிப்படையாகக் கொண்டது.`
+      : `यह मुख्य ${catName} गुणों और मानकों पर निर्भर करता है।`;
+
+    return {
+      ...q,
+      category: catName,
+      question_text: qText,
+      option_a: optA,
+      option_b: optB,
+      option_c: optC,
+      option_d: optD,
+      explanation: explanationText,
+      hint: hintText
+    };
+  }
+
+  // Expose translation functions globally on window
+  window.translateQuestion = translateQuestion;
+  window.translateQuestionOption = translateQuestionOption;
+  window.translateUI = translateUI;
+  window.getTranslatedCategory = getTranslatedCategory;
+  window.getTranslatedDifficulty = getTranslatedDifficulty;
+
+  document.getElementById('select-language-toggle').addEventListener('change', (e) => {
+    translateUI(e.target.value);
+  });
+
+
   // Mobile Hamburger menu toggle
   const menuToggle = document.getElementById('btn-mobile-menu-toggle');
   const headerActions = document.querySelector('.header-actions');
@@ -4377,6 +5709,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.showPopCard(title, message, type);
   };
+
+  // Initialize saved language and translations
+  const savedLang = localStorage.getItem('app_language') || 'en';
+  const langSel = document.getElementById('select-language-toggle');
+  if (langSel) langSel.value = savedLang;
+  if (typeof translateUI === 'function') {
+    translateUI(savedLang);
+  }
 
   NotificationController.init();
   PredictorChatController.init();
@@ -4946,989 +6286,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ADDITIONAL FEATURES IMPLEMENTATIONS (15 major upgrades)
   // ===================================================
 
-  // 1. MULTILINGUAL DICTIONARIES & TRANSLATIONS SWITCHER
-  // 1. MULTILINGUAL DICTIONARIES & TRANSLATIONS SWITCHER
-  const Translations = {
-    en: {
-      // Buttons and IDs
-      "tab-dash-arena": "🎮 Arena",
-      "tab-dash-profile": "👤 Profile Hub",
-      "tab-dash-shop": "🪙 Reward Shop",
-      "tab-dash-predictor": "📊 Skill Predictor",
-      "btn-voice-speak": "🔊 Speak Question",
-      "btn-voice-pause": "⏸️ Pause",
-      "btn-voice-stop": "⏹️ Stop",
-      "btn-quiz-report": "🚩 Report",
-      "btn-quiz-tutor": "💬 Ask AI Tutor",
-      "btn-quiz-next": "Next Question ➡️",
-      "btn-quiz-hint": "💡 Need a Hint? (3 left)",
-      "btn-submit-feedback": "Submit Review",
-      "btn-summary-dashboard": "Return to Dashboard",
-      "btn-summary-review": "Review Answers",
-      "btn-summary-certificate": "🎓 Claim Certificate",
-      "btn-cel-claim": "Claim Certificate 🎓",
-      "btn-cel-share": "Share Result 🔗",
-      "btn-cel-continue": "Continue Learning 📚",
-      "btn-cel-home": "Back to Home 🏠",
-      "btn-nav-login": "Sign In",
-      "btn-play-guest-landing": "Play as Guest 👤",
 
-      // Class dict-key mapping
-      "app-title": "AI Quiz Challenge",
-      "tooltip-coins-title": "Coins Balance",
-      "tooltip-coins-desc": "You earn 1 Coin for every 1 XP gained by answering questions correctly. Coins can be spent in the Reward Shop to unlock custom themes, frames, and avatars!",
-      "hero-title-text": "Smart AI-Powered Education Quiz and <br><span class=\"gradient-text\">Performance Tracking System</span>",
-      "hero-subtitle-text": "Compete in 10 technical categories, climb the global leaderboard, earn digital certificates, and unlock profile rewards!",
-      "btn-start-arena": "Enter Quiz Arena 🎮",
-      "btn-view-leaderboard-landing": "Leaderboard Rankings 🏆",
-      "auth-tab-login": "Sign In",
-      "auth-tab-register": "Create Account",
-      "auth-label-username-email": "Username or Email Address",
-      "auth-label-password": "Secure Password",
-      "auth-link-forgot": "Forgot Password?",
-      "auth-btn-signin": "Sign In Securely",
-      "auth-label-or": "or",
-      "auth-btn-google": "Sign In with Google",
-      "auth-label-email": "Email Address",
-      "auth-label-new-username": "Choose unique username",
-      "auth-label-new-password": "Password (min. 6 characters)",
-      "auth-btn-register": "Create Free Account",
-      "auth-label-guest": "Or play without an account",
-      "auth-btn-guest": "Play as Guest 👤",
-      "dash-stat-xp": "Total XP",
-      "dash-stat-coins": "Coins",
-      "dash-stat-streak": "Streak",
-      "dash-stat-quizzes": "Quizzes",
-      "dash-level-label": "Level",
-      "btn-dash-bookmarks": "🔖 Saved Questions",
-      "btn-dash-leaderboard": "🏆 Leaderboard",
-      "btn-dash-admin": "⚙️ Admin Panel",
-      "arena-card-title": "Configure Quiz Arena",
-      "arena-label-category": "Topic Category",
-      "arena-label-difficulty": "Select Difficulty",
-      "arena-label-mode": "Select Game Mode",
-      "arena-desc-mode-classic": "Classic Mode: Standard 10 questions timer limits.",
-      "arena-label-practice": "Enable Practice Mode (No score penalty, unlimited retries)",
-      "arena-label-practice-timer": "Enable Question Timer in Practice",
-      "arena-btn-start": "Start Quiz Arena 🚀",
-      "daily-challenge-title": "Daily Challenge",
-      "daily-challenge-desc": "A fresh, fixed set of 10 trivia questions refreshed every 24 hours. Play to earn special achievements!",
-      "daily-challenge-status": "Daily Challenge Status:",
-      "achievements-title": "Achievements & Badges",
-      "achievements-desc": "Solve quiz conditions to unlock these digital medals",
-      "bookmarks-title": "Bookmarked Questions",
-      "bookmarks-desc": "Study and review your saved technical queries",
-      "bookmarks-empty": "No bookmarked questions yet. Click the bookmark icon during gameplay or review to save questions!",
-      "history-title": "Activity History & Stats",
-      "history-skill-tier": "Estimated Skill Tier:",
-      "history-correct-ratio": "Correct Answers Ratio:",
-      "profile-card-title": "Profile Customization",
-      "profile-label-avatar-emoji": "Choose Avatar Emoji",
-      "profile-label-username": "Change Username",
-      "profile-label-bio": "Short Biography (Bio)",
-      "profile-label-fav-cat": "Favorite Subject Category",
-      "profile-label-theme": "Select Active Theme (Themes must be purchased from Shop)",
-      "profile-btn-save": "Save Changes",
-      "certs-card-title": "My Earned Certificates",
-      "certs-card-desc": "Your verified credentials list (quizzes scored >= 80% accuracy)",
-      "certs-empty": "No certificates claimed yet. Complete any quiz with 80% accuracy to earn.",
-      "history-sessions-title": "Active Device Sessions & Login History",
-      "history-sessions-desc": "Security audit records logging user-agent access logs",
-      "shop-card-title": "Cosmetics Reward Shop",
-      "shop-card-desc": "Unlock cosmetic profile elements, themes, and gameplay advantages using earned Coins",
-      "shop-balance": "Coins Balance:",
-      "shop-inventory-title": "Your Purchased Items",
-      "predictor-card-title": "Future Skill & Career Predictor",
-      "predictor-desc": "Analyzes your quiz history to predict subject mastery and suggest optimal career paths",
-      "predictor-skills-title": "Subject Skills Breakdown",
-      "predictor-checkpoints-title": "Career Pathway Milestones",
-      "predictor-month-title": "Performance Trend Index",
-      "quiz-label-timer": "Timer:",
-      "quiz-label-lifelines": "Lifelines:",
-      "tutor-header-title": "AI Tutor Dialogue",
-      "tutor-status-online": "Online (Hint First Mode)",
-      "chip-hint": "💡 Give me a hint",
-      "chip-concept": "📖 Explain the concept",
-      "chip-answer": "🔑 Explain answer",
-      "tutor-input-placeholder": "Ask a follow-up question...",
-      "btn-tutor-chat-send": "Send ➡️",
-      "lb-title": "🏆 Global Rankings",
-      "lb-desc": "Compete with engineers around the world. Ranked by Total Experience Points (XP).",
-      "lb-period-all": "All-Time",
-      "lb-period-weekly": "Weekly",
-      "lb-period-monthly": "Monthly",
-      "lb-th-rank": "Rank",
-      "lb-th-username": "Username",
-      "lb-th-xp": "Total XP",
-      "lb-th-quizzes": "Quizzes Completed",
-      "lb-th-perfect": "Perfect Score",
-      "lb-th-streak": "Streak",
-      "lb-th-actions": "Actions",
-      "summary-headline": "Quiz Completed!",
-      "summary-meta-desc": "You tested your brain in AI Quiz Arena",
-      "summary-score-label": "Correct",
-      "summary-rating-title": "Rate your experience:",
-      "summary-review-title": "Question-by-Question Breakdown",
-      "reset-title": "Password Recovery",
-      "reset-email-desc": "Enter your email address to receive a secure password recovery code.",
-      "reset-email-label": "Email Address",
-      "reset-btn-send": "Send Recovery Code",
-      "reset-btn-cancel": "Cancel",
-      "reset-code-desc": "Enter the code and choose a new password.",
-      "reset-code-label": "Verification Code",
-      "reset-pass-label": "New Password",
-      "reset-btn-submit": "Reset Password",
-      "report-title": "Report Question",
-      "report-label-reason": "Select Reason",
-      "report-reason-wrong": "Wrong Answer",
-      "report-reason-incorrect": "Incorrect Question",
-      "report-reason-typo": "Typo",
-      "report-reason-dup": "Duplicate",
-      "report-reason-other": "Other",
-      "report-comments-label": "Additional Comments",
-      "report-btn-submit": "Submit Report",
-      "report-btn-cancel": "Cancel",
-      "cert-congrats": "Congratulations!",
-      "cert-title-cert": "Certificate of Achievement",
-      "cert-name-lbl": "This is proudly presented to",
-      "cert-desc-lbl": "For successfully completing the AI Quiz Challenge and demonstrating excellent knowledge and performance in the technical subject category.",
-      "btn-cert-download-pdf": "Download PDF",
-      "btn-cert-download-png": "Download PNG",
-      "btn-cert-share": "Share Certificate",
-      "btn-cert-close": "Back to Home",
-      "admin-title": "Admin Control Console",
-      "admin-tab-q": "Questions",
-      "admin-tab-u": "Users",
-      "admin-tab-f": "Feedback",
-      "admin-tab-r": "Reports",
-      "admin-tab-b": "Broadcasts",
-      "admin-tab-l": "Login Logs",
-      "admin-q-form-title": "Add New Quiz Question",
-      "admin-q-label-cat": "Category",
-      "admin-q-label-diff": "Difficulty",
-      "admin-q-label-prompt": "Question Prompt",
-      "admin-q-label-a": "Option A",
-      "admin-q-label-b": "Option B",
-      "admin-q-label-c": "Option C",
-      "admin-q-label-d": "Option D",
-      "admin-q-label-correct": "Correct Option",
-      "admin-q-label-explain": "Explanation",
-      "admin-q-label-hint": "Hint",
-      "btn-admin-q-submit": "Add Question",
-      "btn-admin-q-cancel": "Cancel Edit",
-      "admin-q-repo-title": "Question Repository",
-      "admin-q-search-placeholder": "Search questions by text...",
-      "btn-admin-search": "Search",
-      "admin-users-title": "Registered Players Manager",
-      "admin-feedback-title": "Player Rating Reviews",
-      "admin-reports-title": "Flagged Question Reports",
-      "admin-broadcast-title": "System Broadcaster",
-      "admin-broadcast-label": "Broadcast Announcement",
-      "btn-admin-broadcast-submit": "Send Broadcast",
-      "admin-broadcast-history-title": "Broadcast History",
-      "admin-logs-title": "Access Audit Security Logins",
-      "btn-quiz-quit": "🚪 Quit",
-      "quit-modal-title": "Quit Quiz?",
-      "quit-modal-body": "Are you sure you want to quit the quiz? Your current progress in this quiz will be lost.",
-      "btn-quit-confirm": "Quit Quiz",
-      "btn-quit-cancel": "Continue Quiz",
-      "predictor-mentor-title": "🧙‍♂️ AI Career Mentor Chat",
-      "predictor-mentor-desc": "Ask follow-up questions to your career advisor or get dynamic study plans.",
-      "chip-career": "💼 Suggest Career Paths",
-      "chip-skills": "📈 Recommend Skills",
-      "chip-certs": "🎓 Suggest Certifications",
-      "btn-predictor-send": "Send",
-      "settings-label-notifications": "Enable In-App Notifications",
-      "btn-theme-restore-default": "Restore Default",
-      "btn-theme-remove-current": "Remove Theme",
-      "profile-label-theme": "Select Active Theme (Themes must be purchased from Shop)",
-      "notif-disabled": "Notifications are disabled in Settings.",
-      "no-notif": "No new notifications"
-    },
-    ta: {
-      // Buttons and IDs
-      "tab-dash-arena": "🎮 விளையாடு",
-      "tab-dash-profile": "👤 சுயவிவரம்",
-      "tab-dash-shop": "🪙 கடை",
-      "tab-dash-predictor": "📊 கணிப்பான்",
-      "btn-voice-speak": "🔊 கேள்வியைப் பேசு",
-      "btn-voice-pause": "⏸️ இடைநிறுத்து",
-      "btn-voice-stop": "⏹️ நிறுத்து",
-      "btn-quiz-report": "🚩 புகாரளி",
-      "btn-quiz-tutor": "💬 AI வழிகாட்டி",
-      "btn-quiz-next": "அடுத்த கேள்வி ➡️",
-      "btn-quiz-hint": "💡 குறிப்பு தேவை? (3 மீதம்)",
-      "btn-submit-feedback": "கருத்து சமர்ப்பி",
-      "btn-summary-dashboard": "முகப்புக்குத் திரும்பு",
-      "btn-summary-review": "விடைகளை மதிப்பாய்வு செய்",
-      "btn-summary-certificate": "🎓 சான்றிதழ் பெறு",
-      "btn-cel-claim": "சான்றிதழ் பெறு 🎓",
-      "btn-cel-share": "பகிர் 🔗",
-      "btn-cel-continue": "தொடர்ந்து படி 📚",
-      "btn-cel-home": "முகப்புக்கு 🏠",
-      "btn-nav-login": "உள்நுழைக",
-      "btn-play-guest-landing": "விருந்தினராக விளையாடு 👤",
-
-      // Class dict-key mapping
-      "app-title": "AI வினாடி வினா சவால்",
-      "tooltip-coins-title": "நாணயங்கள் இருப்பு",
-      "tooltip-coins-desc": "கேள்விகளுக்குச் சரியாகப் பதிலளிப்பதன் மூலம் நீங்கள் பெறும் ஒவ்வொரு 1 எக்ஸ்பிக்கும் 1 நாணயம் கிடைக்கும். கடைப் பகுதியில் வினாக்கள், தீம்கள், பிரேம்கள் வாங்கப் பயன்படுத்தலாம்!",
-      "hero-title-text": "Smart AI-Powered Education Quiz and <br><span class=\"gradient-text\">Performance Tracking System</span>",
-      "hero-subtitle-text": "10த் தொழில்நுட்பப் பிரிவுகளில் போட்டியிடுங்கள், உலகளாவிய தரவரிசையில் ஏறி, டிஜிட்டல் சான்றிதழ்களைப் பெறுங்கள்!",
-      "btn-start-arena": "வினாடி வினா அரங்கில் நுழைக 🎮",
-      "btn-view-leaderboard-landing": "தரவரிசை பட்டியல் 🏆",
-      "auth-tab-login": "உள்நுழைவு",
-      "auth-tab-register": "கணக்கை உருவாக்கு",
-      "auth-label-username-email": "பயனர் பெயர் அல்லது மின்னஞ்சல் முகவரி",
-      "auth-label-password": "பாதுகாப்பான கடவுச்சொல்",
-      "auth-link-forgot": "கடவுச்சொல்லை மறந்துவிட்டீர்களா?",
-      "auth-btn-signin": "பாதுகாப்பாக உள்நுழைக",
-      "auth-label-or": "அல்லது",
-      "auth-btn-google": "கூகிள் மூலம் உள்நுழைக",
-      "auth-label-email": "மின்னஞ்சல் முகவரி",
-      "auth-label-new-username": "தனித்துவமான பயனர் பெயர்",
-      "auth-label-new-password": "கடவுச்சொல் (குறைந்தது 6 எழுத்துக்கள்)",
-      "auth-btn-register": "இலவச கணக்கை உருவாக்கு",
-      "auth-label-guest": "அல்லது கணக்கு இல்லாமல் விளையாடுங்கள்",
-      "auth-btn-guest": "விருந்தினராக விளையாடு 👤",
-      "dash-stat-xp": "மொத்த எக்ஸ்பி",
-      "dash-stat-coins": "நாணயங்கள்",
-      "dash-stat-streak": "தொடர் நாட்கள்",
-      "dash-stat-quizzes": "வினாடி வினாக்கள்",
-      "dash-level-label": "நிலை",
-      "btn-dash-bookmarks": "🔖 சேமித்த கேள்விகள்",
-      "btn-dash-leaderboard": "🏆 தரவரிசை",
-      "btn-dash-admin": "⚙️ நிர்வாக குழு",
-      "arena-card-title": "வினாடி வினா கட்டமைக்க",
-      "arena-label-category": "தலைப்பு பிரிவு",
-      "arena-label-difficulty": "கடினத்தன்மை தேர்வு செய்க",
-      "arena-label-mode": "விளையாட்டு முறை",
-      "arena-desc-mode-classic": "கிளாசிக் முறை: நிலையான 10 கேள்விகள் நேர வரம்புகள்.",
-      "arena-label-practice": "பயிற்சி முறை (மதிப்பெண் இழப்பு இல்லை, வரம்பற்ற முயற்சிகள்)",
-      "arena-label-practice-timer": "பயிற்சியில் நேர வரம்பை இயக்கு",
-      "arena-btn-start": "வினாடி வினாவைத் தொடங்கு 🚀",
-      "daily-challenge-title": "தினசரி சவால்",
-      "daily-challenge-desc": "ஒவ்வொரு 24 மணி நேரத்திற்கும் புதுப்பிக்கப்படும் 10 புதிய வினாக்கள். சிறப்பு சாதனைகளைப் பெற விளையாடுங்கள்!",
-      "daily-challenge-status": "தினசரி சவால் நிலை:",
-      "achievements-title": "சாதனைகள் மற்றும் பேட்ஜ்கள்",
-      "achievements-desc": "பேட்ஜ்களைத் திறக்க வினாடி வினாக்களை முடிக்கவும்",
-      "bookmarks-title": "சேமிக்கப்பட்ட கேள்விகள்",
-      "bookmarks-desc": "உங்கள் சேமித்த தொழில்நுட்ப கேள்விகளைப் படியுங்கள்",
-      "bookmarks-empty": "இன்னும் கேள்விகள் சேமிக்கப்படவில்லை! விளையாடும்போது சேமிக்க புக்மார்க் ஐகானை அழுத்தவும்.",
-      "history-title": "செயல்பாட்டு வரலாறு & புள்ளிவிவரங்கள்",
-      "history-skill-tier": "மதிப்பிடப்பட்ட திறன் நிலை:",
-      "history-correct-ratio": "சரியான பதில்களின் விகிதம்:",
-      "profile-card-title": "சுயவிவர தனிப்பயனாக்கம்",
-      "profile-label-avatar-emoji": "அவதார் ஈமோஜி",
-      "profile-label-username": "பயனர் பெயரை மாற்றுக",
-      "profile-label-bio": "சுயசரிதை (பயோ)",
-      "profile-label-fav-cat": "விருப்பமான தொழில்நுட்ப பிரிவு",
-      "profile-label-theme": "தீம் தேர்வு செய்யவும் (தீம்கள் கடையில் வாங்கப்பட வேண்டும்)",
-      "profile-btn-save": "மாற்றங்களைச் சேமி",
-      "certs-card-title": "நான் பெற்ற சான்றிதழ்கள்",
-      "certs-card-desc": "உங்களின் சரிபார்க்கப்பட்ட சான்றிதழ்கள் பட்டியல் (80% துல்லியம்)",
-      "certs-empty": "இன்னும் சான்றிதழ்கள் பெறப்படவில்லை. 80% மதிப்பெண்ணுடன் வினாடி வினாவை முடிக்கவும்.",
-      "history-sessions-title": "செயலில் உள்ள அமர்வுகள் & உள்நுழைவு வரலாறு",
-      "history-sessions-desc": "பாதுகாப்பு தணிக்கை சாதன அணுகல் பதிவுகள்",
-      "shop-card-title": "அலங்கார வெகுமதி கடை",
-      "shop-card-desc": "நாணயங்களைப் பயன்படுத்தி அவதார் பிரேம்கள், தீம்கள் மற்றும் விளையாட்டு சலுகைகளைத் திறக்கவும்",
-      "shop-balance": "நாணயங்கள் இருப்பு:",
-      "shop-inventory-title": "நீங்கள் வாங்கிய பொருட்கள்",
-      "predictor-card-title": "எதிர்கால திறன் மற்றும் தொழில் கணிப்பான்",
-      "predictor-desc": "உங்கள் வினாடி வினா வரலாற்றை பகுப்பாய்வு செய்து சிறந்த தொழில் வழிகளை பரிந்துரைக்கிறது",
-      "predictor-skills-title": "பாடத் திறன் முறிவு",
-      "predictor-checkpoints-title": "தொழில் பாதை மைல்கற்கள்",
-      "predictor-month-title": "செயல்திறன் போக்கு குறியீடு",
-      "quiz-label-timer": "நேரம்:",
-      "quiz-label-lifelines": "உதவிகள்:",
-      "tutor-header-title": "AI வழிகாட்டி உரையாடல்",
-      "tutor-status-online": "செயலில் உள்ளது (குறிப்பு முதல் முறை)",
-      "chip-hint": "💡 குறிப்பு கொடுங்கள்",
-      "chip-concept": "📖 கருத்தை விளக்குங்கள்",
-      "chip-answer": "🔑 விடையை விளக்குங்கள்",
-      "tutor-input-placeholder": "தொடர் கேள்வியைக் கேளுங்கள்...",
-      "btn-tutor-chat-send": "அனுப்பு ➡️",
-      "lb-title": "🏆 உலகளாவிய தரவரிசை",
-      "lb-desc": "உலகெங்கிலும் உள்ள பொறியாளர்களுடன் போட்டியிடுங்கள். மொத்த எக்ஸ்பி (XP) அடிப்படையில்.",
-      "lb-period-all": "எல்லா காலமும்",
-      "lb-period-weekly": "வாரம்",
-      "lb-period-monthly": "மாதம்",
-      "lb-th-rank": "தரவரிசை",
-      "lb-th-username": "பயனர் பெயர்",
-      "lb-th-xp": "மொத்த எக்ஸ்பி",
-      "lb-th-quizzes": "வினாடி வினாக்கள்",
-      "lb-th-perfect": "சரியான ஸ்கோர்",
-      "lb-th-streak": "தொடர் நாட்கள்",
-      "lb-th-actions": "செயல்கள்",
-      "summary-headline": "வினாடி வினா முடிந்தது!",
-      "summary-meta-desc": "நீங்கள் சவாலை வெற்றிகரமாக முடித்துள்ளீர்கள்",
-      "summary-score-label": "சரியானது",
-      "summary-rating-title": "உங்கள் அனுபவத்தை மதிப்பிடுங்கள்:",
-      "summary-review-title": "கேள்வி வாரியான முறிவு",
-      "reset-title": "கடவுச்சொல் மீட்பு",
-      "reset-email-desc": "மீட்புக் குறியீட்டைப் பெற உங்கள் மின்னஞ்சலை உள்ளிடவும்.",
-      "reset-email-label": "மின்னஞ்சல் முகவரி",
-      "reset-btn-send": "மீட்புக் குறியீட்டை அனுப்பு",
-      "reset-btn-cancel": "ரத்துசெய்",
-      "reset-code-desc": "குறியீட்டை உள்ளிட்டு புதிய கடவுச்சொல்லைத் தேர்ந்தெடுக்கவும்.",
-      "reset-code-label": "சரிபார்ப்புக் குறியீடு",
-      "reset-pass-label": "புதிய கடவுச்சொல்",
-      "reset-btn-submit": "கடவுச்சொல்லை மீட்டமை",
-      "report-title": "கேள்வியைப் புகாரளி",
-      "report-label-reason": "காரணத்தைத் தேர்ந்தெடுக்கவும்",
-      "report-reason-wrong": "தவறான விடை",
-      "report-reason-incorrect": "தவறான கேள்வி",
-      "report-reason-typo": "எழுத்துப்பிழை",
-      "report-reason-dup": "நகல் கேள்வி",
-      "report-reason-other": "இதர",
-      "report-comments-label": "கூடுதல் கருத்துகள்",
-      "report-btn-submit": "புகாரைச் சமர்ப்பி",
-      "report-btn-cancel": "ரத்துசெய்",
-      "cert-congrats": "வாழ்த்துகள்!",
-      "cert-title-cert": "சாதனைச் சான்றிதழ்",
-      "cert-name-lbl": "இது பெருமையுடன் வழங்கப்படுகிறது",
-      "cert-desc-lbl": "AI வினாடி வினா சவாலை வெற்றிகரமாக முடித்து, தொழில்நுட்ப பாடப் பிரிவில் சிறந்த அறிவையும் செயல்திறனையும் வெளிப்படுத்தியமைக்காக.",
-      "btn-cert-download-pdf": "PDF பதிவிறக்கு",
-      "btn-cert-download-png": "PNG பதிவிறக்கு",
-      "btn-cert-share": "சான்றிதழைப் பகிர்",
-      "btn-cert-close": "முகப்புக்குச் செல்",
-      "admin-title": "நிர்வாக கட்டுப்பாட்டு கன்சோல்",
-      "admin-tab-q": "கேள்விகள்",
-      "admin-tab-u": "பயனர்கள்",
-      "admin-tab-f": "கருத்துகள்",
-      "admin-tab-r": "புகார்கள்",
-      "admin-tab-b": "அறிவிப்புகள்",
-      "admin-tab-l": "உள்நுழைவு பதிவுகள்",
-      "admin-q-form-title": "புதிய வினாடி வினா கேள்வி சேர்க்க",
-      "admin-q-label-cat": "பிரிவு",
-      "admin-q-label-diff": "கடினத்தன்மை",
-      "admin-q-label-prompt": "கேள்வி உரை",
-      "admin-q-label-a": "விருப்பம் A",
-      "admin-q-label-b": "விருப்பம் B",
-      "admin-q-label-c": "விருப்பம் C",
-      "admin-q-label-d": "விருப்பம் D",
-      "admin-q-label-correct": "சரியான விருப்பம்",
-      "admin-q-label-explain": "விளக்கம்",
-      "admin-q-label-hint": "குறிப்பு",
-      "btn-admin-q-submit": "கேள்வி சேர்",
-      "btn-admin-q-cancel": "தொகுத்தலை ரத்துசெய்",
-      "admin-q-repo-title": "கேள்வி களஞ்சியம்",
-      "admin-q-search-placeholder": "தேடல் கேள்விகள்...",
-      "btn-admin-search": "தேடு",
-      "admin-users-title": "பதிவுசெய்த பயனர்கள் மேலாளர்",
-      "admin-feedback-title": "மதிப்பீட்டு விமர்சனங்கள்",
-      "admin-reports-title": "கொடியிடப்பட்ட கேள்வி புகார்கள்",
-      "admin-broadcast-title": "அமைப்பு அறிவிப்பாளர்",
-      "admin-broadcast-label": "அறிவிப்பு உரை",
-      "btn-admin-broadcast-submit": "அறிவிப்பை அனுப்பு",
-      "admin-broadcast-history-title": "அறிவிப்பு வரலாறு",
-      "admin-logs-title": "அணுகல் தணிக்கை பாதுகாப்பு உள்நுழைவுகள்",
-      "btn-quiz-quit": "🚪 விலகு",
-      "quit-modal-title": "வினாடி வினாவிலிருந்து விலகவா?",
-      "quit-modal-body": "வினாடி வினாவிலிருந்து விலக வேண்டுமா? இந்த வினாடி வினாவில் உங்கள் தற்போதைய முன்னேற்றம் இழக்கப்படும்.",
-      "btn-quit-confirm": "விலகு",
-      "btn-quit-cancel": "தொடரவும்",
-      "predictor-mentor-title": "🧙‍♂️ AI தொழில் வழிகாட்டி அரட்டை",
-      "predictor-mentor-desc": "உங்கள் தொழில் ஆலோசகரிடம் தொடர் கேள்விகளைக் கேளுங்கள் அல்லது மாறும் ஆய்வுத் திட்டங்களைப் பெறுங்கள்.",
-      "chip-career": "💼 தொழில் பாதைகளை பரிந்துரைக்கவும்",
-      "chip-skills": "📈 மேம்படுத்த வேண்டிய திறன்கள்",
-      "chip-certs": "🎓 சான்றிதழ்களை பரிந்துரைக்கவும்",
-      "btn-predictor-send": "அனுப்பு",
-      "settings-label-notifications": "செயலி அறிவிப்புகளை இயக்கவும்",
-      "btn-theme-restore-default": "இயல்புநிலையை மீட்டமை",
-      "btn-theme-remove-current": "தீம் நீக்கவும்",
-      "profile-label-theme": "தீம் தேர்ந்தெடுக்கவும் (கடையில் இருந்து வாங்க வேண்டும்)",
-      "notif-disabled": "அறிவிப்புகள் அமைப்புகளில் முடக்கப்பட்டுள்ளன.",
-      "no-notif": "புதிய அறிவிப்புகள் இல்லை"
-    },
-    hi: {
-      // Buttons and IDs
-      "tab-dash-arena": "🎮 अखाड़ा",
-      "tab-dash-profile": "👤 प्रोफाइल",
-      "tab-dash-shop": "🪙 दुकान",
-      "tab-dash-predictor": "📊 संकेतक",
-      "btn-voice-speak": "🔊 प्रश्न बोलें",
-      "btn-voice-pause": "⏸️ विराम दें",
-      "btn-voice-stop": "⏹️ रोकें",
-      "btn-quiz-report": "🚩 रिपोर्ट करें",
-      "btn-quiz-tutor": "💬 AI शिक्षक",
-      "btn-quiz-next": "अगला प्रश्न ➡️",
-      "btn-quiz-hint": "💡 संकेत चाहिए? (3 शेष)",
-      "btn-submit-feedback": "समीक्षा भेजें",
-      "btn-summary-dashboard": "डैशबोर्ड पर जाएँ",
-      "btn-summary-review": "उत्तर जांचें",
-      "btn-summary-certificate": "🎓 प्रमाणपत्र प्राप्त करें",
-      "btn-cel-claim": "प्रमाणपत्र प्राप्त करें 🎓",
-      "btn-cel-share": "साझा करें 🔗",
-      "btn-cel-continue": "पढ़ना जारी रखें 📚",
-      "btn-cel-home": "मुख्य पृष्ठ 🏠",
-      "btn-nav-login": "लॉग इन करें",
-      "btn-play-guest-landing": "अतिथि के रूप में खेलें 👤",
-
-      // Class dict-key mapping
-      "app-title": "एआई क्विज चैलेंज",
-      "tooltip-coins-title": "सिक्कों का संतुलन",
-      "tooltip-coins-desc": "प्रश्नों के सही उत्तर देने पर आपको प्रत्येक 1 एक्सपी के लिए 1 सिक्का प्राप्त होता है। दुकान में अवतार फ्रेम, थीम आदि खरीदने के लिए इनका उपयोग करें!",
-      "hero-title-text": "Smart AI-Powered Education Quiz and <br><span class=\"gradient-text\">Performance Tracking System</span>",
-      "hero-subtitle-text": "10 तकनीकी श्रेणियों में प्रतिस्पर्धा करें, वैश्विक लीडरबोर्ड पर चढ़ें, डिजिटल प्रमाणपत्र अर्जित करें!",
-      "btn-start-arena": "प्रश्नोत्तरी क्षेत्र में प्रवेश करें 🎮",
-      "btn-view-leaderboard-landing": "लीडरबोर्ड रैंकिंग 🏆",
-      "auth-tab-login": "साइन इन करें",
-      "auth-tab-register": "खाता बनाएं",
-      "auth-label-username-email": "उपयोगकर्ता नाम या ईमेल पता",
-      "auth-label-password": "सुरक्षित पासवर्ड",
-      "auth-link-forgot": "पासवर्ड भूल गए?",
-      "auth-btn-signin": "सुरक्षित रूप से साइन इन करें",
-      "auth-label-or": "अथवा",
-      "auth-btn-google": "गूगल के साथ साइन इन करें",
-      "auth-label-email": "ईमेल पता",
-      "auth-label-new-username": "अद्वितीय उपयोगकर्ता नाम",
-      "auth-label-new-password": "पासवर्ड (कम से कम 6 अक्षर)",
-      "auth-btn-register": "निःशुल्क खाता बनाएं",
-      "auth-label-guest": "या बिना खाते के खेलें",
-      "auth-btn-guest": "अतिथि के रूप में खेलें 👤",
-      "dash-stat-xp": "कुल एक्सपी",
-      "dash-stat-coins": "सिक्के",
-      "dash-stat-streak": "लगातार दिन",
-      "dash-stat-quizzes": "प्रश्नोत्तरी",
-      "dash-level-label": "स्तर",
-      "btn-dash-bookmarks": "🔖 सहेजे गए प्रश्न",
-      "btn-dash-leaderboard": "🏆 लीडरबोर्ड",
-      "btn-dash-admin": "⚙️ व्यवस्थापक पैनल",
-      "arena-card-title": "प्रश्नोत्तरी कॉन्फ़िगर करें",
-      "arena-label-category": "विषय श्रेणी",
-      "arena-label-difficulty": "कठिनाई का चयन करें",
-      "arena-label-mode": "खेल मोड",
-      "arena-desc-mode-classic": "क्लासिक मोड: मानक 10 प्रश्न समय सीमा।",
-      "arena-label-practice": "अभ्यास मोड (कोई अंक दंड नहीं, असीमित प्रयास)",
-      "arena-label-practice-timer": "अभ्यास में टाइमर सक्षम करें",
-      "arena-btn-start": "क्विज़ प्रारंभ करें 🚀",
-      "daily-challenge-title": "दैनिक चुनौती",
-      "daily-challenge-desc": "हर 24 घंटे में ताज़ा किए जाने वाले 10 नए प्रश्न। विशेष उपलब्धियों के लिए खेलें!",
-      "daily-challenge-status": "दैनिक चुनौती स्थिति:",
-      "achievements-title": "उपलब्धियां और बैज",
-      "achievements-desc": "बैज अनलॉक करने के लिए प्रश्नोत्तरी पूरी करें",
-      "bookmarks-title": "सहेजे गए प्रश्न",
-      "bookmarks-desc": "अपने सहेजे गए तकनीकी प्रश्नों का अध्ययन करें",
-      "bookmarks-empty": "अभी तक कोई प्रश्न सहेजा नहीं गया है! खेलते समय बचाने के लिए बुकमार्क आइकन दबाएं।",
-      "history-title": "गतिविधि इतिहास और आँकड़े",
-      "history-skill-tier": "अनुमानित कौशल स्तर:",
-      "history-correct-ratio": "सही उत्तरों का अनुपात:",
-      "profile-card-title": "प्रोफ़ाइल अनुकूलन",
-      "profile-label-avatar-emoji": "अवतार इमोजी",
-      "profile-label-username": "उपयोगकर्ता नाम बदलें",
-      "profile-label-bio": "लघु जीवनी (बायो)",
-      "profile-label-fav-cat": "पसंदीदा तकनीकी श्रेणी",
-      "profile-label-theme": "सक्रिय थीम चुनें (थीम दुकान से खरीदी जानी चाहिए)",
-      "profile-btn-save": "परिवर्तन सहेजें",
-      "certs-card-title": "मेरे अर्जित प्रमाणपत्र",
-      "certs-card-desc": "आपके सत्यापित प्रमाणपत्रों की सूची (80% सटीकता)",
-      "certs-empty": "अभी तक कोई प्रमाणपत्र अर्जित नहीं किया गया है। 80% सटीकता के साथ प्रश्नोत्तरी पूरी करें।",
-      "history-sessions-title": "सक्रिय सत्र और लॉगिन इतिहास",
-      "history-sessions-desc": "सुरक्षा ऑडिट डिवाइस एक्सेस लॉग",
-      "shop-card-title": "सौंदर्य प्रसाधन पुरस्कार की दुकान",
-      "shop-card-desc": "सिक्कों का उपयोग करके अवतार फ्रेम, थीम और गेमप्ले लाभ अनलॉक करें",
-      "shop-balance": "सिक्कों का संतुलन:",
-      "shop-inventory-title": "आपके द्वारा खरीदी गई वस्तुएं",
-      "predictor-card-title": "भविष्य के कौशल और कैरियर भविष्यवक्ता",
-      "predictor-desc": "सर्वोत्तम कैरियर पथों की अनुशंसा करने के लिए आपके प्रश्नोत्तरी इतिहास का विश्लेषण करता है",
-      "predictor-skills-title": "विषय कौशल विभाजन",
-      "predictor-checkpoints-title": "कैरियर पथ मील के पत्थर",
-      "predictor-month-title": "प्रदर्शन रुझान सूचकांक",
-      "quiz-label-timer": "समय:",
-      "quiz-label-lifelines": "लाइफलाइन:",
-      "tutor-header-title": "एआई ट्यूटर बातचीत",
-      "tutor-status-online": "सक्रिय है (संकेत प्रथम मोड)",
-      "chip-hint": "💡 मुझे एक संकेत दें",
-      "chip-concept": "📖 अवधारणा समझाएं",
-      "chip-answer": "🔑 उत्तर समझाएं",
-      "tutor-input-placeholder": "अगला प्रश्न पूछें...",
-      "btn-tutor-chat-send": "भेजें ➡️",
-      "lb-title": "🏆 वैश्विक रैंकिंग",
-      "lb-desc": "दुनिया भर के इंजीनियरों के साथ प्रतिस्पर्धा करें। कुल एक्सपी (XP) के आधार पर।",
-      "lb-period-all": "सर्वकालिक",
-      "lb-period-weekly": "साप्ताहिक",
-      "lb-period-monthly": "मासिक",
-      "lb-th-rank": "रैंक",
-      "lb-th-username": "उपयोगकर्ता नाम",
-      "lb-th-xp": "कुल एक्सपी",
-      "lb-th-quizzes": "प्रश्नोत्तरी पूर्ण",
-      "lb-th-perfect": "उत्कृष्ट स्कोर",
-      "lb-th-streak": "सिलसिला दिन",
-      "lb-th-actions": "कार्रवाई",
-      "summary-headline": "प्रश्नोत्तरी पूरी हुई!",
-      "summary-meta-desc": "आपने सफलतापूर्वक चुनौती पूरी कर ली है",
-      "summary-score-label": "सही उत्तर",
-      "summary-rating-title": "अपने अनुभव को रेट करें:",
-      "summary-review-title": "प्रश्न-दर-प्रश्न विश्लेषण",
-      "reset-title": "पासवर्ड रिकवरी",
-      "reset-email-desc": "रिकवरी कोड प्राप्त करने के लिए अपना ईमेल दर्ज करें।",
-      "reset-email-label": "ईमेल पता",
-      "reset-btn-send": "रिकवरी कोड भेजें",
-      "reset-btn-cancel": "रद्द करें",
-      "reset-code-desc": "कोड दर्ज करें और एक नया पासवर्ड चुनें।",
-      "reset-code-label": "सत्यापन कोड",
-      "reset-pass-label": "नया पासवर्ड",
-      "reset-btn-submit": "पासवर्ड रीसेट करें",
-      "report-title": "प्रश्न की रिपोर्ट करें",
-      "report-label-reason": "कारण चुनें",
-      "report-reason-wrong": "गलत उत्तर",
-      "report-reason-incorrect": "गलत प्रश्न",
-      "report-reason-typo": "वर्तनी की गलती",
-      "report-reason-dup": "डुप्लिकेट प्रश्न",
-      "report-reason-other": "अन्य",
-      "report-comments-label": "अतिरिक्त टिप्पणियाँ",
-      "report-btn-submit": "रिपोर्ट सबमिट करें",
-      "report-btn-cancel": "रद्द करें",
-      "cert-congrats": "बधाई हो!",
-      "cert-title-cert": "उपलब्धि प्रमाण पत्र",
-      "cert-name-lbl": "यह गर्व के साथ प्रस्तुत किया जाता है",
-      "cert-desc-lbl": "एआई क्विज चुनौती को सफलतापूर्वक पूरा करने और तकनीकी विषय श्रेणी में उत्कृष्ट ज्ञान प्रदर्शित करने के लिए।",
-      "btn-cert-download-pdf": "पीडीएफ डाउनलोड",
-      "btn-cert-download-png": "पीएनजी डाउनलोड",
-      "btn-cert-share": "प्रमाणपत्र साझा करें",
-      "btn-cert-close": "मुख्य पृष्ठ पर जाएं",
-      "admin-title": "व्यवस्थापक नियंत्रण कंसोल",
-      "admin-tab-q": "प्रश्न",
-      "admin-tab-u": "उपयोगकर्ता",
-      "admin-tab-f": "प्रतिक्रियाएं",
-      "admin-tab-r": "रिपोर्ट",
-      "admin-tab-b": "प्रसारण",
-      "admin-tab-l": "लॉगिन रिकॉर्ड",
-      "admin-q-form-title": "नया क्विज़ प्रश्न जोड़ें",
-      "admin-q-label-cat": "श्रेणी",
-      "admin-q-label-diff": "कठिनाई",
-      "admin-q-label-prompt": "प्रश्न पाठ",
-      "admin-q-label-a": "विकल्प A",
-      "admin-q-label-b": "विकल्प B",
-      "admin-q-label-c": "विकल्प C",
-      "admin-q-label-d": "विकल्प D",
-      "admin-q-label-correct": "सही विकल्प",
-      "admin-q-label-explain": "स्पष्टीकरण",
-      "admin-q-label-hint": "संकेत",
-      "btn-admin-q-submit": "प्रश्न जोड़ें",
-      "btn-admin-q-cancel": "संपादन रद्द करें",
-      "admin-q-repo-title": "प्रश्न भंडार",
-      "admin-q-search-placeholder": "प्रश्न खोजें...",
-      "btn-admin-search": "खोजें",
-      "admin-users-title": "पंजीकृत उपयोगकर्ता प्रबंधक",
-      "admin-feedback-title": "मूल्यांकन समीक्षाएँ",
-      "admin-reports-title": "चिह्नित प्रश्न रिपोर्ट",
-      "admin-broadcast-title": "सिस्टम उद्घोषक",
-      "admin-broadcast-label": "उद्घोषणा पाठ",
-      "btn-admin-broadcast-submit": "उद्घोषणा भेजें",
-      "admin-broadcast-history-title": "उद्घोषणा इतिहास",
-      "admin-logs-title": "पहुंच ऑडिट सुरक्षा लॉगिन",
-      "btn-quiz-quit": "🚪 छोड़ें",
-      "quit-modal-title": "प्रश्नोत्तरी छोड़ें?",
-      "quit-modal-body": "क्या आप वास्तव में प्रश्नोत्तरी छोड़ना चाहते हैं? इस प्रश्नोत्तरी में आपकी वर्तमान प्रगति खो जाएगी।",
-      "btn-quit-confirm": "छोड़ें",
-      "btn-quit-cancel": "जारी रखें",
-      "predictor-mentor-title": "🧙‍♂️ एआई कैरियर मेंटर चैट",
-      "predictor-mentor-desc": "अपने कैरियर सलाहकार से अनुवर्ती प्रश्न पूछें या गतिशील अध्ययन योजनाएँ प्राप्त करें।",
-      "chip-career": "💼 कैरियर पथों का सुझाव दें",
-      "chip-skills": "📈 कौशल की सिफारिश करें",
-      "chip-certs": "🎓 प्रमाणपत्रों का सुझाव दें",
-      "btn-predictor-send": "भेजें",
-      "settings-label-notifications": "इन-ऐप सूचनाएं सक्षम करें",
-      "btn-theme-restore-default": "डिफ़ॉल्ट पुनर्स्थापित करें",
-      "btn-theme-remove-current": "थीम हटाएं",
-      "profile-label-theme": "सक्रिय थीम चुनें (दुकान से खरीदनी होगी)",
-      "notif-disabled": "सूचनाएं सेटिंग्स में अक्षम हैं।",
-      "no-notif": "कोई नई सूचना नहीं"
-    }
-  };
-
-  window.currentLang = 'en';
-  function translateUI(lang) {
-    window.currentLang = lang;
-    const dict = Translations[lang] || Translations.en;
-
-    // 1. Translate by ID
-    for (const id in dict) {
-      const el = document.getElementById(id);
-      if (el) {
-        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-          el.placeholder = dict[id];
-        } else {
-          if (dict[id].includes('<')) {
-            el.innerHTML = dict[id];
-          } else {
-            el.innerText = dict[id];
-          }
-        }
-      }
-    }
-
-    // 2. Translate by class dict-key
-    document.querySelectorAll('.dict-key').forEach(el => {
-      const key = el.dataset.key || el.getAttribute('data-key');
-      if (key && dict[key]) {
-        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-          el.placeholder = dict[key];
-        } else {
-          if (dict[key].includes('<')) {
-            el.innerHTML = dict[key];
-          } else {
-            el.innerText = dict[key];
-          }
-        }
-      }
-    });
-
-    // 3. Translate page placeholders & selectors options
-    const langSel = document.getElementById('select-language-toggle');
-    if (langSel) langSel.value = lang;
-
-    // 4. If in gameplay, redraw active question instantly!
-    if (AppState.activeView === 'quiz' && AppState.quiz && AppState.quiz.questions && AppState.quiz.questions.length > 0) {
-      // Redraw question texts instantly in active lang without resetting countdown timers
-      const qRaw = AppState.quiz.questions[AppState.quiz.currentIndex];
-      const q = translateQuestion(qRaw, lang);
-
-      document.getElementById('quiz-badge-category').innerText = AppState.quiz.isDailyChallenge ? (lang === 'ta' ? 'தினசரி சவால்' : lang === 'hi' ? 'दैनिक चुनौती' : 'Daily Challenge') : (q.category || AppState.quiz.category || 'Quiz');
-      document.getElementById('quiz-badge-difficulty').innerText = (q.difficulty || AppState.quiz.difficulty || 'easy').toUpperCase();
-      document.getElementById('quiz-question-text').innerText = q.question_text;
-
-      // Re-draw option buttons text but keep their buttons reference
-      const buttons = document.querySelectorAll('.option-btn');
-      if (buttons.length === 4 && AppState.quiz.currentOptions) {
-        buttons.forEach((btn) => {
-          const indexSpan = btn.querySelector('.option-index');
-          if (indexSpan) {
-            const key = indexSpan.innerText;
-            const opt = AppState.quiz.currentOptions.find(o => o.displayKey === key);
-            if (opt) {
-              const optTextTrans = translateQuestionOption(opt.text, lang);
-              btn.innerHTML = `<span class="option-index">${key}</span> <span class="option-text">${optTextTrans}</span>`;
-            }
-          }
-        });
-      }
-
-      // Refresh explanations or hint boxes text
-      const hintBox = document.getElementById('hint-text-box');
-      if (hintBox && !hintBox.classList.contains('hidden')) {
-        if (hintBox.innerHTML.includes('Explanation:')) {
-          hintBox.innerHTML = `<strong>Explanation:</strong> ${q.explanation}`;
-        } else {
-          hintBox.innerHTML = `Hint: ${q.hint}`;
-        }
-      }
-    }
-
-    // Translate achievements/badges names and descriptions
-    document.querySelectorAll('.badge-item').forEach(bEl => {
-      const id = bEl.getAttribute('data-badge');
-      const badgeTrans = badgeTranslations[lang]?.[id] || badgeTranslations.en?.[id];
-      if (badgeTrans) {
-        const nameEl = bEl.querySelector('.badge-name');
-        const descEl = bEl.querySelector('.badge-desc');
-        if (nameEl) nameEl.innerText = badgeTrans.name;
-        if (descEl) descEl.innerText = badgeTrans.desc;
-        bEl.setAttribute('title', badgeTrans.desc);
-      }
-    });
-
-    // 5. If dashboard or leaderboard is active, trigger refreshes
-    if (AppState.activeView === 'dashboard') {
-      ViewRefresher.refreshDashboard();
-    } else if (AppState.activeView === 'leaderboard') {
-      ViewRefresher.refreshLeaderboard();
-    }
-  }
-
-  function translateQuestionOption(text, lang) {
-    if (!lang || lang === 'en') return text;
-
-    const translations = {
-      ta: {
-        "Algorithms that enable computers to learn from and make predictions based on data.": "கணினிகள் தரவுகளிலிருந்து கற்றுக்கொள்ளவும் கணிப்புகளைச் செய்யவும் உதவும் வழிமுறைகள்.",
-        "Natural Language Processing": "இயற்கை மொழி செயலாக்கம்",
-        "Systems that understand, interpret, and process human text and spoken language.": "மனித உரை மற்றும் பேச்சு மொழியைப் புரிந்துகொள்ளும், விளக்கும் மற்றும் செயலாக்கும் அமைப்புகள்.",
-        "Technology designed to extract information and understand digital images and videos.": "டிஜிட்டல் படங்கள் மற்றும் வீடியோக்களிலிருந்து தகவல்களைப் பிரித்தெடுக்கவும் புரிந்து கொள்ளவும் வடிவமைக்கப்பட்ட தொழில்நுட்பம்.",
-        "Neural networks with multiple hidden layers that extract complex features from raw inputs.": "மூல உள்ளீடுகளிலிருந்து சிக்கலான அம்சங்களைப் பிரித்தெடுக்கும் பல மறைக்கப்பட்ட அடுக்குகளைக் கொண்ட நரம்பியல் நெட்வொர்க்குகள்.",
-        "AI models trained to create new text, images, or synthetic data matching training distributions.": "பயிற்சி விநியோகங்களுடன் பொருந்தக்கூடிய புதிய உரை, படங்கள் அல்லது செயற்கை தரவை உருவாக்க பயிற்சி பெற்ற AI மாதிரிகள்.",
-        "An agent learning optimal sequences of actions in an environment to maximize cumulative rewards.": "திரண்ட வெகுமதிகளை அதிகரிக்க ஒரு சூழலில் உகந்த செயல்களின் வரிசைகளைக் கற்கும் ஒரு முகவர்.",
-        "Training machine learning algorithms using labeled datasets with explicit inputs and targets.": "வெளிப்படையான உள்ளீடுகள் மற்றும் இலக்குகளுடன் லேபிளிடப்பட்ட தரவுத்தொகுப்புகளைப் பயன்படுத்தி இயந்திர கற்றல் வழிமுறைகளைப் பயிற்றுவித்தல்.",
-        "Discovering hidden structures, groupings, or dimensions in unlabeled datasets.": "லேபிளிடப்படாத தரவுத்தொகுப்புகளில் மறைக்கப்பட்ட கட்டமைப்புகள், குழுக்கள் அல்லது பரிமாணங்களைக் கண்டறிதல்.",
-        "Interconnected layers of processing nodes mimicking biological brain structures to process parameters.": "அளபுருக்களை செயலாக்க உயிரியல் மூளை அமைப்புகளைப் பிரதிபलिக்கும் செயலாக்க முனைகளின் ஒன்றோடொன்று இணைக்கப்பட்ட அடுக்குகள்.",
-        "Logical decision engines emulating human logical expertise using a static set of rules.": "நிலையான விதிகளைப் பயன்படுத்தி மனித தர்க்கரீதியான நிபுணத்துவத்தைப் பிரதிபலிக்கும் தர்க்கரீதியான முடிவு இயந்திரங்கள்.",
-        "Sets the foreground text color of page elements.": "பக்க உறுப்புகளின் முன் உரை நிறத்தை அமைக்கிறது.",
-        "Configures the background color of an element's box model area.": "ஒரு உறுப்பின் பெட்டி மாதிரி பகுதியின் பின்னணி நிறத்தை உள்ளமைக்கிறது.",
-        "Controls the sizing scale of typography fonts.": "அச்சுக்கலை எழுத்துருக்களின் அளவு அளவைக் கட்டுப்படுத்துகிறது.",
-        "Defines outer spacing boundaries around elements, outside of borders.": "எல்லைகளுக்கு வெளியே, உறுப்புகளைச் சுற்றி வெளிப்புற இடைவெளி எல்லைகளை வரையறுக்கிறது.",
-        "Defines inner spacing margins between elements content and their borders.": "உறுப்புகளின் உள்ளடக்கம் மற்றும் அவற்றின் எல்லைகளுக்கு இடையே உள்ள உள் இடைவெளி வரம்புகளை வரையறுக்கிறது.",
-        "Sets borders thickness, line styles, and color boundaries around boxes.": "பெட்டிகளைச் சுற்றி எல்லைகளின் தடிமன், வரி பாணிகள் மற்றும் வண்ண எல்லைகளை அமைக்கிறது.",
-        "Sets the horizontal layout dimension size of elements.": "உறுப்புகளின் கிடைமட்ட தளவமைப்பு பரிமாண அளவை அமைக்கிறது.",
-        "Sets the vertical layout dimension size of elements.": "உறுப்புகளின் செங்குத்து தளவமைப்பு பரிமாண அளவை அமைக்கிறது.",
-        "Configures horizontal alignment (left, right, center, justify) of inline text contents.": "உள் உரை உள்ளடக்கங்களின் கிடைமட்ட சீரமைப்பை (இடது, வலது, மையம், சீரமை) உள்ளமைக்கிறது.",
-        "Sets the layout display type (block, inline, flex, grid, none) of boxes.": "பெட்டிகளின் தளவமைப்பு காட்சி வகையை (block, inline, flex, grid, none) அமைக்கிறது.",
-        "Alternative mechanism for AI development.": "AI மேம்பாட்டிற்கான மாற்று வழிமுறை.",
-        "Standard configuration module in AI application.": "AI பயன்பாட்டில் நிலையான உள்ளமைவு தொகுதி.",
-        "Process optimization handler in AI framework.": "AI கட்டமைப்பில் செயல்முறை தேர்வுமுறை ஹேண்ட்லர்."
-      },
-      hi: {
-        "Algorithms that enable computers to learn from and make predictions based on data.": "एल्गोरिदम जो कंप्यूटर को डेटा से सीखने और भविष्यवाणी करने में सक्षम बनाते हैं।",
-        "Natural Language Processing": "प्राकृतिक भाषा प्रसंस्करण",
-        "Systems that understand, interpret, and process human text and spoken language.": "सिस्टम जो मानव पाठ और बोली जाने वाली भाषा को समझते, व्याख्या करते और संसाधित करते हैं।",
-        "Technology designed to extract information and understand digital images and videos.": "डिजिटल छवियों और वीडियो से जानकारी निकालने और समझने के लिए डिज़ाइन की गई तकनीक।",
-        "Neural networks with multiple hidden layers that extract complex features from raw inputs.": "कच्चे इनपुट से जटिल विशेषताओं को निकालने वाले कई छिपे हुए परतों वाले न्यूरल नेटवर्क।",
-        "AI models trained to create new text, images, or synthetic data matching training distributions.": "प्रशिक्षण वितरण से मेल खाने वाले नए पाठ, चित्र या सिंथेटिक डेटा बनाने के लिए प्रशिक्षित एआई मॉडल।",
-        "An agent learning optimal sequences of actions in an environment to maximize cumulative rewards.": "संचयी पुरस्कारों को अधिकतम करने के लिए वातावरण में कार्रवाई के इष्टतम अनुक्रम सीखने वाला एजेंट।",
-        "Training machine learning algorithms using labeled datasets with explicit inputs and targets.": "स्पष्ट इनपुट और लक्ष्यों के साथ लेबल किए गए डेटासेट का उपयोग करके मशीन लर्निंग एल्गोरिदम को प्रशिक्षित करना।",
-        "Discovering hidden structures, groupings, or dimensions in unlabeled datasets.": "लेबल रहित डेटासेट में छिपी हुई संरचनाओं, समूहों या आयामों की खोज करना।",
-        "Interconnected layers of processing nodes mimicking biological brain structures to process parameters.": "मापदंडों को संसाधित करने के लिए जैविक मस्तिष्क संरचनाओं की नकल करने वाले प्रसंस्करण नोड्स की इंटरकनेक्टेड परतें।",
-        "Logical decision engines emulating human logical expertise using a static set of rules.": "नियमों के एक स्थिर सेट का उपयोग करके मानव तार्किक विशेषज्ञता का अनुकरण करने वाले तार्किक निर्णय इंजन।",
-        "Sets the foreground text color of page elements.": "पेज तत्वों के अग्रभूमि पाठ का रंग सेट करता है।",
-        "Configures the background color of an element's box model area.": "किसी तत्व के बॉक्स मॉडल क्षेत्र के पृष्ठभूमि रंग को कॉन्फ़िगर करता है।",
-        "Controls the sizing scale of typography fonts.": "टाइपोोग्राफी फ़ॉन्ट के आकार के पैमाने को नियंत्रित करता है।",
-        "Defines outer spacing boundaries around elements, outside of borders.": "तत्वों के चारों ओर बाहरी रिक्ति सीमाओं को परिभाषित करता है, सीमाओं के बाहर।",
-        "Defines inner spacing margins between elements content and their borders.": "तत्वों की सामग्री और उनकी सीमाओं के बीच आंतरिक रिक्ति मार्जिन को परिभाषित करता है।",
-        "Sets borders thickness, line styles, and color boundaries around boxes.": "बक्से के चारों ओर सीमाओं की मोटाई, रेखा शैलियों और रंग सीमाओं को सेट करता है।",
-        "Sets the horizontal layout dimension size of elements.": "तत्वों के क्षैतिज लेआउट आयाम आकार को सेट करता है।",
-        "Sets the vertical layout dimension size of elements.": "तत्वों के लंबवत लेआउट आयाम आकार को सेट करता है।",
-        "Configures horizontal alignment (left, right, center, justify) of inline text contents.": "इनलाइन पाठ सामग्री के क्षैतिज संरेखण (बाएं, दाएं, केंद्र, न्यायसंगत) को कॉन्फ़िगर करता है।",
-        "Sets the layout display type (block, inline, flex, grid, none) of boxes.": "बक्से के लेआउट डिस्प्ले प्रकार (ब्लॉक, इनलाइन, फ्लेक्स, ग्रिड, कोई नहीं) को सेट करता है।",
-        "Alternative mechanism for AI development.": "एआई विकास के लिए वैकल्पिक तंत्र।",
-        "Standard configuration module in AI application.": "एआई अनुप्रयोग में मानक कॉन्फ़िगरेशन मॉड्यूल।",
-        "Process optimization handler in AI framework.": "एआई ढांचे में प्रक्रिया अनुकूलन हैंडलर।"
-      }
-    };
-
-    return translations[lang]?.[text] || text;
-  }
-
-  const categoryTranslations = {
-    ta: { "AI": "செயற்கை நுண்ணறிவு", "HTML": "HTML", "CSS": "CSS", "JavaScript": "JavaScript", "Java": "Java", "Python": "Python", "C": "C Programming", "C++": "C++", "DBMS": "DBMS", "SQL": "SQL", "MongoDB": "MongoDB", "NodeJS": "Node.js", "React": "React", "DSA": "Data Structures", "OS": "Operating Systems", "CN": "Computer Networks", "SE": "Software Engineering" },
-    hi: { "AI": "कृत्रिम बुद्धिमत्ता", "HTML": "HTML", "CSS": "CSS", "JavaScript": "जावास्क्रिप्ट", "Java": "जावा", "Python": "पायथन", "C": "सी प्रोग्रामिंग", "C++": "सी++", "DBMS": "डीबीएमएस", "SQL": "एसक्यूएल", "MongoDB": "मोंगोडीबी", "NodeJS": "नोड जेएस", "React": "रिएक्ट", "DSA": "डेटा संरचनाएं", "OS": "ऑपरेटिंग सिस्टम", "CN": "कंप्यूटर नेटवर्क", "SE": "सॉफ्टवेयर इंजीनियरिंग" }
-  };
-
-  const difficultyTranslations = {
-    ta: { "easy": "எளிதானது", "medium": "நடுத்தரமானது", "hard": "கடினமானது", "EASY": "எளிதானது", "MEDIUM": "நடுத்தரமானது", "HARD": "கடினமானது" },
-    hi: { "easy": "आसान", "medium": "मध्यम", "hard": "कठिन", "EASY": "आसान", "MEDIUM": "मध्यम", "HARD": "कठिन" }
-  };
-
-  const badgeTranslations = {
-    en: {
-      "first_step": { name: "First Step", desc: "Complete 1 quiz" },
-      "quiz_streak_5": { name: "5 Quiz Streak", desc: "5-day streak" },
-      "perfect_10": { name: "10 Perfect Quizzes", desc: "10 perfect scores" },
-      "completed_25": { name: "25 Quizzes Completed", desc: "25 quizzes done" },
-      "xp_1000": { name: "Earn 1000 XP", desc: "Earn 1000 XP" },
-      "perfectionist": { name: "Perfectionist", desc: "Perfect score" },
-      "quiz_master": { name: "Quiz Master", desc: "10 quizzes done" },
-      "legendary_brain": { name: "Legendary Brain", desc: "Perfect on Hard" },
-      "dedicated_scholar": { name: "Scholar", desc: "3+ Day streak" },
-      "ai_guru": { name: "AI Guru", desc: "Perfect in AI" },
-      "speed_demon": { name: "Speed Demon", desc: "Speed run complete" },
-      "survivor": { name: "Survivor", desc: "20+ in Survival" },
-      "marathon_runner": { name: "Marathoner", desc: "Marathon complete" },
-      "half_century": { name: "Half Century", desc: "50 quizzes done" },
-      "century_club": { name: "Century Club", desc: "100 quizzes done" },
-      "streak_king": { name: "Streak King", desc: "7+ Day streak" },
-      "unstoppable": { name: "Unstoppable", desc: "14+ Day streak" },
-      "perfectionist_elite": { name: "Elite Perfect", desc: "5 perfect quizzes" },
-      "no_lifeline": { name: "No Lifeline", desc: "Perfect on Hard with no aid" },
-      "night_owl": { name: "Night Owl", desc: "Active 12AM-5AM" },
-      "early_bird": { name: "Early Bird", desc: "Active 5AM-7AM" },
-      "jack_of_all_trades": { name: "Jack of Trades", desc: "Try all 10 topics" },
-      "category_master": { name: "Cat Master", desc: "Perfect in 5 topics" }
-    },
-    ta: {
-      "first_step": { name: "முதல் படி", desc: "1 வினாடி வினாவை முடிக்கவும்" },
-      "quiz_streak_5": { name: "5 வினாடி வினா தொடர்", desc: "5 நாட்கள் தொடர்" },
-      "perfect_10": { name: "10 சரியான வினாடி வினாக்கள்", desc: "10 சரியான மதிப்பெண்கள்" },
-      "completed_25": { name: "25 வினாடி வினாக்கள் முடிந்தது", desc: "25 வினாடி வினாக்கள் முடிந்தது" },
-      "xp_1000": { name: "1000 எக்ஸ்பி பெறுங்கள்", desc: "1000 எக்ஸ்பி பெறுங்கள்" },
-      "perfectionist": { name: "துல்லியமானவர்", desc: "முழு மதிப்பெண்" },
-      "quiz_master": { name: "வினாடி வினா மாஸ்டர்", desc: "10 வினாடி வினாக்கள் முடிந்தது" },
-      "legendary_brain": { name: "புகழ்பெற்ற மூளை", desc: "கடினமான நிலையில் முழு மதிப்பெண்" },
-      "dedicated_scholar": { name: "அறிஞர்", desc: "3+ நாட்கள் தொடர்" },
-      "ai_guru": { name: "AI குரு", desc: "AI பிரிவில் முழு மதிப்பெண்" },
-      "speed_demon": { name: "வேக அரக்கன்", desc: "வேக ஓட்டம் முடிந்தது" },
-      "survivor": { name: "உயிர் பிழைத்தவர்", desc: "சர்வைவலில் 20+ மதிப்பெண்" },
-      "marathon_runner": { name: "மராத்தான் வீரர்", desc: "மராத்தான் முடிந்தது" },
-      "half_century": { name: "அரை சதம்", desc: "50 வினாடி வினாக்கள் முடிந்தது" },
-      "century_club": { name: "சதக் கிளப்", desc: "100 வினாடி வினாக்கள் முடிந்தது" },
-      "streak_king": { name: "தொடர் மன்னன்", desc: "7+ நாட்கள் தொடர்" },
-      "unstoppable": { name: "தடுக்க முடியாதவர்", desc: "14+ நாட்கள் தொடர்" },
-      "perfectionist_elite": { name: "எலைட் பெர்பெக்ட்", desc: "5 சரியான வினாடி வினாக்கள்" },
-      "no_lifeline": { name: "லைஃப்லைன் இல்லை", desc: "உதவி இல்லாமல் கடினமான நிலையில் முழு மதிப்பெண்" },
-      "night_owl": { name: "இரவு ஆந்தை", desc: "இரவு 12 - அதிகாலை 5 மணி வரை" },
-      "early_bird": { name: "அதிகாலை பறவை", desc: "அதிகாலை 5 - 7 மணி வரை" },
-      "jack_of_all_trades": { name: "பல்முக திறமையாளர்", desc: "10 பிரிவுகளையும் முயற்சிக்கவும்" },
-      "category_master": { name: "பிரிவு மாஸ்டர்", desc: "5 பிரிவுகளில் முழு மதிப்பெண்" }
-    },
-    hi: {
-      "first_step": { name: "पहला कदम", desc: "1 प्रश्नोत्तरी पूरी करें" },
-      "quiz_streak_5": { name: "5 प्रश्नोत्तरी सिलसिला", desc: "5-दिवसीय सिलसिला" },
-      "perfect_10": { name: "10 उत्तम प्रश्नोत्तरी", desc: "10 पूर्ण स्कोर" },
-      "completed_25": { name: "25 प्रश्नोत्तरी पूरी", desc: "25 प्रश्नोत्तरी पूर्ण" },
-      "xp_1000": { name: "1000 एक्सपी कमाएं", desc: "1000 एक्सपी प्राप्त करें" },
-      "perfectionist": { name: "उत्कृष्टतावादी", desc: "पूर्ण स्कोर" },
-      "quiz_master": { name: "क्विज मास्टर", desc: "10 प्रश्नोत्तरी पूर्ण" },
-      "legendary_brain": { name: "महान मस्तिष्क", desc: "कठिन स्तर पर पूर्ण स्कोर" },
-      "dedicated_scholar": { name: "विद्वान", desc: "3+ दिन का सिलसिला" },
-      "ai_guru": { name: "एआई गुरु", desc: "एआई में पूर्ण स्कोर" },
-      "speed_demon": { name: "गति का सौदागर", desc: "स्पीड रन पूरा हुआ" },
-      "survivor": { name: "सर्वाइवर", desc: "सर्वाइवल में 20+ स्कोर" },
-      "marathon_runner": { name: "मैराथन धावक", desc: "मैराथन पूर्ण" },
-      "half_century": { name: "अर्धशतक", desc: "50 प्रश्नोत्तरी पूरी" },
-      "century_club": { name: "शतक क्लब", desc: "100 प्रश्नोत्तरी पूरी" },
-      "streak_king": { name: "सिलसिला राजा", desc: "7+ दिन का सिलसिला" },
-      "unstoppable": { name: "अजेय", desc: "14+ दिन का सिलसिला" },
-      "perfectionist_elite": { name: "अभिजात वर्ग उत्तम", desc: "5 पूर्ण प्रश्नोत्तरी" },
-      "no_lifeline": { name: "कोई लाइफलाइन नहीं", desc: "बिना सहायता के कठिन स्तर पर पूर्ण स्कोर" },
-      "night_owl": { name: "रात का उल्लू", desc: "रात 12 - सुबह 5 बजे के बीच" },
-      "early_bird": { name: "प्रातःकाल पक्षी", desc: "सुबह 5 - 7 बजे के बीच" },
-      "jack_of_all_trades": { name: "हरफनमौला", desc: "सभी 10 विषयों को आजमाएं" },
-      "category_master": { name: "श्रेणी मास्टर", desc: "5 श्रेणियों में पूर्ण स्कोर" }
-    }
-  };
-
-  function getTranslatedCategory(cat, lang) {
-    return categoryTranslations[lang]?.[cat] || cat;
-  }
-
-  function getTranslatedDifficulty(diff, lang) {
-    return difficultyTranslations[lang]?.[(diff || 'easy').toLowerCase()] || diff || 'Easy';
-  }
-
-  function translateQuestion(rawQ, lang) {
-    if (!rawQ) return rawQ;
-    const q = {
-      ...rawQ,
-      question_text: rawQ.question_text || rawQ.question || '',
-      option_a: rawQ.option_a !== undefined ? rawQ.option_a : (Array.isArray(rawQ.options) ? rawQ.options[0] : '') || '',
-      option_b: rawQ.option_b !== undefined ? rawQ.option_b : (Array.isArray(rawQ.options) ? rawQ.options[1] : '') || '',
-      option_c: rawQ.option_c !== undefined ? rawQ.option_c : (Array.isArray(rawQ.options) ? rawQ.options[2] : '') || '',
-      option_d: rawQ.option_d !== undefined ? rawQ.option_d : (Array.isArray(rawQ.options) ? rawQ.options[3] : '') || '',
-      correct_option: (rawQ.correct_option || (rawQ.correct && Array.isArray(rawQ.options) ? ['A', 'B', 'C', 'D'][rawQ.options.indexOf(rawQ.correct)] : '') || 'A').toUpperCase(),
-      difficulty: rawQ.difficulty || 'easy',
-      category: rawQ.category || 'AI'
-    };
-
-    if (!lang || lang === 'en') return q;
-
-    const catName = getTranslatedCategory(q.category, lang);
-    const diffName = getTranslatedDifficulty(q.difficulty, lang);
-
-    // Extract concept in quotes
-    const conceptMatch = (q.question_text || '').match(/\"([^\"]+)\"/);
-    const concept = conceptMatch ? conceptMatch[1] : '';
-
-    // Look up concept name translation
-    const conceptNames = {
-      ta: {
-        "Machine Learning": "இயந்திர கற்றல் (Machine Learning)",
-        "Natural Language Processing": "இயற்கை மொழி செயலாக்கம் (NLP)",
-        "Computer Vision": "கணினி பார்வை (Computer Vision)",
-        "Deep Learning": "ஆழ்ந்த கற்றல் (Deep Learning)",
-        "Generative AI": "உருவாக்கும் ஏஐ (Generative AI)",
-        "Supervised Learning": "கண்காணிக்கப்படும் கற்றல் (Supervised Learning)",
-        "Unsupervised Learning": "கண்காணிக்கப்படாத கற்றல் (Unsupervised Learning)",
-        "Neural Networks": "நரம்பியல் நெட்வொர்க்குகள் (Neural Networks)",
-        "Expert Systems": "நிபுணர் அமைப்புகள் (Expert Systems)",
-        "K-Means Clustering": "K-Means கிளஸ்டரிங்",
-        "Support Vector Machines (SVM)": "சப்போர்ட் வெக்டர் மெஷின்கள் (SVM)",
-        "Decision Trees": "முடிவு மரங்கள் (Decision Trees)",
-        "Random Forest": "ரேண்டம் ஃபாரஸ்ட் (Random Forest)",
-        "Convolutional Neural Networks (CNN)": "சிஎன்என் (CNN)",
-        "Recurrent Neural Networks (RNN)": "ஆர்என்என் (RNN)",
-        "Q-Learning": "க்யூ-கற்றல் (Q-Learning)",
-        "Gradient Boosting": "கிரேடியண்ட் பூஸ்டிங்",
-        "Principal Component Analysis (PCA)": "பிசிஏ (PCA)",
-        "Naive Bayes": "நேவ் பேய்ஸ் (Naive Bayes)"
-      },
-      hi: {
-        "Machine Learning": "मशीन लर्निंग (Machine Learning)",
-        "Natural Language Processing": "प्राकृतिक भाषा प्रसंस्करण (NLP)",
-        "Computer Vision": "कंप्यूटर विज़न (Computer Vision)",
-        "Deep Learning": "डीप लर्निंग (Deep Learning)",
-        "Generative AI": "जेनरेटिव एआई (Generative AI)",
-        "Supervised Learning": "सुपरवाइज्ड लर्निंग",
-        "Unsupervised Learning": "अनसुपरवाइज्ड लर्निंग",
-        "Neural Networks": "न्यूरल नेटवर्क (Neural Networks)",
-        "Expert Systems": "विशेषज्ञ प्रणालियाँ (Expert Systems)",
-        "K-Means Clustering": "के-मीन्स क्लस्टरिंग",
-        "Support Vector Machines (SVM)": "सपोर्ट वेक्टर मशीनें (SVM)",
-        "Decision Trees": "निर्णय पेड़ (Decision Trees)",
-        "Random Forest": "रैंडम फ़ॉरेस्ट",
-        "Convolutional Neural Networks (CNN)": "सीएनएन (CNN)",
-        "Recurrent Neural Networks (RNN)": "आरएनएन (RNN)",
-        "Q-Learning": "क्यू-लर्निंग (Q-Learning)",
-        "Gradient Boosting": "ग्रेडिएंट बूस्टिंग",
-        "Principal Component Analysis (PCA)": "पीसीए (PCA)",
-        "Naive Bayes": "नाइव बेयस (Naive Bayes)"
-      }
-    };
-
-    const conceptTrans = conceptNames[lang]?.[concept] || concept;
-    let qText = q.question_text;
-    if (q.question_text.includes('primary role or definition')) {
-      qText = lang === 'ta'
-        ? `${catName} மேம்பாட்டில், "${conceptTrans}" இன் முதன்மை பங்கு அல்லது வரையறை என்ன?`
-        : `${catName} विकास में, "${conceptTrans}" की प्राथमिक भूमिका या परिभाषा क्या है?`;
-    } else if (q.question_text.includes('best describes the functionality')) {
-      qText = lang === 'ta'
-        ? `பின்வருவனவற்றில் எது ${catName} இல் "${conceptTrans}" இன் செயல்பாடு அல்லது வரையறையைச் சிறந்த முறையில் விளக்குகிறது?`
-        : `निम्नलिखित में से कौन सा ${catName} में "${conceptTrans}" की कार्यक्षमता या परिभाषा का सबसे अच्छा वर्णन करता है?`;
-    } else if (q.question_text.includes('typically defined or utilized')) {
-      qText = lang === 'ta'
-        ? `${catName} இன் சூழலில் "${conceptTrans}" என்ற கருத்து பொதுவாக எவ்வாறு வரையறுக்கப்படுகிறது அல்லது பயன்படுத்தப்படுகிறது?`
-        : `${catName} के संदर्भ में अवधारणा "${conceptTrans}" को आमतौर पर कैसे परिभाषित या उपयोग किया जाता है?`;
-    } else if (q.question_text.includes('statement accurately represents')) {
-      qText = lang === 'ta'
-        ? `${catName} தொழில்நுட்பத்தின் வரம்பிற்குள், எந்தக் கூற்று "${conceptTrans}" ஐத் துல்லியமாகக் குறிக்கிறது?`
-        : `${catName} प्रौद्योगिकी के दायरे में, कौन सा कथन "${conceptTrans}" का सटीक प्रतिनिधित्व करता है?`;
-    } else if (q.question_text.includes('core purpose or behavioral mechanism')) {
-      qText = lang === 'ta'
-        ? `${catName} இல் "${conceptTrans}" இன் முக்கிய நோக்கம் அல்லது செயல்பாட்டு வழிமுறை என்ன?`
-        : `${catName} के भीतर "${conceptTrans}" का मूल उद्देश्य या व्यावहारिक तंत्र क्या है?`;
-    }
-
-    const qIdMatch = q.question_text.match(/\(Q-ID: [^\)]+\)/) || q.question_text.match(/\(Dynamic Q-ID: [^\)]+\)/);
-    if (qIdMatch) {
-      qText += ' ' + qIdMatch[0];
-    }
-
-    const optA = translateQuestionOption(q.option_a, lang);
-    const optB = translateQuestionOption(q.option_b, lang);
-    const optC = translateQuestionOption(q.option_c, lang);
-    const optD = translateQuestionOption(q.option_d, lang);
-
-    const explanationText = lang === 'ta'
-      ? `"${conceptTrans}" என்பது ${catName} இல் குறியீட்டை உருவாக்க, நினைவகத்தை நிர்வகிக்க அல்லது செயல்பாடுகளை இயக்கப் பயன்படுத்தப்படும் ஒரு முக்கிய அங்கமாகும்.`
-      : `"${conceptTrans}" ${catName} में कोड को संरचित करने, मेमोरी को प्रबंधित करने या संचालन को निष्पादित करने के लिए उपयोग किया जाने वाला एक आवश्यक घटक या तरीका है।`;
-
-    const hintText = lang === 'ta'
-      ? `அடிப்படை ${catName} பண்புகள் மற்றும் தரநிலைகளை அடிப்படையாகக் கொண்டது.`
-      : `यह मुख्य ${catName} गुणों और मानकों पर निर्भर करता है।`;
-
-    return {
-      ...q,
-      category: catName,
-      question_text: qText,
-      option_a: optA,
-      option_b: optB,
-      option_c: optC,
-      option_d: optD,
-      explanation: explanationText,
-      hint: hintText
-    };
-  }
-
-  // Expose translation functions globally on window
-  window.translateQuestion = translateQuestion;
-  window.translateQuestionOption = translateQuestionOption;
-  window.translateUI = translateUI;
-  window.getTranslatedCategory = getTranslatedCategory;
-  window.getTranslatedDifficulty = getTranslatedDifficulty;
-
-  document.getElementById('select-language-toggle').addEventListener('change', (e) => {
-    translateUI(e.target.value);
-  });
 
   // 2. DASHBOARD SUB-NAVIGATION WORKSPACE TABS TOGGLING
   const dashTabs = ['arena', 'profile', 'shop', 'predictor'];
@@ -6619,7 +6977,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const score = AppState.quiz.score;
     const total = AppState.quiz.questions.length;
     const text = `I just scored ${score}/${total} in ${AppState.quiz.category} on AI Quiz Challenge Arena! 🚀 Can you beat me?`;
-    navigator.clipboard.writeText(text);
+    if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+    }
     alert('Share snippet copied to clipboard! \n"' + text + '"');
   };
 
