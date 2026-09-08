@@ -1298,11 +1298,13 @@ const MockDatabase = {
     if (endpoint === '/feedback/report' && method === 'POST') {
       const user = this.getMockUser();
       const uId = user ? user.id : -1;
+      const username = user && user.username ? user.username : 'Guest Player';
 
       const reports = JSON.parse(localStorage.getItem('mock_reports') || '[]');
       reports.push({
         id: reports.length + 1,
         user_id: uId,
+        username,
         question_id: body.questionId,
         reason: body.reason,
         comments: body.comments || '',
@@ -6057,12 +6059,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       data.forEach(item => {
         const tr = document.createElement('tr');
+        const displayUser = item.username || item.user_name || (item.user_id && item.user_id !== 'null' && item.user_id !== 'undefined' ? (item.user_id.length > 8 ? `User #${item.user_id.substring(0, 8)}` : `User #${item.user_id}`) : 'Guest Player');
+        const rawDate = item.created_at || item.reported_at || item.submitted_at;
+        const displayDate = rawDate && !isNaN(new Date(rawDate).getTime()) ? new Date(rawDate).toLocaleDateString() : 'Recent';
         tr.innerHTML = `
           <td><code>${item.question_id}</code></td>
-          <td>User #${item.user_id}</td>
+          <td><strong>👤 ${displayUser}</strong></td>
           <td><span class="badge badge-role">${item.reason}</span></td>
           <td>${item.comments || '<span class="text-muted">No details</span>'}</td>
-          <td>${new Date(item.created_at).toLocaleDateString()}</td>
+          <td>${displayDate}</td>
         `;
         tbody.appendChild(tr);
       });

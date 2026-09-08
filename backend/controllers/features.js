@@ -260,7 +260,7 @@ async function submitFeedback(req, res) {
 
 async function reportQuestion(req, res) {
   const userId = req.user.id;
-  const username = req.user.username;
+  const username = req.user.username || (req.user.email ? req.user.email.split('@')[0] : 'User');
   const { questionId, reason, comments } = req.body;
 
   if (!questionId || !reason) {
@@ -276,7 +276,8 @@ async function reportQuestion(req, res) {
         username,
         question_id: parseInt(questionId),
         reason,
-        comments
+        comments,
+        reported_at: new Date().toISOString()
       });
 
     if (error) throw error;
@@ -883,13 +884,38 @@ async function getLoginHistory(req, res) {
 // Admin Panel controllers
 async function adminGetFeedback(req, res) {
   try {
-    const { data: list, error } = await supabaseAdmin
-      .from('quiz_feedback')
-      .select('*')
-      .order('submitted_at', { ascending: false });
+    const [feedbackRes, profilesRes] = await Promise.all([
+      supabaseAdmin
+        .from('quiz_feedback')
+        .select('*')
+        .order('submitted_at', { ascending: false }),
+      supabaseAdmin
+        .from('profiles')
+        .select('id, username, email')
+    ]);
 
-    if (error) throw error;
-    res.json(list || []);
+    if (feedbackRes.error) throw feedbackRes.error;
+
+    const allProfiles = profilesRes.data || [];
+    const profileMap = new Map();
+    allProfiles.forEach(p => {
+      if (p && p.id) {
+        profileMap.set(String(p.id).toLowerCase(), p);
+      }
+    });
+
+    const mapped = (feedbackRes.data || []).map(item => {
+      const p = item.user_id ? profileMap.get(String(item.user_id).toLowerCase()) : null;
+      const username = item.username || (p ? p.username : null) || (p && p.email ? p.email.split('@')[0] : null) || 'Guest / Player';
+      const created_at = item.created_at || item.submitted_at || new Date().toISOString();
+      return {
+        ...item,
+        username,
+        created_at
+      };
+    });
+
+    res.json(mapped || []);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -897,13 +923,38 @@ async function adminGetFeedback(req, res) {
 
 async function adminGetReports(req, res) {
   try {
-    const { data: list, error } = await supabaseAdmin
-      .from('reported_questions')
-      .select('*')
-      .order('reported_at', { ascending: false });
+    const [reportsRes, profilesRes] = await Promise.all([
+      supabaseAdmin
+        .from('reported_questions')
+        .select('*')
+        .order('reported_at', { ascending: false }),
+      supabaseAdmin
+        .from('profiles')
+        .select('id, username, email')
+    ]);
 
-    if (error) throw error;
-    res.json(list || []);
+    if (reportsRes.error) throw reportsRes.error;
+
+    const allProfiles = profilesRes.data || [];
+    const profileMap = new Map();
+    allProfiles.forEach(p => {
+      if (p && p.id) {
+        profileMap.set(String(p.id).toLowerCase(), p);
+      }
+    });
+
+    const mapped = (reportsRes.data || []).map(item => {
+      const p = item.user_id ? profileMap.get(String(item.user_id).toLowerCase()) : null;
+      const username = item.username || (p ? p.username : null) || (p && p.email ? p.email.split('@')[0] : null) || 'Guest / Player';
+      const created_at = item.created_at || item.reported_at || new Date().toISOString();
+      return {
+        ...item,
+        username,
+        created_at
+      };
+    });
+
+    res.json(mapped || []);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
