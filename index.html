@@ -31,9 +31,15 @@
 
     <!-- NAVIGATION HEADER -->
     <header class="app-header">
-      <div class="header-brand" id="btn-brand">  
-        <img id="app-logo" src="assets/logo.png" alt="AI Quiz Challenge Logo" class="brand-logo">
-        <span class="brand-name">AI Quiz <span class="gradient-text">Challenge</span></span>
+      <div class="header-brand-group" style="display: flex; align-items: center; gap: 10px;">
+        <!-- Hamburger Menu Button (Available on both desktop & mobile) -->
+        <button id="btn-hamburger-menu-toggle" class="icon-btn hamburger-btn" title="Navigation Menu" aria-label="Toggle Menu">
+          <span>☰</span>
+        </button>
+        <div class="header-brand" id="btn-brand">  
+          <img id="app-logo" src="assets/logo.png" alt="AI Quiz Challenge Logo" class="brand-logo">
+          <span class="brand-name">AI Quiz <span class="gradient-text">Challenge</span></span>
+        </div>
       </div>
 
       <div style="display: flex; align-items: center; gap: 8px; position: relative;">
@@ -106,6 +112,58 @@
         </div>
       </div>
     </header>
+
+    <!-- HAMBURGER NAVIGATION DRAWER -->
+    <div id="drawer-hamburger-menu" class="hamburger-drawer hidden">
+      <div class="hamburger-drawer-header">
+        <div class="hamburger-drawer-title">
+          <span class="hamburger-title-icon">☰</span>
+          <span>Menu</span>
+        </div>
+        <button id="btn-close-hamburger-menu" class="icon-btn hamburger-close-btn" title="Close Menu">✕</button>
+      </div>
+      <div class="hamburger-drawer-content">
+        <ul class="hamburger-nav-list">
+          <li>
+            <button id="menu-nav-home" class="hamburger-nav-item">
+              <span class="menu-item-icon">🏠</span>
+              <span class="menu-item-text">Home</span>
+            </button>
+          </li>
+          <li>
+            <button id="menu-nav-about" class="hamburger-nav-item">
+              <span class="menu-item-icon">📖</span>
+              <span class="menu-item-text">About</span>
+            </button>
+          </li>
+          <li>
+            <button id="menu-nav-leaderboard" class="hamburger-nav-item">
+              <span class="menu-item-icon">🏆</span>
+              <span class="menu-item-text">Leaderboard</span>
+            </button>
+          </li>
+          <li>
+            <button id="menu-nav-notifications" class="hamburger-nav-item">
+              <span class="menu-item-icon">🔔</span>
+              <span class="menu-item-text">Notifications</span>
+            </button>
+          </li>
+          <li>
+            <button id="menu-nav-settings" class="hamburger-nav-item">
+              <span class="menu-item-icon">⚙️</span>
+              <span class="menu-item-text">Settings</span>
+            </button>
+          </li>
+          <li id="menu-item-logout-wrapper">
+            <button id="menu-nav-logout" class="hamburger-nav-item menu-logout-btn">
+              <span class="menu-item-icon">🚪</span>
+              <span class="menu-item-text">Logout</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div id="hamburger-menu-backdrop" class="hamburger-backdrop hidden"></div>
 
     <!-- CONTENT VIEWS (SPA SCREENS) -->
     <main class="app-main">
@@ -1663,6 +1721,113 @@
             style="flex: 1;">Cancel</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- DEDICATED ABOUT SECTION MODAL -->
+  <div id="modal-about-section" class="secure-auth-overlay hidden" style="z-index: 21000;">
+    <div class="secure-auth-card about-modal-card animate-scale-up" style="max-width: 800px; width: 92%; max-height: 88vh; display: flex; flex-direction: column; padding: 0; overflow: hidden;">
+      <div class="about-modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-card); background: rgba(0,0,0,0.15);">
+        <h3 style="margin: 0; font-family: var(--font-heading); font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 8px; color: var(--text-main);">
+          <span>📖</span> ABOUT AI QUIZ CHALLENGE
+        </h3>
+        <button id="btn-close-about-modal" class="icon-btn" title="Close" style="width: 32px; height: 32px; font-size: 14px; cursor: pointer;">✕</button>
+      </div>
+      
+      <div class="about-modal-scroll" style="overflow-y: auto; padding: 26px; flex: 1;">
+        <div class="about-header text-center" style="margin-bottom: 24px;">
+          <h3 class="about-project-name gradient-text" style="font-size: 21px; font-weight: 700; line-height: 1.4; margin-bottom: 14px;">Smart AI-Powered Educational Quiz and Performance Tracking System</h3>
+        </div>
+
+        <div class="about-body">
+          <p class="about-desc">
+            Smart AI-Powered Educational Quiz and Performance Tracking System is an interactive educational quiz platform designed to help students improve their knowledge and learning skills through engaging and challenging quizzes.
+          </p>
+          <p class="about-desc">
+            The system provides different quiz categories and game modes, timed quiz challenges, instant results, performance tracking, leaderboard functionality, AI-powered learning assistance, multilingual support, and an Admin Dashboard for monitoring user activities and quiz performance.
+          </p>
+          <p class="about-desc">
+            The platform is designed to make quiz practice more interactive, enjoyable, and useful for students.
+          </p>
+
+          <div class="about-divider"></div>
+
+          <!-- KEY FEATURES -->
+          <div class="about-block">
+            <h4 class="about-section-heading">PROJECT FEATURES</h4>
+            <div class="about-features-grid">
+              <div class="about-feature-item"><span class="feature-bullet">✦</span> Multiple Quiz Categories</div>
+              <div class="about-feature-item"><span class="feature-bullet">✦</span> Classic Mode</div>
+              <div class="about-feature-item"><span class="feature-bullet">✦</span> Super Run Mode</div>
+              <div class="about-feature-item"><span class="feature-bullet">✦</span> Marathon Mode</div>
+              <div class="about-feature-item"><span class="feature-bullet">✦</span> Daily Challenge</div>
+              <div class="about-feature-item"><span class="feature-bullet">✦</span> 30-Second Timer</div>
+              <div class="about-feature-item"><span class="feature-bullet">✦</span> Instant Score &amp; Results</div>
+              <div class="about-feature-item"><span class="feature-bullet">✦</span> Leaderboard</div>
+              <div class="about-feature-item"><span class="feature-bullet">✦</span> AI Tutor</div>
+              <div class="about-feature-item"><span class="feature-bullet">✦</span> Multiple Language Support</div>
+              <div class="about-feature-item"><span class="feature-bullet">✦</span> Performance Tracking</div>
+              <div class="about-feature-item"><span class="feature-bullet">✦</span> Admin Dashboard</div>
+              <div class="about-feature-item"><span class="feature-bullet">✦</span> User Quiz Activity Monitoring</div>
+              <div class="about-feature-item"><span class="feature-bullet">✦</span> Dynamic Question Tracking</div>
+            </div>
+          </div>
+
+          <div class="about-divider"></div>
+
+          <!-- TECHNOLOGIES USED -->
+          <div class="about-block">
+            <h4 class="about-section-heading">TECHNOLOGIES USED</h4>
+            <div class="about-tech-badges">
+              <span class="tech-badge">HTML</span>
+              <span class="tech-badge">CSS</span>
+              <span class="tech-badge">JavaScript</span>
+              <span class="tech-badge">Supabase</span>
+              <span class="tech-badge">Node.js</span>
+              <span class="tech-badge">Express.js</span>
+            </div>
+          </div>
+
+          <div class="about-divider"></div>
+
+          <!-- PURPOSE -->
+          <div class="about-block">
+            <h4 class="about-section-heading">PURPOSE</h4>
+            <p class="about-subtext">The purpose of this project is to:</p>
+            <ul class="about-purpose-list">
+              <li>Improve students' knowledge and learning skills.</li>
+              <li>Provide interactive and engaging quiz practice.</li>
+              <li>Help students monitor and understand their quiz performance.</li>
+              <li>Provide different quiz modes for an enjoyable learning experience.</li>
+              <li>Provide AI-powered learning assistance.</li>
+              <li>Help administrators monitor user quiz activities and performance.</li>
+            </ul>
+          </div>
+
+          <div class="about-divider"></div>
+
+          <!-- PROJECT CREATED BY -->
+          <div class="about-creator-block text-center">
+            <h4 class="about-section-heading" style="justify-content: center;">PROJECT CREATED BY</h4>
+            <div class="creator-profile-box">
+              <div class="creator-name">BHUWANESHWARI M</div>
+              <div class="creator-degree">B.Sc. Computer Science</div>
+              <div class="creator-college">Sri Vijay Vidyalaya College of Arts and Science</div>
+              <div class="creator-location">Bargur, Krishnagiri</div>
+              <div class="creator-univ">Periyar University, Salem-11</div>
+            </div>
+            <div class="about-version-copyright">
+              <div class="about-version">Version 1.0</div>
+              <div class="about-copyright">&copy; 2026 AI Quiz Challenge</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="about-modal-footer" style="padding: 14px 24px; border-top: 1px solid var(--border-card); display: flex; justify-content: flex-end; background: rgba(0,0,0,0.1);">
+        <button id="btn-close-about-modal-bottom" class="action-btn btn-secondary" style="min-width: 100px;">Close</button>
+      </div>
     </div>
   </div>
 

@@ -5651,6 +5651,206 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // HAMBURGER NAVIGATION DRAWER CONTROLLER
+  const drawerHamburger = document.getElementById('drawer-hamburger-menu');
+  const backdropHamburger = document.getElementById('hamburger-menu-backdrop');
+  const btnHamburgerToggle = document.getElementById('btn-hamburger-menu-toggle');
+  const btnCloseHamburger = document.getElementById('btn-close-hamburger-menu');
+  const modalAboutSection = document.getElementById('modal-about-section');
+  const btnCloseAboutModal = document.getElementById('btn-close-about-modal');
+  const btnCloseAboutBottom = document.getElementById('btn-close-about-modal-bottom');
+
+  function openHamburgerMenu() {
+    if (drawerHamburger && backdropHamburger) {
+      drawerHamburger.classList.remove('hidden');
+      backdropHamburger.classList.remove('hidden');
+    }
+  }
+
+  function closeHamburgerMenu() {
+    if (drawerHamburger && backdropHamburger) {
+      drawerHamburger.classList.add('hidden');
+      backdropHamburger.classList.add('hidden');
+    }
+  }
+
+  function toggleHamburgerMenu() {
+    if (!drawerHamburger) return;
+    if (drawerHamburger.classList.contains('hidden')) {
+      openHamburgerMenu();
+    } else {
+      closeHamburgerMenu();
+    }
+  }
+
+  function openAboutModal() {
+    if (modalAboutSection) {
+      modalAboutSection.classList.remove('hidden');
+    }
+  }
+
+  function closeAboutModal() {
+    if (modalAboutSection) {
+      modalAboutSection.classList.add('hidden');
+    }
+  }
+
+  if (btnHamburgerToggle) {
+    btnHamburgerToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      AudioSynth.playClick();
+      toggleHamburgerMenu();
+    });
+  }
+
+  if (btnCloseHamburger) {
+    btnCloseHamburger.addEventListener('click', () => {
+      AudioSynth.playClick();
+      closeHamburgerMenu();
+    });
+  }
+
+  if (backdropHamburger) {
+    backdropHamburger.addEventListener('click', () => {
+      closeHamburgerMenu();
+    });
+  }
+
+  // Close hamburger menu if clicked outside
+  document.addEventListener('click', (e) => {
+    if (drawerHamburger && !drawerHamburger.classList.contains('hidden')) {
+      if (!drawerHamburger.contains(e.target) && e.target !== btnHamburgerToggle && !btnHamburgerToggle.contains(e.target)) {
+        closeHamburgerMenu();
+      }
+    }
+  });
+
+  // Close on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeHamburgerMenu();
+      closeAboutModal();
+    }
+  });
+
+  // 1. Home Menu Action
+  const menuHome = document.getElementById('menu-nav-home');
+  if (menuHome) {
+    menuHome.addEventListener('click', () => {
+      AudioSynth.playClick();
+      closeHamburgerMenu();
+      if (AppState.token) {
+        ViewController.switchView('dashboard');
+        ViewRefresher.refreshDashboard();
+      } else {
+        ViewController.switchView('landing');
+      }
+    });
+  }
+
+  // 2. About Menu Action
+  const menuAbout = document.getElementById('menu-nav-about');
+  if (menuAbout) {
+    menuAbout.addEventListener('click', () => {
+      AudioSynth.playClick();
+      closeHamburgerMenu();
+      openAboutModal();
+    });
+  }
+
+  if (btnCloseAboutModal) {
+    btnCloseAboutModal.addEventListener('click', () => {
+      AudioSynth.playClick();
+      closeAboutModal();
+    });
+  }
+
+  if (btnCloseAboutBottom) {
+    btnCloseAboutBottom.addEventListener('click', () => {
+      AudioSynth.playClick();
+      closeAboutModal();
+    });
+  }
+
+  if (modalAboutSection) {
+    modalAboutSection.addEventListener('click', (e) => {
+      if (e.target === modalAboutSection) {
+        closeAboutModal();
+      }
+    });
+  }
+
+  // 3. Leaderboard Menu Action
+  const menuLeaderboard = document.getElementById('menu-nav-leaderboard');
+  if (menuLeaderboard) {
+    menuLeaderboard.addEventListener('click', () => {
+      AudioSynth.playClick();
+      closeHamburgerMenu();
+      ViewController.switchView('leaderboard');
+      const lbPeriods = ['all', 'weekly', 'monthly'];
+      lbPeriods.forEach(pName => {
+        const pEl = document.getElementById(`btn-lb-period-${pName}`);
+        if (pEl) pEl.classList.remove('active');
+      });
+      const pAll = document.getElementById('btn-lb-period-all');
+      if (pAll) pAll.classList.add('active');
+      ViewRefresher.refreshLeaderboard('all');
+    });
+  }
+
+  // 4. Notifications Menu Action
+  const menuNotifications = document.getElementById('menu-nav-notifications');
+  if (menuNotifications) {
+    menuNotifications.addEventListener('click', () => {
+      AudioSynth.playClick();
+      closeHamburgerMenu();
+      const notifBtn = document.getElementById('btn-notifications-toggle');
+      if (notifBtn) notifBtn.click();
+    });
+  }
+
+  // 5. Settings Menu Action
+  const menuSettings = document.getElementById('menu-nav-settings');
+  if (menuSettings) {
+    menuSettings.addEventListener('click', () => {
+      AudioSynth.playClick();
+      closeHamburgerMenu();
+      if (AppState.token) {
+        ViewController.switchView('dashboard');
+        const profTab = document.getElementById('tab-dash-profile');
+        if (profTab) profTab.click();
+      } else {
+        const msg = window.currentLang === 'ta'
+          ? 'உள்நுழைய வேண்டும்! அமைப்புகளை அணுக தயவுசெய்து உள்நுழையவும்.'
+          : window.currentLang === 'hi'
+            ? 'लॉग इन आवश्यक! सेटिंग्स तक पहुँचने के लिए कृपया लॉग इन करें।'
+            : 'Login Required! Please sign in to access Settings.';
+        alert(msg);
+        ViewController.switchView('auth');
+      }
+    });
+  }
+
+  // 6. Logout Menu Action
+  const menuLogout = document.getElementById('menu-nav-logout');
+  if (menuLogout) {
+    menuLogout.addEventListener('click', () => {
+      AudioSynth.playClick();
+      closeHamburgerMenu();
+      if (AppState.token) {
+        const logoutBtn = document.getElementById('btn-nav-logout');
+        if (logoutBtn) logoutBtn.click();
+      } else {
+        const msg = window.currentLang === 'ta'
+          ? 'நீங்கள் தற்போது விருந்தினராக விளையாடுகிறீர்கள்.'
+          : window.currentLang === 'hi'
+            ? 'आप वर्तमान में अतिथि के रूप में खेल रहे हैं।'
+            : 'You are currently playing as Guest.';
+        alert(msg);
+      }
+    });
+  }
+
   // Dynamic Popup Card (Popcard) implementation
   window.showPopCard = function (title, message, type = 'error') {
     const modal = document.getElementById('modal-popcard');
