@@ -3024,6 +3024,16 @@ const ViewRefresher = {
       const dashAdminBtn = document.getElementById('btn-dash-admin');
       if (dashAdminBtn) dashAdminBtn.classList.add('hidden');
 
+      // Drawer guest state sync
+      const drawerGuestSumm = document.getElementById('menu-user-guest-summary');
+      if (drawerGuestSumm) drawerGuestSumm.classList.remove('hidden');
+      const drawerProfileSumm = document.getElementById('menu-user-profile-summary');
+      if (drawerProfileSumm) drawerProfileSumm.classList.add('hidden');
+      const drawerLoginWrap = document.getElementById('menu-item-login-wrapper');
+      if (drawerLoginWrap) drawerLoginWrap.classList.remove('hidden');
+      const drawerLogoutWrap = document.getElementById('menu-item-logout-wrapper');
+      if (drawerLogoutWrap) drawerLogoutWrap.classList.add('hidden');
+
       // Level calculations for Guest
       const level = Math.floor(Math.sqrt(guestProgress.total_xp / 100)) + 1;
       const currentLevelXp = Math.round(100 * Math.pow(level - 1, 2));
@@ -3161,6 +3171,35 @@ const ViewRefresher = {
       if (profileSumm) profileSumm.classList.remove('hidden');
       const userDisp = document.getElementById('user-display-name');
       if (userDisp) userDisp.innerText = profile.user.username;
+
+      // Drawer user widget update
+      const drawerGuestSumm = document.getElementById('menu-user-guest-summary');
+      if (drawerGuestSumm) drawerGuestSumm.classList.add('hidden');
+      const drawerProfileSumm = document.getElementById('menu-user-profile-summary');
+      if (drawerProfileSumm) drawerProfileSumm.classList.remove('hidden');
+      const drawerUserDisp = document.getElementById('menu-user-display-name');
+      if (drawerUserDisp) drawerUserDisp.innerText = profile.user.username;
+      const drawerLoginWrap = document.getElementById('menu-item-login-wrapper');
+      if (drawerLoginWrap) drawerLoginWrap.classList.add('hidden');
+      const drawerLogoutWrap = document.getElementById('menu-item-logout-wrapper');
+      if (drawerLogoutWrap) drawerLogoutWrap.classList.remove('hidden');
+
+      const drawerEmojiEl = document.getElementById('menu-header-avatar-emoji');
+      if (drawerEmojiEl) {
+        if (profile.user.profile_pic) {
+          drawerEmojiEl.innerHTML = `<img src="${profile.user.profile_pic}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+        } else {
+          drawerEmojiEl.innerText = profile.progress.avatar || '👤';
+        }
+      }
+
+      const drawerFrameEl = document.getElementById('menu-header-avatar-frame');
+      if (drawerFrameEl) {
+        drawerFrameEl.className = 'avatar-frame-overlay';
+        if (profile.progress.avatar_frame) {
+          drawerFrameEl.classList.add(`avatar-frame-${profile.progress.avatar_frame}`);
+        }
+      }
 
       // Header avatar visual update
       const headerEmojiEl = document.getElementById('header-avatar-emoji');
@@ -4087,10 +4126,12 @@ const NotificationController = {
   async refresh() {
     const listContainer = document.getElementById('notifications-list');
     const badge = document.getElementById('notifications-unread-count');
+    const menuBadge = document.getElementById('menu-notifications-unread-count');
 
     const enabled = localStorage.getItem('notifications_enabled') !== 'false';
     if (!enabled) {
       if (badge) badge.classList.add('hidden');
+      if (menuBadge) menuBadge.classList.add('hidden');
       if (listContainer) {
         listContainer.innerHTML = `<div class="no-notifications dict-key" data-key="notif-disabled" style="padding: 20px; text-align: center; color: var(--text-muted);">Notifications are disabled in Settings.</div>`;
         translateUI(window.currentLang);
@@ -4109,6 +4150,14 @@ const NotificationController = {
           badge.classList.remove('hidden');
         } else {
           badge.classList.add('hidden');
+        }
+      }
+      if (menuBadge) {
+        if (unreadCount > 0) {
+          menuBadge.innerText = unreadCount;
+          menuBadge.classList.remove('hidden');
+        } else {
+          menuBadge.classList.add('hidden');
         }
       }
 
@@ -4431,6 +4480,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     "btn-cel-continue": "Continue Learning 📚",
     "btn-cel-home": "Back to Home 🏠",
     "btn-nav-login": "Sign In",
+    "btn-nav-logout": "Logout",
+    "menu-drawer-title": "Menu",
+    "auth-label-guest-title": "Guest Player",
+    "menu-guest-sub": "Play & Explore",
+    "menu-section-nav": "Navigation",
+    "menu-nav-home": "Home",
+    "menu-nav-about": "About",
+    "menu-nav-settings": "Settings",
+    "menu-section-preferences": "Preferences",
+    "menu-theme-label": "Theme Mode",
+    "menu-language-label": "Language",
     "btn-play-guest-landing": "Play as Guest 👤",
     "app-title": "AI Quiz Challenge",
     "tooltip-coins-title": "Coins Balance",
@@ -4700,6 +4760,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     "btn-cel-continue": "தொடர்ந்து படி 📚",
     "btn-cel-home": "முகப்புக்கு 🏠",
     "btn-nav-login": "உள்நுழைக",
+    "btn-nav-logout": "வெளியேறு",
+    "menu-drawer-title": "மெனு",
+    "auth-label-guest-title": "விருந்தினர் வீரர்",
+    "menu-guest-sub": "விளையாடி ஆராயுங்கள்",
+    "menu-section-nav": "வழிசெலுத்தல்",
+    "menu-nav-home": "முகப்பு",
+    "menu-nav-about": "பற்றி",
+    "menu-nav-settings": "அமைப்புகள்",
+    "menu-section-preferences": "விருப்பங்கள்",
+    "menu-theme-label": "தீம் முறை",
+    "menu-language-label": "மொழி",
     "btn-play-guest-landing": "விருந்தினராக விளையாடு 👤",
     "app-title": "AI வினாடி வினா சவால்",
     "tooltip-coins-title": "நாணயங்கள் இருப்பு",
@@ -4969,6 +5040,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     "btn-cel-continue": "पढ़ना जारी रखें 📚",
     "btn-cel-home": "मुख्य पृष्ठ 🏠",
     "btn-nav-login": "लॉग इन करें",
+    "btn-nav-logout": "लॉग आउट",
+    "menu-drawer-title": "मेनू",
+    "auth-label-guest-title": "अतिथि खिलाड़ी",
+    "menu-guest-sub": "खेलें और अन्वेषण करें",
+    "menu-section-nav": "नेविगेशन",
+    "menu-nav-home": "होम",
+    "menu-nav-about": "के बारे में",
+    "menu-nav-settings": "सेटिंग्स",
+    "menu-section-preferences": "प्राथमिकताएं",
+    "menu-theme-label": "थीम मोड",
+    "menu-language-label": "भाषा",
     "btn-play-guest-landing": "अतिथि के रूप में खेलें 👤",
     "app-title": "एआई क्विज चैलेंज",
     "tooltip-coins-title": "सिक्कों का संतुलन",
@@ -5255,6 +5337,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 3. Translate page placeholders & selectors options
     const langSel = document.getElementById('select-language-toggle');
     if (langSel) langSel.value = lang;
+    const drawerLangSel = document.getElementById('menu-select-language-toggle');
+    if (drawerLangSel) drawerLangSel.value = lang;
 
     // 3a. Translate Category and Difficulty Select Dropdown Options
     const categorySelects = ['arena-category', 'profile-fav-cat', 'admin-q-category', 'admin-filter-quiz', 'select-admin-q-cat', 'select-admin-filter-quiz'];
@@ -5632,25 +5716,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
 
-  // Mobile Hamburger menu toggle
-  const menuToggle = document.getElementById('btn-mobile-menu-toggle');
-  const headerActions = document.querySelector('.header-actions');
-  if (menuToggle && headerActions) {
-    menuToggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      headerActions.classList.toggle('open');
-      menuToggle.innerHTML = headerActions.classList.contains('open') ? '<span>✕</span>' : '<span>☰</span>';
-    });
-
-    // Close menu when clicking outside of it
-    document.addEventListener('click', (e) => {
-      if (!headerActions.contains(e.target) && e.target !== menuToggle) {
-        headerActions.classList.remove('open');
-        menuToggle.innerHTML = '<span>☰</span>';
-      }
-    });
-  }
-
   // HAMBURGER NAVIGATION DRAWER CONTROLLER
   const drawerHamburger = document.getElementById('drawer-hamburger-menu');
   const backdropHamburger = document.getElementById('hamburger-menu-backdrop');
@@ -5660,10 +5725,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnCloseAboutModal = document.getElementById('btn-close-about-modal');
   const btnCloseAboutBottom = document.getElementById('btn-close-about-modal-bottom');
 
+  function updateDrawerSyncState() {
+    // 1. Sync theme mode controls
+    const isLight = document.body.classList.contains('light-mode');
+    const drawerThemeIcon = document.getElementById('menu-theme-icon');
+    const drawerThemeBadge = document.getElementById('menu-theme-badge');
+    if (drawerThemeIcon) drawerThemeIcon.innerText = isLight ? '☀️' : '🌙';
+    if (drawerThemeBadge) drawerThemeBadge.innerText = isLight ? 'Light' : 'Dark';
+
+    // 2. Sync language select
+    const currLang = window.currentLang || localStorage.getItem('app_language') || 'en';
+    const drawerLang = document.getElementById('menu-select-language-toggle');
+    if (drawerLang) drawerLang.value = currLang;
+
+    // 3. Sync notifications unread badge
+    const headerNotifBadge = document.getElementById('notifications-unread-count');
+    const drawerNotifBadge = document.getElementById('menu-notifications-unread-count');
+    if (headerNotifBadge && drawerNotifBadge) {
+      drawerNotifBadge.innerText = headerNotifBadge.innerText;
+      if (headerNotifBadge.classList.contains('hidden')) {
+        drawerNotifBadge.classList.add('hidden');
+      } else {
+        drawerNotifBadge.classList.remove('hidden');
+      }
+    }
+  }
+
   function openHamburgerMenu() {
     if (drawerHamburger && backdropHamburger) {
       drawerHamburger.classList.remove('hidden');
       backdropHamburger.classList.remove('hidden');
+      updateDrawerSyncState();
     }
   }
 
@@ -5801,11 +5893,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 4. Notifications Menu Action
   const menuNotifications = document.getElementById('menu-nav-notifications');
   if (menuNotifications) {
-    menuNotifications.addEventListener('click', () => {
+    menuNotifications.addEventListener('click', (e) => {
+      e.stopPropagation();
       AudioSynth.playClick();
       closeHamburgerMenu();
-      const notifBtn = document.getElementById('btn-notifications-toggle');
-      if (notifBtn) notifBtn.click();
+      const notifDrawer = document.getElementById('drawer-notifications');
+      if (notifDrawer) {
+        notifDrawer.classList.remove('hidden');
+        NotificationController.refresh();
+      }
     });
   }
 
@@ -5831,7 +5927,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // 6. Logout Menu Action
+  // 6. Drawer Theme Toggle Action
+  const menuBtnTheme = document.getElementById('menu-btn-theme-toggle');
+  if (menuBtnTheme) {
+    menuBtnTheme.addEventListener('click', () => {
+      AudioSynth.playClick();
+      document.body.classList.toggle('light-mode');
+      document.body.classList.toggle('dark-mode');
+      const isLight = document.body.classList.contains('light-mode');
+      const headerThemeBtn = document.getElementById('btn-theme-toggle');
+      if (headerThemeBtn) headerThemeBtn.innerHTML = isLight ? '☀️' : '🌙';
+      const drawerThemeIcon = document.getElementById('menu-theme-icon');
+      const drawerThemeBadge = document.getElementById('menu-theme-badge');
+      if (drawerThemeIcon) drawerThemeIcon.innerText = isLight ? '☀️' : '🌙';
+      if (drawerThemeBadge) drawerThemeBadge.innerText = isLight ? 'Light' : 'Dark';
+    });
+  }
+
+  // 7. Drawer Language Selector Action
+  const menuSelectLang = document.getElementById('menu-select-language-toggle');
+  if (menuSelectLang) {
+    menuSelectLang.addEventListener('change', (e) => {
+      const selectedLang = e.target.value;
+      translateUI(selectedLang);
+      const headerLangSel = document.getElementById('select-language-toggle');
+      if (headerLangSel) headerLangSel.value = selectedLang;
+    });
+  }
+
+  // 8. Drawer Sign In Action
+  const menuNavLogin = document.getElementById('menu-nav-login');
+  if (menuNavLogin) {
+    menuNavLogin.addEventListener('click', () => {
+      AudioSynth.playClick();
+      closeHamburgerMenu();
+      ViewController.switchView('auth');
+    });
+  }
+
+  // 9. Logout Menu Action
   const menuLogout = document.getElementById('menu-nav-logout');
   if (menuLogout) {
     menuLogout.addEventListener('click', () => {
@@ -5941,6 +6075,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.classList.toggle('dark-mode');
     const isLight = document.body.classList.contains('light-mode');
     themeBtn.innerHTML = isLight ? '☀️' : '🌙';
+
+    const drawerThemeIcon = document.getElementById('menu-theme-icon');
+    const drawerThemeBadge = document.getElementById('menu-theme-badge');
+    if (drawerThemeIcon) drawerThemeIcon.innerText = isLight ? '☀️' : '🌙';
+    if (drawerThemeBadge) drawerThemeBadge.innerText = isLight ? 'Light' : 'Dark';
   });
 
   // D. General Router Controls

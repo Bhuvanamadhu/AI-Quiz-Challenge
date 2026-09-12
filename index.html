@@ -55,11 +55,6 @@
           </div>
         </div>
 
-        <!-- Mobile Menu Toggle Button (visible on mobile only) -->
-        <button id="btn-mobile-menu-toggle" class="icon-btn mobile-only" title="Open Menu" style="display: none; width: 36px; height: 36px; align-items: center; justify-content: center;">
-          <span>☰</span>
-        </button>
-
         <div class="header-actions">
           <!-- Language Switcher Selector -->
           <select id="select-language-toggle" class="icon-btn"
@@ -113,51 +108,124 @@
       </div>
     </header>
 
-    <!-- HAMBURGER NAVIGATION DRAWER -->
+    <!-- UNIFIED HAMBURGER NAVIGATION DRAWER -->
     <div id="drawer-hamburger-menu" class="hamburger-drawer hidden">
       <div class="hamburger-drawer-header">
         <div class="hamburger-drawer-title">
           <span class="hamburger-title-icon">☰</span>
-          <span>Menu</span>
+          <span class="dict-key" data-key="menu-drawer-title">Menu</span>
         </div>
-        <button id="btn-close-hamburger-menu" class="icon-btn hamburger-close-btn" title="Close Menu">✕</button>
+        <button id="btn-close-hamburger-menu" class="icon-btn hamburger-close-btn" title="Close Menu" aria-label="Close Menu">✕</button>
       </div>
+
       <div class="hamburger-drawer-content">
+        <!-- User Session Summary in Drawer -->
+        <div class="drawer-user-section">
+          <!-- Guest State -->
+          <div id="menu-user-guest-summary" class="drawer-user-card guest-card">
+            <div class="drawer-avatar-wrap">
+              <span class="drawer-avatar-emoji">👤</span>
+            </div>
+            <div class="drawer-user-info">
+              <span class="drawer-user-name dict-key" data-key="auth-label-guest-title">Guest Player</span>
+              <span class="drawer-user-sub dict-key" data-key="menu-guest-sub">Play & Explore</span>
+            </div>
+          </div>
+
+          <!-- Logged-in State -->
+          <div id="menu-user-profile-summary" class="drawer-user-card profile-card hidden">
+            <div class="drawer-avatar-wrap">
+              <div id="menu-header-avatar-container" class="avatar-small" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--bg-card); border: 1px solid var(--border-card); font-size: 16px; position: relative;">
+                <span id="menu-header-avatar-emoji">👤</span>
+                <div class="avatar-frame-overlay" id="menu-header-avatar-frame" style="border-width: 2px;"></div>
+              </div>
+            </div>
+            <div class="drawer-user-info">
+              <span id="menu-user-display-name" class="drawer-user-name">Player</span>
+              <span id="menu-user-status-text" class="drawer-user-sub" style="color: var(--accent-green, #10b981); font-size: 11px;">● Logged In</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hamburger-section-divider"></div>
+
+        <!-- Navigation Links -->
+        <div class="hamburger-section-label dict-key" data-key="menu-section-nav">Navigation</div>
         <ul class="hamburger-nav-list">
           <li>
             <button id="menu-nav-home" class="hamburger-nav-item">
               <span class="menu-item-icon">🏠</span>
-              <span class="menu-item-text">Home</span>
-            </button>
-          </li>
-          <li>
-            <button id="menu-nav-about" class="hamburger-nav-item">
-              <span class="menu-item-icon">📖</span>
-              <span class="menu-item-text">About</span>
+              <span class="menu-item-text dict-key" data-key="menu-nav-home">Home</span>
             </button>
           </li>
           <li>
             <button id="menu-nav-leaderboard" class="hamburger-nav-item">
               <span class="menu-item-icon">🏆</span>
-              <span class="menu-item-text">Leaderboard</span>
+              <span class="menu-item-text dict-key" data-key="btn-dash-leaderboard">Leaderboard</span>
             </button>
           </li>
           <li>
             <button id="menu-nav-notifications" class="hamburger-nav-item">
               <span class="menu-item-icon">🔔</span>
-              <span class="menu-item-text">Notifications</span>
+              <span class="menu-item-text dict-key" data-key="notifications-drawer-title">Notifications</span>
+              <span id="menu-notifications-unread-count" class="unread-count-badge hidden" style="margin-left: auto;">0</span>
+            </button>
+          </li>
+          <li>
+            <button id="menu-nav-about" class="hamburger-nav-item">
+              <span class="menu-item-icon">📖</span>
+              <span class="menu-item-text dict-key" data-key="menu-nav-about">About</span>
             </button>
           </li>
           <li>
             <button id="menu-nav-settings" class="hamburger-nav-item">
               <span class="menu-item-icon">⚙️</span>
-              <span class="menu-item-text">Settings</span>
+              <span class="menu-item-text dict-key" data-key="menu-nav-settings">Settings</span>
             </button>
           </li>
-          <li id="menu-item-logout-wrapper">
+        </ul>
+
+        <div class="hamburger-section-divider"></div>
+
+        <!-- Preferences Section (Theme & Language) -->
+        <div class="hamburger-section-label dict-key" data-key="menu-section-preferences">Preferences</div>
+        <ul class="hamburger-nav-list">
+          <!-- Theme Toggle Item -->
+          <li>
+            <button id="menu-btn-theme-toggle" class="hamburger-nav-item">
+              <span class="menu-item-icon" id="menu-theme-icon">🌙</span>
+              <span class="menu-item-text dict-key" data-key="menu-theme-label">Theme Mode</span>
+              <span id="menu-theme-badge" class="drawer-pill-badge">Dark</span>
+            </button>
+          </li>
+          <!-- Language Selector Item -->
+          <li>
+            <div class="hamburger-nav-item hamburger-select-item">
+              <span class="menu-item-icon">🌐</span>
+              <span class="menu-item-text dict-key" data-key="menu-language-label" style="flex: 1;">Language</span>
+              <select id="menu-select-language-toggle" class="drawer-lang-select" title="Select Language">
+                <option value="en">EN</option>
+                <option value="ta">தமிழ்</option>
+                <option value="hi">हिंदी</option>
+              </select>
+            </div>
+          </li>
+        </ul>
+
+        <div class="hamburger-section-divider"></div>
+
+        <!-- Auth Actions: Sign In (Guest) or Logout (Logged In) -->
+        <ul class="hamburger-nav-list">
+          <li id="menu-item-login-wrapper">
+            <button id="menu-nav-login" class="hamburger-nav-item menu-login-btn">
+              <span class="menu-item-icon">🔑</span>
+              <span class="menu-item-text dict-key" data-key="btn-nav-login">Sign In</span>
+            </button>
+          </li>
+          <li id="menu-item-logout-wrapper" class="hidden">
             <button id="menu-nav-logout" class="hamburger-nav-item menu-logout-btn">
               <span class="menu-item-icon">🚪</span>
-              <span class="menu-item-text">Logout</span>
+              <span class="menu-item-text dict-key" data-key="btn-nav-logout">Logout</span>
             </button>
           </li>
         </ul>

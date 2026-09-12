@@ -628,6 +628,18 @@ body:not(.light-mode) .form-group select option {
   flex-shrink: 0;
 }
 
+.menu-login-btn {
+  color: #818cf8;
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.menu-login-btn:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: #818cf8;
+  color: #a5b4fc;
+}
+
 .menu-logout-btn {
   color: var(--accent-red, #ef4444);
 }
@@ -635,6 +647,107 @@ body:not(.light-mode) .form-group select option {
 .menu-logout-btn:hover {
   color: #f87171;
   border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* User Session Summary inside Drawer */
+.drawer-user-section {
+  margin-bottom: 8px;
+}
+
+.drawer-user-card {
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.drawer-avatar-wrap {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  font-size: 16px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.drawer-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.drawer-user-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+  font-family: var(--font-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drawer-user-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.hamburger-section-divider {
+  height: 1px;
+  background: var(--border-card);
+  margin: 10px 0 8px;
+  opacity: 0.6;
+}
+
+.hamburger-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  margin-bottom: 4px;
+}
+
+.drawer-pill-badge {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.hamburger-select-item {
+  cursor: default;
+}
+
+.hamburger-select-item:hover {
+  transform: none;
+}
+
+.drawer-lang-select {
+  background: var(--bg-app);
+  color: var(--text-main);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  height: 32px;
 }
 
 .hamburger-backdrop {
@@ -3878,92 +3991,16 @@ body.theme-light {
   }
 }
 
-/* Responsive Hamburger Menu Styling */
-.mobile-only {
-  display: none !important;
-}
-
+/* Responsive Mobile Header & Menu */
 @media (max-width: 768px) {
-  .mobile-only {
-    display: flex !important;
-  }
-  
   .header-actions {
-    display: none; /* Hidden by default on mobile viewports */
-    flex-direction: column;
-    align-items: stretch;
-    width: auto;
-    min-width: 220px;
-    background: var(--bg-app);
-    border: 1px solid var(--border-card);
-    border-radius: var(--radius-md);
-    padding: 16px;
-    gap: 12px;
-    box-shadow: var(--shadow-lg), 0 0 20px rgba(0,0,0,0.5);
-    position: absolute;
-    top: 50px;
-    right: 0;
-    z-index: 20000;
+    display: none !important; /* Mobile actions are seamlessly unified inside the single Left Hamburger Menu */
   }
 
-  .header-actions.open {
-    display: flex !important; /* Toggled by Hamburger click */
-  }
-
-  .header-actions > * {
-    width: 100% !important;
-    margin: 0 !important;
-    display: flex;
-    justify-content: center;
-  }
-
-  #select-language-toggle {
-    width: 100% !important;
-    height: 38px !important;
-    text-align: center;
-    text-align-last: center;
-  }
-
-  .notification-bell-wrapper {
-    width: 100% !important;
-    display: block !important;
-  }
-
-  #btn-notifications-toggle {
-    width: 100% !important;
-    height: 38px !important;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-  }
-
-  #btn-theme-toggle {
-    width: 100% !important;
-    height: 38px !important;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-  }
-
-  #user-session-widget {
-    width: 100% !important;
-    display: block !important;
-  }
-
-  #btn-nav-login {
-    width: 100% !important;
-    height: 38px !important;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-  }
-
-  #user-profile-summary {
-    width: 100% !important;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    gap: 12px !important;
-    height: 38px;
+  .app-header {
+    height: 60px;
+    padding: 8px 0;
+    margin-bottom: 12px;
+    flex-wrap: nowrap;
   }
 }
