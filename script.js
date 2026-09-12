@@ -3945,22 +3945,52 @@ const NotificationController = {
   pendingDeleteId: null,
   pendingDeleteAll: false,
 
+  open() {
+    const drawer = document.getElementById('drawer-notifications');
+    if (drawer) {
+      drawer.classList.remove('hidden');
+      this.refresh();
+    }
+  },
+
+  close() {
+    const drawer = document.getElementById('drawer-notifications');
+    if (drawer) {
+      drawer.classList.add('hidden');
+    }
+  },
+
+  toggle() {
+    const drawer = document.getElementById('drawer-notifications');
+    if (drawer) {
+      if (drawer.classList.contains('hidden')) {
+        this.open();
+      } else {
+        this.close();
+      }
+    }
+  },
+
   async init() {
     const toggleBtn = document.getElementById('btn-notifications-toggle');
     const clearBtn = document.getElementById('btn-clear-notifications');
     const deleteAllBtn = document.getElementById('btn-delete-all-notifications');
+    const closeBtn = document.getElementById('btn-close-notifications');
     const checkbox = document.getElementById('profile-notifications-enabled');
 
     if (toggleBtn) {
       toggleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const drawer = document.getElementById('drawer-notifications');
-        if (drawer) {
-          drawer.classList.toggle('hidden');
-          if (!drawer.classList.contains('hidden')) {
-            this.refresh();
-          }
-        }
+        AudioSynth.playClick();
+        this.toggle();
+      });
+    }
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        AudioSynth.playClick();
+        this.close();
       });
     }
 
@@ -4008,11 +4038,12 @@ const NotificationController = {
       });
     }
 
+    // Close notification drawer when clicking outside
     document.addEventListener('click', (e) => {
       const drawer = document.getElementById('drawer-notifications');
       if (drawer && !drawer.classList.contains('hidden')) {
-        if (!drawer.contains(e.target) && e.target.id !== 'btn-notifications-toggle') {
-          drawer.classList.add('hidden');
+        if (!drawer.contains(e.target) && !e.target.closest('#btn-notifications-toggle') && !e.target.closest('#menu-nav-notifications') && !e.target.closest('#modal-notif-delete-confirm')) {
+          this.close();
         }
       }
     });
@@ -4229,6 +4260,38 @@ const NotificationController = {
             this.promptDelete(n.id);
           });
         }
+
+        // Make notification item clickable to mark as read
+        item.addEventListener('click', async (e) => {
+          if (e.target.closest('.delete-notif-btn')) return;
+          AudioSynth.playClick();
+          if (!n.is_read) {
+            n.is_read = 1;
+            item.classList.remove('unread');
+            const unreadItems = listContainer.querySelectorAll('.notification-item.unread').length;
+            if (badge) {
+              if (unreadItems > 0) {
+                badge.innerText = unreadItems;
+                badge.classList.remove('hidden');
+              } else {
+                badge.classList.add('hidden');
+              }
+            }
+            if (menuBadge) {
+              if (unreadItems > 0) {
+                menuBadge.innerText = unreadItems;
+                menuBadge.classList.remove('hidden');
+              } else {
+                menuBadge.classList.add('hidden');
+              }
+            }
+            try {
+              await NetworkClient.request('/notifications/read', 'POST');
+            } catch (err) {
+              console.warn('Mark read failed:', err);
+            }
+          }
+        });
 
         listContainer.appendChild(item);
       });
@@ -5822,6 +5885,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.key === 'Escape') {
       closeHamburgerMenu();
       closeAboutModal();
+      if (typeof NotificationController !== 'undefined' && NotificationController.close) {
+        NotificationController.close();
+      }
     }
   });
 
@@ -5897,10 +5963,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       e.stopPropagation();
       AudioSynth.playClick();
       closeHamburgerMenu();
-      const notifDrawer = document.getElementById('drawer-notifications');
-      if (notifDrawer) {
-        notifDrawer.classList.remove('hidden');
-        NotificationController.refresh();
+      if (typeof NotificationController !== 'undefined' && NotificationController.open) {
+        NotificationController.open();
+      } else {
+        const notifDrawer = document.getElementById('drawer-notifications');
+        if (notifDrawer) {
+          notifDrawer.classList.remove('hidden');
+        }
       }
     });
   }

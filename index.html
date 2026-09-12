@@ -67,22 +67,10 @@
 
           <!-- Notification Bell -->
           <div class="notification-bell-wrapper">
-            <button id="btn-notifications-toggle" class="icon-btn" title="Notifications">
+            <button id="btn-notifications-toggle" class="icon-btn" title="Notifications" aria-label="Toggle Notifications">
               <span>🔔</span>
               <span id="notifications-unread-count" class="unread-count-badge hidden">0</span>
             </button>
-            <div id="drawer-notifications" class="notification-drawer hidden">
-              <div class="notification-header">
-                <h4 class="dict-key" data-key="notifications-drawer-title">Notifications</h4>
-                <div style="display: flex; gap: 8px;">
-                  <button id="btn-clear-notifications" class="clear-notifications-btn dict-key" data-key="btn-clear-notifications">Mark all read</button>
-                  <button id="btn-delete-all-notifications" class="clear-notifications-btn dict-key" data-key="btn-delete-all-notifications" style="color: var(--status-wrong, #ff4d4d);">Delete all</button>
-                </div>
-              </div>
-              <div id="notifications-list" class="notification-list">
-                <div class="no-notifications">No new notifications</div>
-              </div>
-            </div>
           </div>
 
           <!-- Dark/Light Mode Button -->
@@ -107,6 +95,21 @@
         </div>
       </div>
     </header>
+
+    <!-- NOTIFICATIONS DRAWER (Accessible on Laptop/Desktop & Mobile) -->
+    <div id="drawer-notifications" class="notification-drawer hidden">
+      <div class="notification-header">
+        <h4 class="dict-key" data-key="notifications-drawer-title">Notifications</h4>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button id="btn-clear-notifications" class="clear-notifications-btn dict-key" data-key="btn-clear-notifications">Mark all read</button>
+          <button id="btn-delete-all-notifications" class="clear-notifications-btn dict-key" data-key="btn-delete-all-notifications" style="color: var(--status-wrong, #ff4d4d);">Delete all</button>
+          <button id="btn-close-notifications" class="icon-btn" style="width: 26px; height: 26px; font-size: 12px; margin-left: 4px;" title="Close" aria-label="Close Notifications">✕</button>
+        </div>
+      </div>
+      <div id="notifications-list" class="notification-list">
+        <div class="no-notifications dict-key" data-key="no-notif">No new notifications</div>
+      </div>
+    </div>
 
     <!-- UNIFIED HAMBURGER NAVIGATION DRAWER -->
     <div id="drawer-hamburger-menu" class="hamburger-drawer hidden">
